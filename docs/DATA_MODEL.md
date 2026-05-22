@@ -30,7 +30,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 
 - id: uuid
 - name: text
-- owner_user_id: uuid
+- owner_user_id: uuid, references profiles.id
 - created_at: timestamptz
 - updated_at: timestamptz
 
@@ -39,8 +39,8 @@ Supabase Authのユーザーに紐づくプロフィール。
 グループ所属と権限。
 
 - id: uuid
-- group_id: uuid
-- user_id: uuid
+- group_id: uuid, references farm_groups.id
+- user_id: uuid, references profiles.id
 - role: owner / editor / viewer
 - joined_at: timestamptz
 
@@ -49,12 +49,12 @@ Supabase Authのユーザーに紐づくプロフィール。
 招待URL用。
 
 - id: uuid
-- group_id: uuid
+- group_id: uuid, references farm_groups.id
 - token_hash: text
 - role: editor / viewer
 - expires_at: timestamptz
 - used_at: timestamptz nullable
-- created_by: uuid
+- created_by: uuid, references profiles.id
 - created_at: timestamptz
 
 ### farm_fields
@@ -64,7 +64,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 既存Supabaseの `fields` とは別テーブルとして作成する。
 
 - id: uuid
-- group_id: uuid
+- group_id: uuid, references farm_groups.id
 - name: text
 - memo: text
 - center_latitude: numeric
@@ -72,7 +72,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 - boundary_geojson: jsonb
 - area_sqm: numeric
 - display_order: integer
-- created_by: uuid
+- created_by: uuid, references profiles.id
 - created_at: timestamptz
 - updated_at: timestamptz
 
@@ -94,7 +94,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 入水口、出水口、水路、注意箇所などの固定ポイント。
 
 - id: uuid
-- group_id: uuid
+- group_id: uuid, references farm_groups.id
 - field_id: uuid nullable, references farm_fields.id
 - point_type: inlet / outlet / canal / caution / weed / levee_damage / poor_drainage / other
 - name: text
@@ -103,7 +103,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 - status: normal / watch / issue / resolved
 - memo: text
 - last_checked_at: timestamptz nullable
-- created_by: uuid
+- created_by: uuid, references profiles.id
 - created_at: timestamptz
 - updated_at: timestamptz
 
@@ -112,10 +112,10 @@ Supabase Authのユーザーに紐づくプロフィール。
 写真・音声・メモを含む現場記録。
 
 - id: uuid
-- group_id: uuid
+- group_id: uuid, references farm_groups.id
 - field_id: uuid nullable, references farm_fields.id
-- season_id: uuid nullable
-- point_id: uuid nullable
+- season_id: uuid nullable, references field_seasons.id
+- point_id: uuid nullable, references field_points.id
 - record_type: photo / voice / water / work / issue / check / other
 - status: open / needs_check / resolved / monitoring
 - latitude: numeric
@@ -126,7 +126,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 - ai_summary: text
 - ai_category: text
 - next_action: text
-- recorded_by: uuid
+- recorded_by: uuid, references profiles.id
 - recorded_at: timestamptz
 - created_at: timestamptz
 - updated_at: timestamptz
@@ -140,12 +140,21 @@ Supabase Authのユーザーに紐づくプロフィール。
 | 対応済み | resolved | 対応が完了した記録 |
 | 経過観察 | monitoring | 継続して様子を見る記録 |
 
+#### group_id 整合性
+
+`records.group_id` はRLSと検索性能のために保持する。ただし、`field_id` / `point_id` / `season_id` が設定される場合、それぞれが属する `farm_fields.group_id` と必ず一致する必要がある。
+
+migration作成時は、以下のどちらかで担保する。
+
+- triggerで `group_id` の一致を検証する。
+- 保存処理で `field_id` から `group_id` を補完し、DB制約で不整合を拒否する。
+
 ### record_media
 
 写真・音声ファイル。
 
 - id: uuid
-- record_id: uuid
+- record_id: uuid, references records.id
 - media_type: image / audio
 - storage_bucket: text
 - storage_path: text
@@ -159,8 +168,8 @@ Supabase Authのユーザーに紐づくプロフィール。
 コメント。
 
 - id: uuid
-- record_id: uuid
-- user_id: uuid
+- record_id: uuid, references records.id
+- user_id: uuid, references profiles.id
 - comment: text
 - created_at: timestamptz
 - updated_at: timestamptz
@@ -170,10 +179,10 @@ Supabase Authのユーザーに紐づくプロフィール。
 状態変更履歴。
 
 - id: uuid
-- record_id: uuid
+- record_id: uuid, references records.id
 - from_status: text
 - to_status: text
-- changed_by: uuid
+- changed_by: uuid, references profiles.id
 - comment: text
 - created_at: timestamptz
 
