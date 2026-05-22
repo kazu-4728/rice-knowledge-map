@@ -8,10 +8,10 @@
 
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
-| T-000 | DONE | GPT | GitHub private repo確認 | `kazu-4728/rice-knowledge-map` がprivateで確認済み |
-| T-001 | DONE | GPT | READMEと.gitignore作成 | mainにREADME.mdと.gitignoreが存在 |
-| T-002 | REVIEW | GPT | 初期ドキュメントブランチ作成 | `docs/project-baseline-v0-1` にdocs/tasksが追加されPR化 |
-| T-003 | TODO | ユーザー | 初期ドキュメントPR確認 | ユーザーがPR内容を確認し、merge可否判断 |
+| T-000 | DONE | GPT | GitHubリポジトリ確認 | `kazu-4728/rice-knowledge-map` を確認済み。証拠: GitHub connector repo check |
+| T-001 | DONE | GPT | READMEと.gitignore作成 | README.md と .gitignore が存在。証拠: commit `f3cc812` / `097914f` |
+| T-002 | REVIEW | GPT | 初期ドキュメントブランチ作成 | `docs/project-baseline-v0-1` にdocs/tasksが追加されPR化。証拠: PR #1 |
+| T-003 | TODO | ユーザー | 初期ドキュメントPR確認 | ユーザーがPR内容を確認し、次へ進むか判断 |
 
 ## Phase 1: UI Preview 0.1
 
@@ -71,4 +71,4 @@
 - タスクを飛ばさない。
 - UIタスクはスクショまたはPreview URLがない限りDONEにしない。
 - Supabase変更は承認後のみ。
-- main mergeは承認後のみ。
+- リリース判断はユーザー承認後のみ。
