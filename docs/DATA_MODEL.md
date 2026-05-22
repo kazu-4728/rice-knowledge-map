@@ -10,6 +10,8 @@
 
 既存テーブルの削除は後回し。新MVP用テーブル追加で進め、動作確認後に削除を検討する。
 
+既存 `fields` と衝突しないよう、今回の新設計では田んぼ区画テーブル名を `farm_fields` とする。
+
 ## 3. 初期MVPテーブル案
 
 ### profiles
@@ -55,9 +57,11 @@ Supabase Authのユーザーに紐づくプロフィール。
 - created_by: uuid
 - created_at: timestamptz
 
-### fields
+### farm_fields
 
 田んぼ区画。
+
+既存Supabaseの `fields` とは別テーブルとして作成する。
 
 - id: uuid
 - group_id: uuid
@@ -77,7 +81,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 作期。
 
 - id: uuid
-- field_id: uuid
+- field_id: uuid, references farm_fields.id
 - year: integer
 - crop_name: text
 - variety: text
@@ -91,7 +95,7 @@ Supabase Authのユーザーに紐づくプロフィール。
 
 - id: uuid
 - group_id: uuid
-- field_id: uuid nullable
+- field_id: uuid nullable, references farm_fields.id
 - point_type: inlet / outlet / canal / caution / weed / levee_damage / poor_drainage / other
 - name: text
 - latitude: numeric
@@ -109,11 +113,11 @@ Supabase Authのユーザーに紐づくプロフィール。
 
 - id: uuid
 - group_id: uuid
-- field_id: uuid nullable
+- field_id: uuid nullable, references farm_fields.id
 - season_id: uuid nullable
 - point_id: uuid nullable
 - record_type: photo / voice / water / work / issue / check / other
-- status: open / watch / resolved
+- status: open / needs_check / resolved / monitoring
 - latitude: numeric
 - longitude: numeric
 - location_source: photo_exif / gps / manual / unknown
@@ -126,6 +130,15 @@ Supabase Authのユーザーに紐づくプロフィール。
 - recorded_at: timestamptz
 - created_at: timestamptz
 - updated_at: timestamptz
+
+#### records.status 対応表
+
+| UI表示 | DB値 | 意味 |
+|---|---|---|
+| 未対応 | open | まだ対応していない記録 |
+| 要確認 | needs_check | 追加確認が必要な記録 |
+| 対応済み | resolved | 対応が完了した記録 |
+| 経過観察 | monitoring | 継続して様子を見る記録 |
 
 ### record_media
 
