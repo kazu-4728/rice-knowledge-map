@@ -111,7 +111,7 @@ farm_group_members
   ↓
 farm_groups
   ↓
-fields / field_points / records / comments
+farm_fields / field_points / records / record_comments
 ```
 
 Google認証後、招待URLを使ってグループに参加します。未ログインの匿名編集は不可。
