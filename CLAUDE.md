@@ -11,14 +11,17 @@ Claude Code向けの引き継ぎ文書です。
 ## 作業前に読むファイル
 
 1. `AGENTS.md`
-2. `docs/REQUIREMENTS.md`
-3. `docs/ARCHITECTURE.md`
-4. `docs/NEGATIVE_ACTIONS.md`
-5. `tasks/TASKS.md`
-6. `tasks/DECISIONS.md`
+2. `docs/GLOSSARY.md`
+3. `docs/REQUIREMENTS.md`
+4. `docs/ARCHITECTURE.md`
+5. `docs/DATA_MODEL.md`
+6. `docs/NEGATIVE_ACTIONS.md`
+7. `tasks/TASKS.md`
+8. `tasks/DECISIONS.md`
 
 ## 作業ルール
 
+- `docs/GLOSSARY.md` の正規名称、状態値、使用しない曖昧名を優先する。
 - 未完了タスクをDONEにしない。
 - mainへ直接作業しない。
 - 1タスク1ブランチを原則にする。
