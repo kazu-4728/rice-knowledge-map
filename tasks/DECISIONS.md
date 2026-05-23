@@ -40,4 +40,22 @@
 
 - 状態: 決定
 - 理由: GitHub/Supabase/Vercelの確認、設計、レビュー、タスク管理を一元化するため。
-- 役割: かずさんは確認・承認を主に行う。
+- 役割: ユーザーは確認・承認を主に行う。
+
+## D-008: `docs/GLOSSARY.md` を正規名称の基準にする
+
+- 状態: 決定
+- 理由: 複数ドキュメント間でテーブル名、状態値、曖昧名がずれると実装ミスにつながるため。
+- 判断: 実装、要件定義、アーキテクチャ、タスク、レビューでは `docs/GLOSSARY.md` の名称を優先する。
+
+## D-009: 新MVP設計の田んぼテーブルは `farm_fields` にする
+
+- 状態: 決定
+- 理由: 既存Supabaseに前回試作の `fields` があり、新MVP設計で同名を使うと衝突するため。
+- 判断: 既存 `fields` は削除せず、新MVP設計では `farm_fields` を使う。
+
+## D-010: 状態値を用途別に固定する
+
+- 状態: 決定
+- 理由: 記録状態と固定ポイント状態を混在させると、UI表示、DB、RLS、検索条件がぶれるため。
+- 判断: `records.status` は `open / needs_check / resolved / monitoring`、`field_points.status` は `normal / needs_check / issue / resolved` を使う。
