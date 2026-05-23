@@ -1,0 +1,244 @@
+:root {
+  color-scheme: light;
+  background: #f5f7ef;
+  color: #162014;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(142, 165, 89, 0.22), transparent 32rem),
+    #f5f7ef;
+}
+
+.appShell {
+  width: min(100%, 480px);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.heroCard,
+.mapPreview,
+.recordList {
+  border: 1px solid rgba(22, 32, 20, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 20px 60px rgba(38, 48, 28, 0.12);
+}
+
+.heroCard {
+  padding: 24px;
+}
+
+.eyebrow,
+.sectionLabel,
+.attribution {
+  margin: 0;
+  color: #65724a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 14px;
+  font-size: clamp(2rem, 8vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.1rem;
+}
+
+.lead {
+  margin-bottom: 0;
+  color: #46513c;
+  line-height: 1.7;
+}
+
+.quickActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 56px;
+  border: 0;
+  border-radius: 18px;
+  font-weight: 800;
+}
+
+.primaryAction {
+  background: #2f6b2f;
+  color: #fff;
+}
+
+.secondaryAction {
+  background: #e4ead5;
+  color: #23321d;
+}
+
+.mapPreview {
+  padding: 16px;
+}
+
+.mapHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mapBadge {
+  border-radius: 999px;
+  background: #edf2df;
+  color: #53623f;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mockMap {
+  position: relative;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 22px;
+  background:
+    linear-gradient(35deg, rgba(74, 104, 48, 0.35), rgba(146, 160, 88, 0.15)),
+    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.24) 0 8px, transparent 8px 28px),
+    #8c9f62;
+}
+
+.field,
+.pin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.field {
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: rgba(231, 239, 196, 0.36);
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.fieldA {
+  inset: 34px 134px 112px 24px;
+}
+
+.fieldB {
+  inset: 112px 24px 34px 130px;
+}
+
+.pin {
+  width: 38px;
+  height: 38px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.inlet {
+  top: 52px;
+  left: 42px;
+  background: #3d7eff;
+  color: #fff;
+}
+
+.outlet {
+  right: 44px;
+  bottom: 44px;
+  background: #2d3f71;
+  color: #fff;
+}
+
+.caution {
+  top: 124px;
+  right: 112px;
+  background: #e0a228;
+  color: #fff;
+}
+
+.attribution {
+  margin-top: 10px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.statusCard {
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: 0 10px 30px rgba(38, 48, 28, 0.08);
+}
+
+.statusCard p {
+  margin-bottom: 8px;
+  color: #667157;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.statusCard strong {
+  font-size: 1.35rem;
+}
+
+.recordList {
+  padding: 18px;
+}
+
+.recordList ul {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recordList li {
+  border-radius: 16px;
+  background: #f2f5e9;
+  padding: 12px;
+  color: #35412c;
+}
