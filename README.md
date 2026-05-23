@@ -18,7 +18,21 @@
 実装前に以下の文書を確認すること。
 
 - `AGENTS.md`
+- `CLAUDE.md`
+- `docs/GLOSSARY.md`
 - `docs/REQUIREMENTS.md`
 - `docs/ARCHITECTURE.md`
+- `docs/DATA_MODEL.md`
 - `docs/NEGATIVE_ACTIONS.md`
+- `docs/UI_REPRODUCTION_SPEC.md`
+- `docs/REVIEW_CHECKLIST.md`
 - `tasks/TASKS.md`
+- `tasks/DECISIONS.md`
+
+## 作業ルール
+
+- `docs/GLOSSARY.md` の正規名称を優先する。
+- 未完了タスクを完了扱いにしない。
+- コミット前に `docs/REVIEW_CHECKLIST.md` を確認する。
+- UIタスクはスクリーンショットまたはPreview URLなしでDONEにしない。
+- Supabase、Vercel、main mergeなどの重要操作は承認後のみ行う。
