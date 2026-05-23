@@ -1,6 +1,6 @@
 # GLOSSARY.md
 
-この文書は、プロジェクト内の正規名称、DBテーブル名、状態値、禁止する曖昧表現を固定するための用語集です。
+この文書は、プロジェクト内の正規名称、DBテーブル名、状態値、使用しない曖昧表現を固定するための用語集です。
 
 実装、要件定義、アーキテクチャ、タスク、PRレビューでは、この文書の名称を優先します。
 
@@ -36,7 +36,7 @@
 | `media` | 対象が曖昧 | `record_media` |
 | `points` | 対象が曖昧 | `field_points` |
 
-## 4. record status 正規値
+## 4. records.status 正規値
 
 `records.status` は以下だけを使う。
 
@@ -54,7 +54,24 @@
 - `closed`
 - `complete`
 
-## 5. field point type 正規値
+## 5. field_points.status 正規値
+
+`field_points.status` は以下だけを使う。
+
+| UI表示 | DB値 | 意味 |
+|---|---|---|
+| 通常 | `normal` | 問題がない固定ポイント |
+| 要確認 | `needs_check` | 追加確認が必要な固定ポイント |
+| 問題あり | `issue` | 詰まり、破損、異常などがある固定ポイント |
+| 解決済み | `resolved` | 問題対応が完了した固定ポイント |
+
+使用しない値:
+
+- `watch`
+- `open`
+- `monitoring`
+
+## 6. field_points.point_type 正規値
 
 `field_points.point_type` は以下を基本にする。
 
@@ -69,7 +86,7 @@
 | 水抜け不良箇所 | `poor_drainage` |
 | その他 | `other` |
 
-## 6. location source 正規値
+## 7. records.location_source 正規値
 
 `records.location_source` は以下を使う。
 
@@ -80,7 +97,7 @@
 | 手動補正 | `manual` |
 | 不明 | `unknown` |
 
-## 7. 共有ロール正規値
+## 8. 共有ロール正規値
 
 `farm_group_members.role` は以下を使う。
 
@@ -90,7 +107,7 @@
 | 編集者 | `editor` | 記録、写真、音声、コメント、状態更新 |
 | 閲覧者 | `viewer` | 閲覧中心。MVPではコメント可否を後で判断 |
 
-## 8. データ整合性ルール
+## 9. データ整合性ルール
 
 - `records.group_id` はRLSと検索性能のために保持する。
 - `records.field_id` がある場合、参照先 `farm_fields.group_id` と `records.group_id` は一致させる。
@@ -98,14 +115,14 @@
 - `field_points.field_id` がある場合、参照先 `farm_fields.group_id` と `field_points.group_id` は一致させる。
 - migration作成時に、制約またはtriggerで不整合を防ぐ方針を検討する。
 
-## 9. 地図表示ルール
+## 10. 地図表示ルール
 
 - 初期背景地図は、MapLibre + 国土地理院 空中写真タイルを第一候補にする。
 - 地図上に出典表記を表示する。
 - タイル取得に失敗しても、田んぼ区画、固定ポイント、記録データは消さない。
 - 背景地図は差し替え可能にする。
 
-## 10. 実装前チェック
+## 11. 実装前チェック
 
 新しい文書、SQL、コードを追加する前に以下を確認する。
 
