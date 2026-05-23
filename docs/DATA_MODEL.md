@@ -151,12 +151,17 @@ Supabase Authのユーザーに紐づくプロフィール。
 
 #### group_id 整合性
 
-`records.group_id` はRLSと検索性能のために保持する。ただし、`field_id` / `point_id` / `season_id` が設定される場合、それぞれが属する `farm_fields.group_id` と必ず一致する必要がある。
+`records.group_id` はRLSと検索性能のために保持する。ただし、関連IDが設定される場合、以下の整合性を必ず満たす必要がある。
+
+- `records.field_id` がある場合、参照先 `farm_fields.group_id` と `records.group_id` が一致する。
+- `records.point_id` がある場合、参照先 `field_points.group_id` と `records.group_id` が一致する。
+- `records.season_id` がある場合、参照先 `field_seasons.field_id` から辿れる `farm_fields.group_id` と `records.group_id` が一致する。
+- `field_points.field_id` は nullable のため、ポイント紐づき記録を `farm_fields.group_id` だけで検証してはいけない。
 
 migration作成時は、以下のどちらかで担保する。
 
-- triggerで `group_id` の一致を検証する。
-- 保存処理で `field_id` から `group_id` を補完し、DB制約で不整合を拒否する。
+- triggerで上記の `group_id` 一致を検証する。
+- 保存処理で参照先から `group_id` を補完し、DB制約で不整合を拒否する。
 
 ### record_media
 
