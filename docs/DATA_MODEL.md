@@ -100,12 +100,21 @@ Supabase Authのユーザーに紐づくプロフィール。
 - name: text
 - latitude: numeric
 - longitude: numeric
-- status: normal / watch / issue / resolved
+- status: normal / needs_check / issue / resolved
 - memo: text
 - last_checked_at: timestamptz nullable
 - created_by: uuid, references profiles.id
 - created_at: timestamptz
 - updated_at: timestamptz
+
+#### field_points.status 対応表
+
+| UI表示 | DB値 | 意味 |
+|---|---|---|
+| 通常 | normal | 問題がない固定ポイント |
+| 要確認 | needs_check | 追加確認が必要な固定ポイント |
+| 問題あり | issue | 詰まり、破損、異常などがある固定ポイント |
+| 解決済み | resolved | 問題対応が完了した固定ポイント |
 
 ### records
 
