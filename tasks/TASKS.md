@@ -10,14 +10,18 @@
 |---|---|---|---|---|
 | T-000 | DONE | GPT | GitHubリポジトリ確認 | `kazu-4728/rice-knowledge-map` を確認済み。証拠: GitHub connector repo check |
 | T-001 | DONE | GPT | READMEと.gitignore作成 | README.md と .gitignore が存在。証拠: commit `f3cc812` / `097914f` |
-| T-002 | REVIEW | GPT | 初期ドキュメントブランチ作成 | `docs/project-baseline-v0-1` にdocs/tasksが追加されPR化。証拠: PR #1 |
-| T-003 | TODO | ユーザー | 初期ドキュメントPR確認 | ユーザーがPR内容を確認し、次へ進むか判断 |
+| T-002 | DONE | GPT | 初期ドキュメントブランチ作成 | `docs/project-baseline-v0-1` にdocs/tasksが追加され、PR #1でmerge済み |
+| T-003 | DONE | ユーザー | 初期ドキュメントPR確認 | PR #1 merge済み。以後は現在地に合わせて更新する |
+| T-004 | DONE | ユーザー/GPT | GitHub repository public化 | `rice-knowledge-map` は public。Cloud Codexから読み取り可能な状態 |
+| T-005 | DONE | ユーザー/GPT | 不要Codexブランチ削除 | remote branch は `main` のみ。不要な `codex/address-copilot-feedback-in-pr-#4*` は削除済み |
+| T-006 | DONE | GPT | Supabase生存確認 | `rice-farm-app` は `ACTIVE_HEALTHY`。既存 `fields` / `field_logs` を確認し、`select now()` で疎通確認済み |
+| T-007 | DONE | GPT/ユーザー | Cloud Codex運用制限の記録 | Cloud Codexはwrite/PR担当にしない方針を `DECISIONS.md` に記録 |
 
 ## Phase 1: UI Preview 0.1
 
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
-| T-010 | TODO | Codex Desktop | Next.js初期構成作成 | build/lintが通る、主要ファイルが整理されている |
+| T-010 | BLOCKED | Desktop / Claude Code | Next.js初期構成の再検証 | PR #4 / #5 はmainにmerge済みだが、`npm install` / `npm run build` / `npm run lint` の正常確認前に入っている。認証済みDesktopまたはClaude Codeでmainを取得し、依存解決・build・lintの証拠が揃うまでDONE不可 |
 | T-011 | TODO | Codex Desktop | スマホ縦画面レイアウト基盤 | ローカルまたはPreviewでスマホ幅表示確認 |
 | T-012 | TODO | Codex Desktop | MapLibre導入 | 地図コンポーネントが表示される |
 | T-013 | TODO | Codex Desktop | 国土地理院空中写真タイル表示 | 実画像マップが表示される |
@@ -40,7 +44,7 @@
 
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
-| T-030 | TODO | GPT | Supabase現状確認 | テーブル、RLS、Storage状態を報告 |
+| T-030 | DONE | GPT | Supabase現状確認 | `rice-farm-app` の状態、既存テーブル、DB疎通を確認済み。削除・migration・Storage変更なし |
 | T-031 | TODO | GPT | migration SQL案作成 | 削除なしの新MVPテーブル追加案がある |
 | T-032 | TODO | GPT/Codex | migration SQLレビュー | RLSと共有設計が確認済み |
 | T-033 | TODO | ユーザー | migration適用承認 | 目的/影響/戻し方を確認して承認 |
@@ -72,3 +76,7 @@
 - UIタスクはスクショまたはPreview URLがない限りDONEにしない。
 - Supabase変更は承認後のみ。
 - リリース判断はユーザー承認後のみ。
+- Cloud Codexは読み取り・調査・報告のみ。push / PR作成 / merge / branch乱造はさせない。
+- write担当はDesktopアプリまたはClaude Codeとする。
+- PR #6 / #7 はclosed/unmergedであり、再利用しない。
+- PR #4 / #5 はmerge済みだが、T-010はDONEではない。build/lintの証拠が揃うまでBLOCKED扱い。
