@@ -59,3 +59,33 @@
 - 状態: 決定
 - 理由: 記録状態と固定ポイント状態を混在させると、UI表示、DB、RLS、検索条件がぶれるため。
 - 判断: `records.status` は `open / needs_check / resolved / monitoring`、`field_points.status` は `normal / needs_check / issue / resolved` を使う。
+
+## D-011: PR #4はクローズし、Desktop環境でT-010を再検証する
+
+- 状態: 決定
+- 理由: PR #4のCopilot指摘2点は反映済みだが、Codex実行環境では `npm install` が `403 Forbidden` で失敗し、`build/lint` の完了証拠を満たせないため。
+- 判断: PR #4は追加修正なしでクローズし、Desktop環境で依存導入から `build/lint` 完走までを新規タスクとして実施する。
+
+## D-012: コンテナとGitHubのズレ要因は「remote未設定 + proxy 403」
+
+- 状態: 決定
+- 理由: コンテナ内 `.git/config` に `origin` がなく、`git fetch origin` 実行時は `CONNECT tunnel failed, response 403` でGitHub接続も拒否されるため。`npm ping` も `https://registry.npmjs.org/-/ping` に対して `403` となり依存取得が失敗するため。
+- 判断: この環境での再開前に、(1) `origin` と追跡ブランチ設定確認、(2) proxy許可ルールまたは認証トークン設定確認、(3) `npm ping` と `git fetch` が通ることを事前チェック項目にする。
+
+## D-013: Cloud Codexではmain直接pushを行わず、引き継ぎPRを作成する
+
+- 状態: 決定
+- 理由: この環境では `origin` 設定がセッションで失われる場合があり、`git push` は認証前提で不安定なため。mainへ直接反映せず、作業ブランチからPRで引き継ぐ運用が安全。
+- 判断: タスクリスト更新・作業ログ更新は作業ブランチでコミットし、Cloud CodexのPR作成機能でDesktop/Claude Codeへ共有する。main反映とmergeは別環境で実施する。
+
+## D-014: public化後はorigin/main差分比較を実施し、PRに差分範囲を明記する
+
+- 状態: 決定
+- 理由: repo public化後に `origin` を再設定したところ `git fetch origin --prune` が成功し、Cloud Codexでも `origin/main` を取得できたため。引き継ぎ品質を上げるにはmainとの差分範囲を明記する必要があるため。
+- 判断: 引き継ぎPRでは `git diff --name-only origin/main...HEAD` の結果を記録し、目的外ファイルが混在していないかをレビュー観点として固定する。
+
+## D-015: origin再消失問題が解決するまで次タスクへ進まない
+
+- 状態: 決定
+- 理由: セットアップスクリプト再実行後も `.git/config` の `origin` が消失し、`git fetch origin --prune` が失敗するため。差分比較と引き継ぎの信頼性が落ちる。
+- 判断: T-060 を `BLOCKED` とし、解決条件（セットアップ直後/新セッション直後の `origin` 永続 + 再設定不要でfetch成功）を満たすまで次タスクへ進まない。
