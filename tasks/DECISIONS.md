@@ -36,11 +36,11 @@
 - 状態: 決定
 - 理由: 削除、上書き、DB変更、本番公開、課金変更などは事故リスクが高いため。
 
-## D-007: メインエージェントはGPT
+## D-007: GPTの役割は言語化・整理・確認に限定する
 
-- 状態: 決定
-- 理由: GitHub/Supabase/Vercelの確認、設計、レビュー、タスク管理を一元化するため。
-- 役割: ユーザーは確認・承認を主に行う。
+- 状態: 更新
+- 理由: GPTがGitHub APIで実装コードを直接作成した結果、検証不足のPRがmainへ入ったため。
+- 判断: GPTは作りたいものの言語化、報告整理、タスク・判断の記録、方針確認を担当する。実装コード作成やPR作成を主担当にしない。
 
 ## D-008: `docs/GLOSSARY.md` を正規名称の基準にする
 
@@ -59,3 +59,35 @@
 - 状態: 決定
 - 理由: 記録状態と固定ポイント状態を混在させると、UI表示、DB、RLS、検索条件がぶれるため。
 - 判断: `records.status` は `open / needs_check / resolved / monitoring`、`field_points.status` は `normal / needs_check / issue / resolved` を使う。
+
+## D-011: repositoryはpublicで運用する
+
+- 状態: 決定
+- 理由: Cloud Codexがprivate repositoryを通常のgit remoteとして扱えない、またはコンテナ内に認証情報が渡らない可能性が高かったため。
+- 判断: `kazu-4728/rice-knowledge-map` はpublic repositoryとして運用する。
+- 注意: `.env`、APIキー、実在する田んぼの座標、家族情報、個人写真などはrepositoryに入れない。
+
+## D-012: Cloud Codexはwrite担当にしない
+
+- 状態: 決定
+- 理由: Cloud Codexのコンテナ環境で `origin` が消える、push可否の挙動が不安定、意図しないPR/branchが複数作成される事象があったため。
+- 判断: Cloud Codexは読み取り、調査、報告に限定する。push、PR作成、merge、branch作成を前提にしない。
+- write担当: DesktopアプリまたはClaude Code。
+
+## D-013: 不要Codexブランチは削除済みで、mainのみを正とする
+
+- 状態: 決定
+- 理由: `codex/address-copilot-feedback-in-pr-#4*` 系のブランチは、PR #4由来のコード差分とtasks差分が混ざり、mainとコンフリクトする状態だったため。
+- 判断: remote branchは `main` のみを残す。PR #6 / #7 はclosed/unmergedで再利用しない。
+
+## D-014: PR #4 / #5 はmerge済みだが、T-010は完了扱いにしない
+
+- 状態: 決定
+- 理由: PR #4 / #5 によりNext.js初期構成はmainに入っているが、`npm install` / `npm run build` / `npm run lint` の正常確認前にmergeされたため。
+- 判断: T-010はDONEではなくBLOCKED。DesktopまたはClaude Codeでmainを取得し、依存解決・build・lintを再検証する。
+
+## D-015: Supabaseは現時点で削除・migrationなし
+
+- 状態: 決定
+- 理由: `rice-farm-app` は `ACTIVE_HEALTHY` で、既存 `fields` / `field_logs` が存在する。安全確認のためDB疎通のみ実行した。
+- 判断: 削除、Storage変更、migration適用、RLS変更はまだ行わない。新MVPテーブル追加は別途承認後に行う。
