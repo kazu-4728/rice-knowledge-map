@@ -91,3 +91,13 @@
 - 状態: 決定
 - 理由: `rice-farm-app` は `ACTIVE_HEALTHY` で、既存 `fields` / `field_logs` が存在する。安全確認のためDB疎通のみ実行した。
 - 判断: 削除、Storage変更、migration適用、RLS変更はまだ行わない。新MVPテーブル追加は別途承認後に行う。
+
+## D-016: Phase 3 MVP migration draft assumptions
+
+- Status: draft
+- Reason: Supabase Data API exposure changed for new projects on 2026-05-30; new public tables need explicit grants, and RLS must still control row access.
+- Decision: The first migration set creates only the core MVP tables named in `docs/DATA_MODEL.md`: `profiles`, `farm_groups`, `farm_group_members`, `farm_group_invites`, `farm_fields`, `field_seasons`, `field_points`, `records`, `record_media`, `record_comments`, and `record_status_events`.
+- Decision: Existing Supabase tables such as `fields` and `field_logs` are not deleted, renamed, or migrated in this task.
+- Decision: `anon` receives schema usage only and no table privileges. `authenticated` receives explicit table grants, with row access gated by RLS policies. `service_role` receives explicit table grants for server-side operations.
+- Decision: Storage bucket creation and Storage RLS are not included because `docs/NEGATIVE_ACTIONS.md` treats Storage changes as separate approval-required operations.
+- Review note: T-031 can move to REVIEW with SQL files present. T-032/T-033/T-034 remain pending until RLS review, user approval, and actual migration application.

@@ -45,7 +45,7 @@
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
 | T-030 | DONE | GPT | Supabase現状確認 | `rice-farm-app` の状態、既存テーブル、DB疎通を確認済み。削除・migration・Storage変更なし |
-| T-031 | TODO | GPT | migration SQL案作成 | 削除なしの新MVPテーブル追加案がある |
+| T-031 | REVIEW | GPT/Codex Desktop | migration SQL案作成 | `supabase/migrations/20260527000100_create_core_mvp_schema.sql` / `supabase/migrations/20260527000200_enable_core_mvp_rls_and_grants.sql` に削除なしの新MVPテーブル追加案がある。applyなし。RLSレビュー前。 |
 | T-032 | TODO | GPT/Codex | migration SQLレビュー | RLSと共有設計が確認済み |
 | T-033 | TODO | ユーザー | migration適用承認 | 目的/影響/戻し方を確認して承認 |
 | T-034 | TODO | GPT | Supabase migration適用 | 承認後のみ実行、結果報告あり |
