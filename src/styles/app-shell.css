@@ -1,0 +1,99 @@
+.phoneApp {
+  width: min(100%, 430px);
+  background: #fff;
+}
+
+.appHeader {
+  min-height: 74px;
+  padding: 13px 18px 10px;
+  border-bottom: 1px solid rgba(20, 30, 22, 0.045);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 26px rgba(19, 31, 20, 0.045);
+}
+
+.appHeader h1 {
+  color: var(--app-green-deep);
+  font-size: 1.2rem;
+  font-weight: 780;
+}
+
+.brandMark {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 68% 28%, rgba(226, 168, 34, 0.42) 0 11%, transparent 12%),
+    linear-gradient(135deg, #ffffff, #eaf7ea);
+  box-shadow:
+    inset 0 0 0 1px rgba(47, 141, 65, 0.14),
+    0 8px 18px rgba(47, 141, 65, 0.09);
+}
+
+.brandMark svg {
+  stroke-width: 2.2;
+}
+
+.iconButton {
+  color: #111;
+}
+
+.iconButton::after {
+  top: 7px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  background: #ef2f2f;
+}
+
+.phoneApp[data-active-tab="map"] .screenViewport {
+  overflow: hidden;
+  padding-bottom: 0;
+  background: #fff;
+}
+
+.screenViewport {
+  background: linear-gradient(180deg, #ffffff 0%, #f7faf6 100%);
+}
+
+.card {
+  border-color: var(--app-line);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(22, 34, 24, 0.07);
+}
+
+.quickActionCard,
+.searchBox {
+  border-color: var(--app-line);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(22, 34, 24, 0.07);
+}
+
+.bottomTabs {
+  min-height: calc(78px + var(--app-safe-bottom));
+  padding: 7px 18px calc(8px + var(--app-safe-bottom));
+  border-top: 1px solid rgba(22, 32, 23, 0.075);
+  background: rgba(255, 255, 255, 0.965);
+  box-shadow: 0 -14px 34px rgba(21, 34, 23, 0.11);
+}
+
+.bottomTab {
+  min-height: 60px;
+  color: #68716c;
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.bottomTab svg {
+  width: 29px;
+  height: 29px;
+  stroke-width: 2.05;
+}
+
+.bottomTab[aria-current="page"] {
+  color: var(--app-green-deep);
+}
+
+.bottomTab[aria-current="page"] svg {
+  color: var(--app-green);
+  filter: drop-shadow(0 5px 8px rgba(47, 141, 65, 0.18));
+}

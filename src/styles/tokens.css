@@ -1,0 +1,74 @@
+:root {
+  --app-bg: #f6f8f4;
+  --app-surface: #ffffff;
+  --app-surface-glass: rgba(255, 255, 255, 0.92);
+  --app-ink: #101710;
+  --app-ink-soft: #4f5a52;
+  --app-muted: #757f78;
+  --app-line: rgba(22, 33, 24, 0.09);
+  --app-line-strong: rgba(35, 70, 41, 0.18);
+  --app-green: #2f8d41;
+  --app-green-deep: #176329;
+  --app-green-soft: #edf7ed;
+  --app-blue: #2273c8;
+  --app-orange: #f08a24;
+  --app-red: #d83a32;
+  --app-radius-control: 8px;
+  --app-radius-panel: 18px;
+  --app-radius-sheet: 24px;
+  --app-shadow-hairline: 0 0 0 1px rgba(16, 24, 17, 0.04);
+  --app-shadow-panel: 0 14px 34px rgba(22, 34, 24, 0.12);
+  --app-shadow-float: 0 20px 44px rgba(17, 29, 18, 0.18);
+  --app-shadow-sheet: 0 -18px 42px rgba(16, 24, 18, 0.18);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family:
+    "Meiryo",
+    "Hiragino Sans",
+    "Yu Gothic",
+    "YuGothic",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% -120px, rgba(47, 141, 65, 0.12), transparent 360px),
+    linear-gradient(180deg, #ffffff 0%, #eef4ee 100%);
+}
+
+.button,
+.chip,
+.bottomTab,
+.mapToolbar .button,
+.sheetActions .button {
+  letter-spacing: 0;
+}
+
+.button {
+  border-radius: var(--app-radius-control);
+  font-weight: 760;
+}
+
+.chip {
+  font-weight: 720;
+}
+
+.chip-green {
+  background: linear-gradient(180deg, #f3fbf3 0%, #e8f6e8 100%);
+  color: var(--app-green-deep);
+}
+
+.chip-white {
+  border-color: rgba(30, 44, 33, 0.12);
+  background: rgba(255, 255, 255, 0.84);
+  color: #3c463f;
+  box-shadow: 0 3px 10px rgba(22, 35, 24, 0.05);
+}
+
+.chip-selected {
+  border-color: rgba(47, 141, 65, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(47, 141, 65, 0.08);
+}

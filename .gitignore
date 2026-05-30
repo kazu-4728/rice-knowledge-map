@@ -31,4 +31,5 @@ tmp/
 
 # Build/cache
 .cache/
+.npm-cache/
 coverage/

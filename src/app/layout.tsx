@@ -1,16 +1,20 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "../styles/tokens.css";
+import "../styles/app-shell.css";
+import "../styles/map.css";
+import "../styles/content.css";
 
 export const metadata: Metadata = {
-  title: "Rice Knowledge Map",
-  description: "実画像マップ型 稲作ナレッジ記録アプリ",
+  title: "みらい稲作管理",
+  description: "実画像マップ型の稲作ナレッジ記録PWA",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f5f7ef",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
