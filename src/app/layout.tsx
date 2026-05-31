@@ -1,10 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import "../styles/tokens.css";
-import "../styles/app-shell.css";
-import "../styles/map.css";
-import "../styles/content.css";
+import "../styles/globals.css";
 
 export const metadata: Metadata = {
   title: "みらい稲作管理",
@@ -17,14 +13,10 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body className="bg-gray-50 text-gray-900">{children}</body>
     </html>
   );
 }
