@@ -9,7 +9,7 @@ type Props = {
 
 export default function AppShell({ children, hideHeader = false }: Props) {
   return (
-    <div className="flex flex-col min-h-screen max-w-md mx-auto bg-white relative">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-white relative overflow-hidden">
       {/* ヘッダー */}
       {!hideHeader && (
         <header className="flex items-center justify-between px-4 h-14 bg-white border-b border-gray-100 shrink-0">
@@ -27,7 +27,7 @@ export default function AppShell({ children, hideHeader = false }: Props) {
       )}
 
       {/* コンテンツ */}
-      <main className={`flex-1 overflow-y-auto pb-14 ${hideHeader ? "" : ""}`}>
+      <main className={`flex-1 min-h-0 ${hideHeader ? "overflow-hidden" : "overflow-y-auto pb-14"}`}>
         {children}
       </main>
 

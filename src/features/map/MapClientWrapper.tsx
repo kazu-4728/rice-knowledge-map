@@ -12,5 +12,9 @@ const MapCanvas = dynamic(() => import("./MapCanvas"), {
 });
 
 export default function MapClientWrapper() {
-  return <MapCanvas />;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <MapCanvas />
+    </div>
+  );
 }

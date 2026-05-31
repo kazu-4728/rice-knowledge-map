@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { FieldPoint } from "../../types";
 import { fieldGeoJSON, fieldPoints } from "../../data/dummy";
 import MapDetailCard from "./MapDetailCard";
-
-// MapLibre のスタイルを head で読み込む
-const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css";
 
 const PIN_ICONS: Record<string, string> = {
   inlet: "💧",
@@ -24,30 +22,23 @@ const PIN_BG: Record<string, string> = {
 
 export default function MapCanvas() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<unknown>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
   const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
-  const [cssLoaded, setCssLoaded] = useState(false);
-
-  // MapLibre CSS を動的に読み込む
-  useEffect(() => {
-    if (document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      setCssLoaded(true);
-      return;
-    }
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = MAPLIBRE_CSS;
-    link.onload = () => setCssLoaded(true);
-    document.head.appendChild(link);
-  }, []);
 
   // マップ初期化
   useEffect(() => {
-    if (!cssLoaded || !mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current || mapRef.current) return;
 
     let map: import("maplibre-gl").Map;
 
     import("maplibre-gl").then((maplibre) => {
+      const container = mapContainerRef.current!;
+      // コンテナに明示的な高さがなければ強制設定
+      if (!container.offsetHeight) {
+        container.style.height = "100%";
+      }
+
       map = new maplibre.Map({
         container: mapContainerRef.current!,
         style: {
@@ -68,7 +59,13 @@ export default function MapCanvas() {
 
       mapRef.current = map;
 
+      map.on("error", (e) => {
+        console.error("[MapLibre error]", e);
+      });
+
       map.on("load", () => {
+        // コンテナサイズが変わっている場合リサイズ
+        map.resize();
         // 田んぼポリゴン追加
         map.addSource("fields", { type: "geojson", data: fieldGeoJSON as import("maplibre-gl").GeoJSONSourceSpecification["data"] });
 
@@ -147,11 +144,11 @@ export default function MapCanvas() {
         mapRef.current = null;
       }
     };
-  }, [cssLoaded]);
+  }, []);
 
   return (
-    <div className="relative w-full h-full">
-      {/* マップコンテナ */}
+    <div className="absolute inset-0">
+      {/* マップコンテナ: MapLibre が管理するキャンバス */}
       <div ref={mapContainerRef} className="absolute inset-0" />
 
       {/* フィルターバー */}
@@ -199,10 +196,19 @@ export default function MapCanvas() {
       </div>
 
       {/* ズームコントロール */}
-      <div className="absolute bottom-20 right-3 z-10 flex flex-col gap-1">
-        <button className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-600 text-lg font-bold hover:bg-gray-50">+</button>
-        <button className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-600 text-lg font-bold hover:bg-gray-50">−</button>
-        <button className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-500 text-sm hover:bg-gray-50">⊙</button>
+      <div className="absolute bottom-4 right-3 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => mapRef.current?.zoomIn()}
+          className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-600 text-lg font-bold hover:bg-gray-50"
+        >+</button>
+        <button
+          onClick={() => mapRef.current?.zoomOut()}
+          className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-600 text-lg font-bold hover:bg-gray-50"
+        >−</button>
+        <button
+          onClick={() => mapRef.current?.flyTo({ center: [138.830, 37.428], zoom: 15 })}
+          className="bg-white w-9 h-9 rounded-xl shadow flex items-center justify-center text-gray-500 text-sm hover:bg-gray-50"
+        >⊙</button>
       </div>
 
       {/* 詳細カード */}
