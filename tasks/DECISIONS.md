@@ -72,7 +72,7 @@
 - 状態: 決定
 - 理由: Cloud Codexのコンテナ環境で `origin` が消える、push可否の挙動が不安定、意図しないPR/branchが複数作成される事象があったため。
 - 判断: Cloud Codexは読み取り、調査、報告に限定する。push、PR作成、merge、branch作成を前提にしない。
-- write担当: DesktopアプリまたはClaude Code。
+- write担当: Claude Code（主担当）。Codex Desktopは補助。
 
 ## D-013: 不要Codexブランチは削除済みで、mainのみを正とする
 
@@ -84,7 +84,7 @@
 
 - 状態: 決定
 - 理由: PR #4 / #5 によりNext.js初期構成はmainに入っているが、`npm install` / `npm run build` / `npm run lint` の正常確認前にmergeされたため。
-- 判断: T-010はDONEではなくBLOCKED。DesktopまたはClaude Codeでmainを取得し、依存解決・build・lintを再検証する。
+- 判断: T-010はDONEではなくBLOCKED。Claude Codeでmainを取得し、依存解決・build・lintを再検証する。
 
 ## D-015: Supabaseは現時点で削除・migrationなし
 
@@ -94,10 +94,43 @@
 
 ## D-016: Phase 3 MVP migration draft assumptions
 
-- Status: draft
-- Reason: Supabase Data API exposure changed for new projects on 2026-05-30; new public tables need explicit grants, and RLS must still control row access.
-- Decision: The first migration set creates only the core MVP tables named in `docs/DATA_MODEL.md`: `profiles`, `farm_groups`, `farm_group_members`, `farm_group_invites`, `farm_fields`, `field_seasons`, `field_points`, `records`, `record_media`, `record_comments`, and `record_status_events`.
-- Decision: Existing Supabase tables such as `fields` and `field_logs` are not deleted, renamed, or migrated in this task.
-- Decision: `anon` receives schema usage only and no table privileges. `authenticated` receives explicit table grants, with row access gated by RLS policies. `service_role` receives explicit table grants for server-side operations.
-- Decision: Storage bucket creation and Storage RLS are not included because `docs/NEGATIVE_ACTIONS.md` treats Storage changes as separate approval-required operations.
-- Review note: T-031 can move to REVIEW with SQL files present. T-032/T-033/T-034 remain pending until RLS review, user approval, and actual migration application.
+- 状態: draft
+- 理由: Supabase Data API exposure changed for new projects on 2026-05-30。新規publicテーブルはexplicit grantsが必要で、RLSで行アクセスを制御する。
+- 判断: 最初のmigrationセットは `docs/DATA_MODEL.md` に記載のコアMVPテーブルのみ作成する。既存テーブルは削除・改名・移行しない。
+
+## D-017: CSSはTailwind CSSに一本化する
+
+- 状態: 決定
+- 理由: カスタムCSSが4ファイルに散在し、クラス名が独自すぎて再現性・保守性が低かった。Codex DesktopのUI実装が失敗した主因の一つ。
+- 判断: Tailwind CSSを導入し、既存のカスタムCSSファイルは廃止する。className形式で統一することでエージェント間の実装一貫性を確保する。
+
+## D-018: マップのポリゴン・ピンはMapLibre GeoJSONレイヤーとして描画する
+
+- 状態: 決定
+- 理由: CSSオーバーレイ方式は地図座標系と独立しており、ズーム・パンに追従できないため「実画像マップ」を実現できなかった。
+- 判断: 田んぼポリゴンはGeoJSON fillレイヤー、固定ポイントピンはMapLibre Markerとして描画する。ダミーGeoJSONで実装し、後でSupabase接続に差し替える。
+
+## D-019: src/ は設計通りに新規作成する
+
+- 状態: 決定
+- 理由: 既存の `src/features/preview/` 構造は本体と混在しており、カスタムCSSを全廃した時点でほぼ機能しなくなる。修正より新規の方が工数が少ない。
+- 判断: 既存 `src/` を置き換え、`docs/ARCHITECTURE.md` のレイヤー構成通りに作成する。ダミーデータの型定義は再利用可能な部分を引き継ぐ。
+
+## D-020: アーキテクチャ再設計フェーズはmainへ直接pushする
+
+- 状態: 決定（期間限定）
+- 理由: ブランチを切らずに設計ファイル・設定ファイルの整備を進める方がシンプルなため。ユーザー承認済み。
+- 注意: アプリ実装（UI・DB）に入る際は再びブランチ運用に戻す。
+
+## D-021: Claude CodeをWrite担当の主担当とする
+
+- 状態: 決定
+- 理由: Codex DesktopのUI実装が繰り返し失敗（CSS問題、build未検証でのPRマージ）したため。
+- 判断: 実装・ファイル編集・push・PRはClaude Codeが担当する。Codex Desktopは調査・提案・レビュー補助に限定する。
+
+## D-022: Windows環境でのpython3問題の対処
+
+- 状態: 決定
+- 理由: CockroachDB プラグインのPostToolUseフックが `python3` を使用するが、WindowsではApp Execution Aliasがストアスタブ（python3.exe）を優先しAppData\Roamingにアクセスできないため。
+- 判断: Windowsの「アプリ実行エイリアス」設定でpython3をオフにする。これにより `python3` がPATH上の実Python（C:\Python313\python.exe等）に解決される。
+- 注意: この問題はClaude Code固有。Codex DesktopはフックシステムがないためPythonを直接呼び出さず影響を受けない。
