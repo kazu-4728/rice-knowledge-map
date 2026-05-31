@@ -18,7 +18,7 @@ export type FieldPoint = {
   status: "normal" | "needs_check" | "issue" | "resolved";
   lastRecord: string;
   waterLevel?: string;
-  position: { x: number; y: number };
+  lngLat: [number, number];
 };
 
 export type ScheduleItem = {

@@ -1,5 +1,10 @@
-import { PreviewApp } from "@/features/preview/PreviewApp";
+import AppShell from "../components/layout/AppShell";
+import HomeScreen from "../features/home/HomeScreen";
 
-export default function Home() {
-  return <PreviewApp />;
+export default function HomePage() {
+  return (
+    <AppShell>
+      <HomeScreen />
+    </AppShell>
+  );
 }
