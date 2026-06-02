@@ -19,21 +19,22 @@ const statusStyle: Record<string, string> = {
   進行中: "bg-green-100 text-green-700",
 };
 
+// サンプルデータの基準日（全体を統一）
+const SAMPLE_DATE = "2025年5月24日（土）";
+
 export default function HomeScreen() {
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  });
+  // ダミーUIのため日付は固定サンプル日を使用
+  const dateStr = SAMPLE_DATE;
 
   return (
     <div className="pb-4">
       {/* 挨拶・天気バナー */}
       <div className="px-4 pt-4 pb-3 bg-white">
-        <p className="text-xs text-gray-500 mb-0.5">おはようございます！</p>
-        <p className="text-xs text-gray-400">今日も稲作管理をがんばりましょう。</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">おはようございます！</p>
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">サンプルデータ</span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">今日も稲作管理をがんばりましょう。</p>
 
         <div className="mt-3 flex items-center justify-between bg-green-50 rounded-xl px-4 py-3">
           <div className="flex items-center gap-3">
