@@ -1,26 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 type RecordState = "idle" | "recording" | "done";
 
 export default function AudioRecordScreen() {
   const [state, setState] = useState<RecordState>("idle");
   const [elapsed, setElapsed] = useState(0);
+  // interval ID を ref で保持し、停止・unmount 時に確実に clearInterval する
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // unmount 時に残存 interval を確実にクリア
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const stopTimer = () => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   const handleRecord = () => {
     if (state === "idle") {
       setState("recording");
-      // ダミー: 1秒ごとに elapsed を増やす
-      const timer = setInterval(() => {
+      setElapsed(0);
+      timerRef.current = setInterval(() => {
         setElapsed((s) => {
-          if (s >= 59) { clearInterval(timer); setState("done"); return s; }
+          if (s >= 59) {
+            stopTimer();
+            setState("done");
+            return s;
+          }
           return s + 1;
         });
       }, 1000);
     } else if (state === "recording") {
+      stopTimer();
       setState("done");
     } else {
+      // やり直し
+      stopTimer();
       setState("idle");
       setElapsed(0);
     }
@@ -43,11 +66,7 @@ export default function AudioRecordScreen() {
               className={`w-1.5 rounded-full transition-all duration-150 ${
                 state === "recording" ? "bg-green-400" : "bg-gray-600"
               }`}
-              style={{
-                height: state === "recording"
-                  ? `${20 + Math.sin(Date.now() / 200 + i) * 15 + Math.random() * 20}px`
-                  : "8px",
-              }}
+              style={{ height: state === "recording" ? `${12 + ((i * 7 + elapsed) % 24)}px` : "8px" }}
             />
           ))}
         </div>
@@ -59,6 +78,7 @@ export default function AudioRecordScreen() {
 
         {/* 録音ボタン */}
         <button
+          type="button"
           onClick={handleRecord}
           aria-label={state === "idle" ? "録音開始" : state === "recording" ? "録音停止" : "録音やり直し"}
           className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-lg transition-all ${
@@ -88,6 +108,7 @@ export default function AudioRecordScreen() {
           <div className="bg-white rounded-xl border border-gray-100 p-3">
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 aria-label="再生"
                 className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-lg"
               >
@@ -109,7 +130,10 @@ export default function AudioRecordScreen() {
           </div>
 
           {/* 次へ */}
-          <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-4 rounded-xl transition-colors">
+          <button
+            type="button"
+            className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-4 rounded-xl transition-colors"
+          >
             次へ（AI整理へ）
           </button>
         </>

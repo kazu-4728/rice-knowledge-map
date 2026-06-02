@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { GeoJSON } from "geojson";
 import type { FieldPoint } from "../../types";
 import { fieldGeoJSON, fieldPoints } from "../../data/dummy";
 import MapDetailCard from "./MapDetailCard";
@@ -11,25 +12,21 @@ import { useFieldDraw } from "./useFieldDraw";
 
 // GLOSSARY.md §6 全種別対応
 const PIN_ICONS: Record<string, string> = {
-  inlet: "💧",
-  outlet: "⬇",
-  canal: "〜",
-  caution: "⚠️",
-  weed: "🌿",
-  levee_damage: "🧱",
-  poor_drainage: "💦",
-  other: "📍",
+  inlet: "💧", outlet: "⬇", canal: "〜", caution: "⚠️",
+  weed: "🌿", levee_damage: "🧱", poor_drainage: "💦", other: "📍",
 };
 
 const PIN_BG: Record<string, string> = {
-  inlet: "#3B82F6",
-  outlet: "#6B7280",
-  canal: "#0EA5E9",
-  caution: "#F97316",
-  weed: "#22C55E",
-  levee_damage: "#B45309",
-  poor_drainage: "#7C3AED",
-  other: "#9CA3AF",
+  inlet: "#3B82F6", outlet: "#6B7280", canal: "#0EA5E9", caution: "#F97316",
+  weed: "#22C55E", levee_damage: "#B45309", poor_drainage: "#7C3AED", other: "#9CA3AF",
+};
+
+// GLOSSARY.md §5 ステータス表示ラベル・ボーダー色
+const STATUS_LABEL: Record<string, string> = {
+  normal: "正常", needs_check: "要確認", issue: "問題あり", resolved: "解決済み",
+};
+const STATUS_BORDER: Record<string, string> = {
+  normal: "white", needs_check: "#F97316", issue: "#EF4444", resolved: "#9CA3AF",
 };
 
 export default function MapCanvas() {
@@ -38,6 +35,8 @@ export default function MapCanvas() {
   const mapRef = useRef<any>(null);
   const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
   const [tileError, setTileError] = useState(false);
+  // ユーザー追加フィールドのラベル済み ID を管理（重複追加防止）
+  const labeledFieldIds = useRef<Set<string>>(new Set());
 
   const {
     drawState,
@@ -159,13 +158,17 @@ export default function MapCanvas() {
         // ── ピン（Marker）― アクセシビリティ対応 ─────────────
         fieldPoints.forEach((point) => {
           const el = document.createElement("button");
-          el.setAttribute("aria-label", `${point.name}（${point.status === "needs_check" ? "要確認" : "正常"}）`);
+          el.type = "button"; // フォーム submit 防止
+          el.setAttribute(
+            "aria-label",
+            `${point.name}（${STATUS_LABEL[point.status] ?? point.status}）`
+          );
           el.style.cssText = `
             width:32px;height:32px;border-radius:50%;
             background:${PIN_BG[point.type] ?? "#6B7280"};
             display:flex;align-items:center;justify-content:center;
             font-size:14px;cursor:pointer;
-            border:2px solid ${point.status === "needs_check" ? "#F97316" : "white"};
+            border:2px solid ${STATUS_BORDER[point.status] ?? "white"};
             box-shadow:0 2px 6px rgba(0,0,0,0.3);
           `;
           el.textContent = PIN_ICONS[point.type] ?? "📍";
@@ -175,16 +178,19 @@ export default function MapCanvas() {
           };
           el.addEventListener("click", handleActivate);
           el.addEventListener("keydown", (e: KeyboardEvent) => {
-            if (e.key === "Enter" || e.key === " ") handleActivate(e);
+            if (e.key === "Enter") { handleActivate(e); return; }
+            if (e.key === " ") { e.preventDefault(); handleActivate(e); } // スクロール防止
           });
           new maplibre.Marker({ element: el }).setLngLat(point.lngLat).addTo(map);
         });
       });
 
-      // P2-3: タイルエラー時にユーザー通知
+      // P2-3 & P2-4: エラーを1箇所に統合（二重登録を排除）
       map.on("error", (e) => {
         console.error("[MapLibre error]", e);
-        if (e.error?.message?.includes("tiles") || String(e.error).includes("fetch")) {
+        // タイル取得失敗を大文字小文字問わず検知
+        const msg = (e.error?.message ?? String(e.error ?? "")).toLowerCase();
+        if (msg.includes("fetch") || msg.includes("tile") || msg.includes("network")) {
           setTileError(true);
         }
       });
@@ -221,12 +227,34 @@ export default function MapCanvas() {
     if (src) src.setData(drawingGeoJSON);
   }, [drawingGeoJSON]);
 
-  // 保存済みフィールド GeoJSON を更新
+  // 保存済みフィールド GeoJSON を更新 + HTML ラベルを追加
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     const src = map.getSource("user-fields");
     if (src) src.setData(savedFieldsGeoJSON);
+
+    // 新規追加フィーチャーにのみ HTML Marker ラベルを付ける
+    import("maplibre-gl").then((maplibre) => {
+      savedFieldsGeoJSON.features.forEach((feature) => {
+        const id = String(feature.id ?? feature.properties?.name ?? "");
+        if (labeledFieldIds.current.has(id)) return;
+        if (feature.geometry.type !== "Polygon") return;
+        const coords = (feature.geometry as GeoJSON.Polygon).coordinates[0];
+        const lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+        const lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+        const labelEl = document.createElement("div");
+        labelEl.textContent = feature.properties?.name ?? "";
+        labelEl.style.cssText = `
+          color:#fff;font-size:13px;font-weight:700;
+          text-shadow:0 1px 3px rgba(0,0,0,0.7);
+          pointer-events:none;white-space:nowrap;
+        `;
+        new maplibre.Marker({ element: labelEl, anchor: "center" })
+          .setLngLat([lng, lat]).addTo(map);
+        labeledFieldIds.current.add(id);
+      });
+    });
   }, [savedFieldsGeoJSON]);
 
   return (
