@@ -114,6 +114,35 @@ export const fieldPoints: FieldPoint[] = [
     waterLevel: "正常",
     lngLat: [138.826, 37.426],
   },
+  // GLOSSARY.md §6 追加種別サンプル
+  {
+    id: "point-a-canal",
+    fieldId: "field-a",
+    name: "A田 北側 水路",
+    type: "canal",
+    status: "normal",
+    lastRecord: "2025年5月23日 14:00",
+    lngLat: [138.827, 37.432],
+  },
+  {
+    id: "point-b-levee",
+    fieldId: "field-b",
+    name: "B田 南西畦崩れ箇所",
+    type: "levee_damage",
+    status: "issue",
+    lastRecord: "2025年5月22日 11:30",
+    lngLat: [138.831, 37.428],
+  },
+  {
+    id: "point-d-drainage",
+    fieldId: "field-d",
+    name: "D田 北東 水抜け不良",
+    type: "poor_drainage",
+    status: "needs_check",
+    lastRecord: "2025年5月21日 09:00",
+    waterLevel: "低め",
+    lngLat: [138.829, 37.428],
+  },
 ];
 
 // 今日の予定
