@@ -154,11 +154,11 @@ export const scheduleItems: ScheduleItem[] = [
 
 // 最近の記録
 export const recentRecords: RecordItem[] = [
-  { id: "record-1", time: "17:15", date: "2025年5月24日（土）", title: "A田 取水口の確認", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", media: "photo", photoCount: 3 },
-  { id: "record-2", time: "13:30", date: "2025年5月24日（土）", title: "C田 畦畔草刈り", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", media: "photo", photoCount: 5 },
-  { id: "record-3", time: "10:15", date: "2025年5月24日（土）", title: "B田 異常箇所の記録", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", media: "photo", photoCount: 2 },
-  { id: "record-4", time: "08:00", date: "2025年5月24日（土）", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", media: "audio", audioDuration: "0:32" },
-  { id: "record-5", time: "16:20", date: "2025年5月23日（金）", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", media: "photo", photoCount: 1 },
+  { id: "record-1", time: "07:45", date: "2025年5月24日", title: "A田 取水口の確認", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", media: "photo", photoCount: 3, photo: "https://images.unsplash.com/photo-1590682680695-43b964a3ae17?w=300&q=80" },
+  { id: "record-2", time: "10:15", date: "2025年5月23日", title: "B田 中干し状況", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", media: "photo", photoCount: 2, photo: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=300&q=80" },
+  { id: "record-3", time: "14:30", date: "2025年5月22日", title: "C田 畦畔の草刈り", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", media: "photo", photoCount: 5, photo: "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=300&q=80" },
+  { id: "record-4", time: "08:00", date: "2025年5月24日", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", media: "audio", audioDuration: "0:32" },
+  { id: "record-5", time: "16:20", date: "2025年5月23日", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", media: "photo", photoCount: 1, photo: "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4e6?w=300&q=80" },
 ];
 
 // メンバー
