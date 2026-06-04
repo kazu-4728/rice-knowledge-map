@@ -1,10 +1,5 @@
-import AppShell from "../components/layout/AppShell";
-import HomeScreen from "../features/home/HomeScreen";
+import { HomeScreen } from "../features/app-pages/HomeScreen";
 
 export default function HomePage() {
-  return (
-    <AppShell>
-      <HomeScreen />
-    </AppShell>
-  );
+  return <HomeScreen />;
 }

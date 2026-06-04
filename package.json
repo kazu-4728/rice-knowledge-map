@@ -9,7 +9,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check": "powershell -ExecutionPolicy Bypass -File run/verify.ps1",
+    "clean": "powershell -ExecutionPolicy Bypass -File run/clean-next.ps1",
+    "setup": "powershell -ExecutionPolicy Bypass -File run/setup.ps1",
+    "ui:screenshot": "powershell -ExecutionPolicy Bypass -File run/ui-screenshot.ps1"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",
@@ -27,6 +31,7 @@
     "autoprefixer": "^10.5.0",
     "eslint": "^9.25.0",
     "eslint-config-next": "^15.3.0",
+    "playwright": "^1.60.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.8.0"

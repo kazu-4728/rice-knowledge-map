@@ -1,1 +1,83 @@
 @import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+:root {
+  --app-green: #2f8d41;
+  --app-green-dark: #1f6f30;
+  --app-text: #101412;
+  --app-muted: #5d6762;
+  --app-line: #dbe4df;
+  --app-surface: rgba(255, 255, 255, 0.97);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #f4f6f5;
+}
+
+body {
+  color: var(--app-text);
+  font-family: Meiryo, "Yu Gothic", "Hiragino Kaku Gothic ProN", Arial, sans-serif;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maplibregl-ctrl-attrib {
+  border-radius: 8px 8px 0 0;
+  font-family: Meiryo, "Yu Gothic", "Hiragino Kaku Gothic ProN", Arial, sans-serif;
+  font-size: 10px;
+}
+
+.map-marker {
+  align-items: center;
+  display: flex;
+  gap: 0;
+  pointer-events: none;
+  transform: translate(-9px, -26px);
+}
+
+.map-marker__pin {
+  flex: 0 0 auto;
+  height: 37px;
+  width: 31px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.32));
+}
+
+.map-marker__label {
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+  color: #111;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  margin-left: -4px;
+  padding: 5px 7px;
+  white-space: nowrap;
+}
+
+.map-field-label {
+  min-width: 45px;
+  border: 1px solid rgba(0, 0, 0, 0.13);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  color: #111;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 9px;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
