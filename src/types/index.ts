@@ -30,6 +30,8 @@ export type FieldPoint = {
   lastRecord: string;
   waterLevel?: string;
   lngLat: [number, number];
+  /** 地図ピン横のラベル（省略時は種別ラベル） */
+  pinLabel?: string;
 };
 
 export type ScheduleItem = {
@@ -57,4 +59,26 @@ export type RecordItem = {
 export type Member = {
   name: string;
   role: "管理者" | "編集者" | "閲覧者";
+};
+
+export type RecordComment = {
+  author: string;
+  isRecorder?: boolean;
+  text: string;
+  timestamp: string;
+};
+
+/** 記録詳細画面のサンプルデータ */
+export type RecordDetail = {
+  id: string;
+  fieldName: string;
+  pointTypeLabel: string;
+  statusLabel: string;
+  title: string;
+  address: string;
+  recorder: string;
+  recordedAt: string;
+  summary: string;
+  audioDuration: string;
+  comments: RecordComment[];
 };

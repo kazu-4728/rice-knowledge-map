@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { IconMic, IconPinFill, IconPlayFill } from "../../components/ui/icons";
 
 type RecordState = "idle" | "recording" | "done";
 
@@ -53,8 +55,8 @@ export default function AudioRecordScreen() {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   return (
-    <div className="px-4 pt-4 space-y-6">
-      <h1 className="text-lg font-bold text-gray-800">音声で記録</h1>
+    <div className="space-y-3 px-3 pb-6 pt-3">
+      <h1 className="px-1 text-2xl font-bold text-gray-900">音声で記録</h1>
 
       {/* 録音エリア */}
       <div className="bg-gray-900 rounded-2xl py-12 flex flex-col items-center gap-6">
@@ -89,9 +91,9 @@ export default function AudioRecordScreen() {
               : "bg-green-500 hover:bg-green-600"
           }`}
         >
-          {state === "idle" && "🎤"}
-          {state === "recording" && "⏹"}
-          {state === "done" && "🔄"}
+          {state === "idle" && <IconMic className="h-8 w-8 text-white" />}
+          {state === "recording" && <span className="h-6 w-6 rounded bg-white" />}
+          {state === "done" && <span className="text-white">↺</span>}
         </button>
 
         <p className="text-gray-400 text-xs">
@@ -110,9 +112,9 @@ export default function AudioRecordScreen() {
               <button
                 type="button"
                 aria-label="再生"
-                className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-lg"
+                className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center"
               >
-                ▶
+                <IconPlayFill className="h-4 w-4 translate-x-[1px] text-white" />
               </button>
               <div className="flex-1">
                 <div className="h-1.5 bg-gray-200 rounded-full">
@@ -124,18 +126,21 @@ export default function AudioRecordScreen() {
           </div>
 
           {/* 候補地 */}
-          <div className="bg-white rounded-xl p-3 border border-gray-100">
-            <p className="text-xs text-gray-500 mb-1">候補: A田（現在地から推定）</p>
-            <p className="text-xs text-green-600 font-medium">新潟県長岡市 ○○町地内</p>
+          <div className="flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-sm">
+            <IconPinFill className="h-6 w-6 shrink-0 text-green-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900">候補: A田（現在地から推定）</p>
+              <p className="mt-0.5 text-xs text-gray-500">新潟県長岡市 ○○町地内</p>
+            </div>
           </div>
 
           {/* 次へ */}
-          <button
-            type="button"
-            className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-4 rounded-xl transition-colors"
+          <Link
+            href="/records/new/confirm"
+            className="block w-full rounded-xl bg-green-700 py-4 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
           >
             次へ（AI整理へ）
-          </button>
+          </Link>
         </>
       )}
     </div>

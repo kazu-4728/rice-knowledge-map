@@ -1,4 +1,4 @@
-import type { Field, FieldPoint, Member, RecordItem, ScheduleItem } from "../types";
+import type { Field, FieldPoint, Member, RecordDetail, RecordItem, ScheduleItem } from "../types";
 import type { GeoJSON } from "geojson";
 
 // 田んぼ一覧
@@ -93,6 +93,7 @@ export const fieldPoints: FieldPoint[] = [
     lastRecord: "2025年5月24日 10:15",
     waterLevel: "高め",
     lngLat: [138.832, 37.426],
+    pinLabel: "水位異常",
   },
   {
     id: "point-c-outlet",
@@ -159,11 +160,40 @@ export const recentRecords: RecordItem[] = [
   { id: "record-3", time: "10:15", date: "2025年5月24日（土）", title: "B田 異常箇所の記録", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", media: "photo", photoCount: 2 },
   { id: "record-4", time: "08:00", date: "2025年5月24日（土）", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", media: "audio", audioDuration: "0:32" },
   { id: "record-5", time: "16:20", date: "2025年5月23日（金）", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", media: "photo", photoCount: 1 },
+  { id: "record-6", time: "11:40", date: "2025年5月23日（金）", title: "A田 畦畔草刈り", fieldName: "A田", fieldArea: "1.2ha", category: "作業", pointType: "weed", media: "photo", photoCount: 4 },
+  { id: "record-7", time: "09:05", date: "2025年5月23日（金）", title: "C田 入水口の確認", fieldName: "C田", fieldArea: "1.5ha", category: "水管理", pointType: "inlet", media: "photo", photoCount: 2 },
+  { id: "record-8", time: "15:10", date: "2025年5月22日（木）", title: "C田 異常箇所の記録", fieldName: "C田", fieldArea: "1.5ha", category: "異常", pointType: "caution", media: "photo", photoCount: 3 },
 ];
 
 // メンバー
 export const members: Member[] = [
-  { name: "作業者A（あなた）", role: "管理者" },
-  { name: "作業者B", role: "編集者" },
-  { name: "作業者C", role: "閲覧者" },
+  { name: "田中 太郎（あなた）", role: "管理者" },
+  { name: "田中 花子", role: "編集者" },
+  { name: "田中 次郎", role: "閲覧者" },
 ];
+
+// 記録詳細のサンプル（参照モック準拠）
+export const sampleRecordDetail: RecordDetail = {
+  id: "record-sample",
+  fieldName: "A田",
+  pointTypeLabel: "出水口",
+  statusLabel: "要確認",
+  title: "北西側 出水口",
+  address: "新潟県長岡市（A田 北西側）",
+  recorder: "お父さん",
+  recordedAt: "2025年5月24日（土）07:45",
+  summary: "水量はやや少なめ。ゴミの詰まりはなし。劣化も特になし。",
+  audioDuration: "0:18",
+  comments: [
+    { author: "お父さん", isRecorder: true, text: "今朝の確認記録です。念のため夕方にも見に行きます。", timestamp: "5月24日 07:45" },
+    { author: "お母さん", text: "ありがとう！夕方にもう一度確認しておくね。", timestamp: "5月24日 08:12" },
+    { author: "お兄ちゃん", text: "夕方に見てきたよ！特に問題なし。対応済みにしておくね👍", timestamp: "5月24日 17:32" },
+  ],
+};
+
+// 固定ポイント集計（メニュー画面）
+export const pointStats = {
+  inlet: 5,
+  outlet: 3,
+  caution: 7,
+};
