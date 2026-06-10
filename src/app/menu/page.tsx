@@ -1,6 +1,7 @@
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
 import AccountSection from "../../features/auth/AccountSection";
+import InviteButton from "../../features/auth/InviteButton";
 import { members, pointStats } from "../../data/dummy";
 import {
   IconBell,
@@ -82,6 +83,7 @@ export default function MenuPage() {
               </li>
             ))}
           </ul>
+          <InviteButton />
         </section>
 
         {/* 固定ポイント管理 */}

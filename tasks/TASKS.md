@@ -60,7 +60,7 @@ UIが合格するまで、DB接続や機能追加へ進みません。
 | T-031 | DONE | Claude Code | migration SQL作成 | apply前のSQL案がある |
 | T-032 | DONE | ユーザー | migration適用承認 | 影響と戻し方を確認済み |
 | T-033 | DONE | Claude Code | migration適用 | 承認後のみ実行、結果報告あり |
-| T-034 | IN_PROGRESS | Claude Code | Supabase接続 | マップの田んぼ/固定ポイントは接続済み（未ログイン時はサンプル表示）。記録一覧/詳細は未接続 |
+| T-034 | IN_PROGRESS | Claude Code | Supabase接続 | マップ（田んぼ/固定ポイント）と記録一覧は接続済み（未ログイン・0件時はサンプル表示）。記録詳細は未接続 |
 
 ---
 
@@ -69,7 +69,7 @@ UIが合格するまで、DB接続や機能追加へ進みません。
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
 | T-040 | REVIEW | Claude Code | Google認証接続 | アプリ側実装済み（Google/メールリンク）。SupabaseダッシュボードでのGoogleプロバイダ有効化はユーザー作業 |
-| T-041 | TODO | Claude Code | グループ参加/招待UI | 招待URLの流れがUI上で表現される |
+| T-041 | REVIEW | Claude Code | グループ参加/招待UI | メニューから招待URL発行（7日有効・editor）、/invite で参加。実機検証待ち |
 | T-042 | REVIEW | Claude Code | 田んぼ保存 | なぞり描き→名前入力→farm_fieldsへ保存（初回はグループ自動作成）。実機検証待ち |
 | T-043 | TODO | Claude Code | 固定ポイント保存 | 入水口/出水口等が保存できる |
 | T-044 | TODO | Claude Code | 記録保存 | 写真/音声/位置/状態が保存できる |

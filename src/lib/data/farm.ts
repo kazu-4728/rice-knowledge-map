@@ -86,7 +86,7 @@ export async function loadFarmData(): Promise<FarmData> {
 }
 
 /** 所属グループIDを返す。未所属なら新規グループを作成する（create_farm_group RPC） */
-async function ensureGroupId(): Promise<string | null> {
+export async function ensureGroupId(): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
 
