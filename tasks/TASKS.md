@@ -56,8 +56,8 @@ UIが合格するまで、DB接続や機能追加へ進みません。
 
 | ID | 状態 | 担当 | タスク | 完了条件 |
 |---|---|---|---|---|
-| T-030 | TODO | Claude Code | Supabaseスキーマ案の再確認 | DATA_MODEL.mdと実装予定の整合性を確認 |
-| T-031 | TODO | Claude Code | migration SQL作成 | apply前のSQL案がある |
+| T-030 | DONE | Claude Code | Supabaseスキーマ案の再確認 | DATA_MODEL.mdと実装予定の整合性を確認 |
+| T-031 | REVIEW | Claude Code | migration SQL作成 | apply前のSQL案がある |
 | T-032 | TODO | ユーザー | migration適用承認 | 影響と戻し方を確認済み |
 | T-033 | TODO | Claude Code | migration適用 | 承認後のみ実行、結果報告あり |
 | T-034 | TODO | Claude Code | Supabase接続 | ダミーデータをSupabase取得へ差し替え |
