@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { scheduleItems, recentRecords } from "../../data/dummy";
+import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import {
+  IconCamera,
+  IconChevronRight,
+  IconDropFill,
+  IconMap,
+  IconMic,
+  IconPin,
+  IconSprout,
+  IconSun,
+  IconWaves,
+} from "../../components/ui/icons";
 
-const scheduleIconMap = {
-  drop: "💧",
-  waves: "🌊",
-  sprout: "🌿",
-};
-
-const pointTypeIconMap = {
-  inlet: "💧",
-  outlet: "↓",
-  caution: "⚠️",
-  weed: "🌿",
+const scheduleIcon = {
+  drop: <IconDropFill className="h-5 w-5 text-sky-500" />,
+  waves: <IconWaves className="h-5 w-5 text-blue-500" />,
+  sprout: <IconSprout className="h-5 w-5 text-green-600" />,
 };
 
 const statusStyle: Record<string, string> = {
@@ -23,51 +28,72 @@ const statusStyle: Record<string, string> = {
 const SAMPLE_DATE = "2025年5月24日（土）";
 
 export default function HomeScreen() {
-  // ダミーUIのため日付は固定サンプル日を使用
-  const dateStr = SAMPLE_DATE;
-
   return (
-    <div className="pb-4">
-      {/* 挨拶・天気バナー */}
-      <div className="px-4 pt-4 pb-3 bg-white">
+    <div className="space-y-3 px-3 pb-6 pt-3">
+      {/* あいさつ・天気（控えめに） */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">おはようございます！</p>
-          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">サンプルデータ</span>
-        </div>
-        <p className="text-xs text-gray-400 mt-0.5">今日も稲作管理をがんばりましょう。</p>
-
-        <div className="mt-3 flex items-center justify-between bg-green-50 rounded-xl px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">☀️</span>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">24°C</p>
-              <p className="text-xs text-gray-500">最高 27° 最低 18°</p>
+          <div>
+            <p className="text-base font-bold text-gray-900">おはようございます！</p>
+            <p className="mt-0.5 text-xs text-gray-500">{SAMPLE_DATE}・新潟県長岡市</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2">
+            <IconSun className="h-6 w-6" />
+            <div className="leading-tight">
+              <p className="text-sm font-bold text-gray-800">24°C</p>
+              <p className="text-[10px] text-gray-500">27° / 18°</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs font-medium text-green-700">新潟県長岡市</p>
-            <p className="text-xs text-gray-500">● 晴れ後曇り</p>
-            <p className="text-xs font-semibold text-gray-700 mt-1">{dateStr}</p>
-          </div>
         </div>
-      </div>
+
+        {/* 記録導線（主役） */}
+        <div className="mt-4 flex gap-3">
+          <Link
+            href="/records/new"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
+          >
+            <IconCamera className="h-5 w-5" />
+            写真で記録
+          </Link>
+          <Link
+            href="/records/new?type=audio"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3.5 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
+          >
+            <IconMic className="h-5 w-5" />
+            音声メモ
+          </Link>
+        </div>
+        <Link
+          href="/map"
+          className="mt-2.5 flex items-center justify-center gap-2 rounded-xl bg-green-50 py-3 text-sm font-bold text-green-800 transition-colors hover:bg-green-100"
+        >
+          <IconMap className="h-5 w-5" />
+          マップを開く
+        </Link>
+      </section>
 
       {/* 今日の予定 */}
-      <section className="mt-3 bg-white px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-bold text-gray-800">今日の予定</h2>
-          <button className="text-xs text-green-600">すべて見る</button>
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">今日の予定</h2>
+          <button className="flex items-center text-sm font-semibold text-green-700">
+            すべて見る
+            <IconChevronRight className="h-4 w-4" />
+          </button>
         </div>
-        <ul className="space-y-2">
+        <ul className="mt-2">
           {scheduleItems.map((item, i) => (
-            <li key={i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-              <span className="text-gray-400 text-xs w-10 shrink-0">{item.time}</span>
-              <span className="text-base">{scheduleIconMap[item.icon]}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
-                <p className="text-xs text-gray-400">{item.fieldName}</p>
+            <li
+              key={i}
+              className={`flex items-center gap-3 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+            >
+              <span className="w-11 shrink-0 text-sm font-semibold text-gray-600">{item.time}</span>
+              {scheduleIcon[item.icon]}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-gray-900">{item.title}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{item.fieldName}</p>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${statusStyle[item.status]}`}>
+              <span className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold ${statusStyle[item.status]}`}>
                 {item.status}
               </span>
             </li>
@@ -75,57 +101,37 @@ export default function HomeScreen() {
         </ul>
       </section>
 
-      {/* クイックアクション */}
-      <section className="mt-3 bg-white px-4 py-3">
-        <h2 className="text-sm font-bold text-gray-800 mb-3">クイックアクション</h2>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { icon: "📷", label: "写真で記録", href: "/records/new" },
-            { icon: "🎤", label: "音声で記録", href: "/records/new?type=audio" },
-            { icon: "🗺️", label: "マップ", href: "/map" },
-            { icon: "📋", label: "作業記録", href: "/records" },
-          ].map((action) => (
-            <Link
-              key={action.label}
-              href={action.href}
-              className="flex flex-col items-center gap-1.5 bg-green-50 rounded-xl py-3 hover:bg-green-100 transition-colors"
-            >
-              <span className="text-2xl">{action.icon}</span>
-              <span className="text-xs text-green-800 font-medium text-center leading-tight">{action.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* 最近の記録 */}
-      <section className="mt-3 bg-white px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-bold text-gray-800">最近の記録</h2>
-          <button className="text-xs text-green-600">すべて見る</button>
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">最近の記録</h2>
+          <Link href="/records" className="flex items-center text-sm font-semibold text-green-700">
+            すべて見る
+            <IconChevronRight className="h-4 w-4" />
+          </Link>
         </div>
-        <ul className="space-y-2">
-          {recentRecords.map((record) => (
-            <li key={record.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-              {/* サムネイル */}
-              <div className="w-12 h-12 bg-green-100 rounded-lg shrink-0 flex items-center justify-center text-xl">
-                {record.media === "photo" ? "🖼️" : "🎤"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{record.title}</p>
-                <p className="text-xs text-gray-400">
-                  {record.date} {record.time}
-                </p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{record.fieldName}</span>
-                  {record.media === "photo" && (
-                    <span className="text-xs text-gray-400">📷 {record.photoCount}枚</span>
-                  )}
-                  {record.media === "audio" && (
-                    <span className="text-xs text-gray-400">🎤 {record.audioDuration}</span>
-                  )}
+        <ul className="mt-2">
+          {recentRecords.slice(0, 4).map((record, i) => (
+            <li key={record.id}>
+              <Link
+                href={`/records/${record.id}`}
+                className={`flex items-center gap-3 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+              >
+                <RecordThumb
+                  media={record.media}
+                  variant={record.category === "作業" ? "grass" : "water"}
+                  duration={record.audioDuration}
+                  className="h-14 w-[4.5rem] shrink-0 rounded-lg"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                    <IconPin className="h-3.5 w-3.5" />
+                    {record.fieldName}（{record.fieldArea}）・{record.time}
+                  </p>
                 </div>
-              </div>
-              <span className="text-lg shrink-0">{pointTypeIconMap[record.pointType]}</span>
+                <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+              </Link>
             </li>
           ))}
         </ul>

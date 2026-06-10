@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* スマホアプリ感を出すための最小限のベース設定のみ置く。装飾はTailwindで行う */
+html,
+body {
+  height: 100%;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
