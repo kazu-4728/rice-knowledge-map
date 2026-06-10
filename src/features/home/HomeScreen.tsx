@@ -9,6 +9,7 @@ import {
   IconMic,
   IconPin,
   IconSprout,
+  IconSun,
   IconWaves,
 } from "../../components/ui/icons";
 
@@ -37,7 +38,7 @@ export default function HomeScreen() {
             <p className="mt-0.5 text-xs text-gray-500">{SAMPLE_DATE}・新潟県長岡市</p>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2">
-            <span className="text-xl">☀️</span>
+            <IconSun className="h-6 w-6" />
             <div className="leading-tight">
               <p className="text-sm font-bold text-gray-800">24°C</p>
               <p className="text-[10px] text-gray-500">27° / 18°</p>

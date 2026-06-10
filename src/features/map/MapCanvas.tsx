@@ -16,6 +16,7 @@ import {
   IconMinus,
   IconPinFill,
   IconPlus,
+  IconWarningFill,
 } from "../../components/ui/icons";
 
 const INITIAL_CENTER: [number, number] = [138.8305, 37.4252];
@@ -298,7 +299,7 @@ export default function MapCanvas() {
       {/* タイル取得失敗バナー */}
       {tileError && (
         <div className="absolute top-3 left-1/2 z-20 flex max-w-xs -translate-x-1/2 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800 shadow">
-          <span>⚠️</span>
+          <IconWarningFill className="h-5 w-5 shrink-0 text-amber-500" />
           <span>航空写真を読み込めません。区画・ピンは表示しています。</span>
         </div>
       )}

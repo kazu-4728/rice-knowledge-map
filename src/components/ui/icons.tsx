@@ -365,6 +365,17 @@ export function IconFieldGrid(props: IconProps) {
   );
 }
 
+export function IconSun(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="4" fill="#FBBF24" stroke="#F59E0B" />
+      <g stroke="#F59E0B">
+        <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19" />
+      </g>
+    </Base>
+  );
+}
+
 export function IconSprout(props: IconProps) {
   return (
     <Base {...props}>
