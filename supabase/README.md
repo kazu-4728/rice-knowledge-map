@@ -2,6 +2,13 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
+## 適用状況（2026-06-10）
+
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001 / 0002 適用済み**。
+- セキュリティアドバイザリの残りWARN 3件（`is_group_member` / `has_group_role` /
+  `redeem_group_invite` が authenticated から実行可能）は**設計上意図したもの**。
+  前2つはRLSポリシー評価に必要で、呼び出し元自身の所属可否しか返さない。
+
 ## migrations/
 
 - `0001_init.sql` — 初期MVPスキーマ（docs/DATA_MODEL.md 準拠）
@@ -13,6 +20,9 @@ Supabase関連のファイルを置くディレクトリです。
   - 招待は `redeem_group_invite(token)`（トークンはsha256ハッシュのみ保存）
   - Storageバケット `images` / `audio`（非公開・署名URL前提）と
     `groups/{group_id}/...` パスに基づくRLSポリシー
+- `0002_harden_functions.sql` — アドバイザリ対応
+  - trigger関数の `search_path` 固定
+  - SECURITY DEFINER 関数の実行権限を最小化
 
 ## 適用手順（ユーザー承認後のみ / T-032〜T-033）
 
