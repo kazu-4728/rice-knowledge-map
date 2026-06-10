@@ -5,7 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { Map as MLMap, GeoJSONSource, MapMouseEvent } from "maplibre-gl";
 import type { GeoJSON } from "geojson";
 import type { FieldPoint } from "../../types";
-import { fieldGeoJSON, fieldPoints } from "../../data/dummy";
+import { loadFarmData, saveFieldPolygon } from "../../lib/data/farm";
 import MapBottomSheet from "./MapBottomSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
@@ -46,8 +46,9 @@ function polygonCentroid(coords: number[][]): [number, number] {
 export default function MapCanvas() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
-  const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(fieldPoints[0]);
+  const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
   const [tileError, setTileError] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const labeledFieldIds = useRef<Set<string>>(new Set());
 
   const {
@@ -68,6 +69,26 @@ export default function MapCanvas() {
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
 
+  // 名前確定時: ローカル表示に反映しつつSupabaseへ保存（T-042）
+  const handleSaveField = () => {
+    const name = pendingName.trim() || "新しい田んぼ";
+    const vertices = drawState.mode === "naming" ? drawState.vertices : [];
+    saveName(pendingName);
+    if (vertices.length < 3) return;
+    saveFieldPolygon(name, vertices).then((result) => {
+      if (result === "saved") setToast("田んぼを保存しました");
+      else if (result === "demo") setToast("ローカルに追加しました（ログインすると共有保存されます）");
+      else setToast("保存に失敗しました。通信環境を確認してください");
+    });
+  };
+
+  // トーストの自動消去
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   // クリックハンドラを付け替えずに済むよう、最新状態をrefで参照する
   const isDrawingRef = useRef(isDrawing);
   isDrawingRef.current = isDrawing;
@@ -81,8 +102,12 @@ export default function MapCanvas() {
     let map: MLMap | undefined;
     let cancelled = false;
 
-    import("maplibre-gl").then((maplibre) => {
+    // 地図ライブラリと田んぼデータ（Supabaseまたはサンプル）を並行読込
+    Promise.all([import("maplibre-gl"), loadFarmData()]).then(([maplibre, farm]) => {
       if (cancelled || !mapContainerRef.current) return;
+
+      // 参照モック同様、初期表示は先頭の地点を選択状態にする
+      setSelectedPoint(farm.points[0] ?? null);
 
       map = new maplibre.Map({
         container: mapContainerRef.current,
@@ -130,7 +155,7 @@ export default function MapCanvas() {
         // ── 田んぼポリゴン ──────────────────────
         map.addSource("fields", {
           type: "geojson",
-          data: fieldGeoJSON as GeoJSON.FeatureCollection,
+          data: farm.fieldsGeoJSON,
         });
         map.addLayer({
           id: "fields-fill",
@@ -146,7 +171,7 @@ export default function MapCanvas() {
         });
 
         // 田んぼ名ラベル（白チップ）
-        fieldGeoJSON.features.forEach((feature) => {
+        farm.fieldsGeoJSON.features.forEach((feature) => {
           if (feature.geometry.type !== "Polygon") return;
           const center = polygonCentroid(feature.geometry.coordinates[0]);
           addFieldLabel(maplibre, map!, feature.properties?.name ?? "", center);
@@ -208,7 +233,7 @@ export default function MapCanvas() {
         });
 
         // ── 地点ピン（ティアドロップ＋ラベルチップ） ─────────
-        fieldPoints.forEach((point) => {
+        farm.points.forEach((point) => {
           const el = document.createElement("button");
           el.type = "button";
           el.setAttribute(
@@ -378,9 +403,16 @@ export default function MapCanvas() {
         <FieldNameDialog
           value={pendingName}
           onChange={setPendingName}
-          onSave={() => saveName(pendingName)}
+          onSave={handleSaveField}
           onCancel={cancelDraw}
         />
+      )}
+
+      {/* 保存結果トースト */}
+      {toast && (
+        <div className="absolute bottom-[240px] left-1/2 z-40 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
+          {toast}
+        </div>
       )}
     </div>
   );

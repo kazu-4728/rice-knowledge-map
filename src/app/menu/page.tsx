@@ -1,5 +1,6 @@
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
+import AccountSection from "../../features/auth/AccountSection";
 import { members, pointStats } from "../../data/dummy";
 import {
   IconBell,
@@ -33,6 +34,9 @@ export default function MenuPage() {
     <AppShell>
       <div className="space-y-3 px-3 pb-6 pt-3">
         <h1 className="px-1 text-2xl font-bold text-gray-900">メニュー</h1>
+
+        {/* アカウント / ログイン */}
+        <AccountSection />
 
         {/* 同期ステータス */}
         <button className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50">

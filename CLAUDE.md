@@ -10,9 +10,13 @@ Claude Code向けの引き継ぎ文書です。
   - マップ / 記録一覧 / 記録詳細 / 保存前確認 / 田んぼ一覧 / メニュー / ホーム
   - PWA対応済み（manifest / アイコン / 最小Service Worker / safe-area）
   - UI確認は `npm run build && npm run start` + `node scripts/screenshot.mjs`
-- Supabase初期スキーマのmigration SQL案を作成済み（`supabase/migrations/0001_init.sql`、PR #11）。
-  - 適用はユーザー承認後のみ。手順は `supabase/README.md`
-- Supabaseプロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する。適用前に復元が必要）。
+- Supabaseスキーマは **適用済み**（0001〜0003、PR #11マージ済み）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）。
+- アプリ側のSupabase接続も実装済み:
+  - `lib/supabase/client.ts`（環境変数未設定ならnull→デモモード）
+  - `features/auth/`（Google OAuth + メールリンク。メニュー画面にログインカード）
+  - `lib/data/farm.ts`（マップの田んぼ/ポイント読込、なぞり描きポリゴンの保存、初回グループ自動作成RPC）
+  - 環境変数は `.env.example` 参照（publishableキーは公開前提）
+- 未接続: 記録一覧/詳細/コメントのSupabase化、記録保存（T-043/T-044）、招待UI（T-041）
 - Vercelは未接続。ユーザーがダッシュボードからGitHubリポジトリをインポートする必要がある（下記）。
 
 ---
@@ -57,8 +61,8 @@ Claude Code向けの引き継ぎ文書です。
 
 ## 5. 次にやること（順番）
 
-1. **ユーザー**: Vercelダッシュボード → Add New → Project → GitHubの `kazu-4728/rice-knowledge-map` をインポート（設定はデフォルトのままでNext.jsが自動認識される）
-2. **ユーザー**: スマホ実機でPreview URLを確認（T-051）
-3. **ユーザー**: PR #11（migration SQL案）をレビューし、適用を承認（T-032）
-4. 承認後: Supabaseプロジェクト復元 → `0001_init.sql` 適用（T-033）→ 結果報告
-5. Google認証（T-040）→ ダミーデータのSupabase差し替え（T-034）→ 保存処理（T-042〜T-044）
+1. **ユーザー**: Vercelダッシュボード → Add New → Project → GitHubの `kazu-4728/rice-knowledge-map` をインポートし、Environment Variables に `.env.example` の2変数を設定
+2. **ユーザー**: Supabaseダッシュボード → Authentication → Providers → Google を有効化（Google CloudのOAuthクライアントID/シークレットが必要）。メールリンクログインは設定不要で使える
+3. **ユーザー**: スマホ実機でPreview URLを確認（T-051）。ログイン→田んぼなぞり描き→保存まで試す（T-042検証）
+4. 記録保存（T-043/T-044）と記録一覧/詳細のSupabase接続（T-034残り）
+5. 招待URL発行UI（T-041、`redeem_group_invite` RPCは作成済み）
