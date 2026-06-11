@@ -22,6 +22,9 @@ export default function InviteRedeemScreen() {
 
   useEffect(() => {
     if (loading) return;
+    // 引き換え開始後はセッション更新（トークンリフレッシュ等）による再実行で
+    // 状態を上書きしない（成功表示が消える・RPCの多重実行を防ぐ）
+    if (state !== "idle" && state !== "need_login") return;
 
     // URLハッシュのトークンを保存（ログインリダイレクトで消えるため）
     const hashToken = window.location.hash.replace(/^#/, "");
@@ -58,7 +61,7 @@ export default function InviteRedeemScreen() {
           setState("done");
         }
       });
-  }, [configured, loading, session]);
+  }, [configured, loading, session, state]);
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col items-center bg-gray-100 px-4 pt-16">

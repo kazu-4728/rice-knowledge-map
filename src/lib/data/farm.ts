@@ -122,6 +122,9 @@ export async function saveFieldPolygon(
   name: string,
   vertices: [number, number][]
 ): Promise<SaveFieldResult> {
+  // ポリゴンとして成立しない頂点数はNaN/不正データの保存につながるため弾く
+  if (vertices.length < 3) return "error";
+
   const sb = getSupabase();
   if (!sb) return "demo";
 
