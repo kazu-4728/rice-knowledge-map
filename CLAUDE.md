@@ -4,20 +4,14 @@ Claude Code向けの引き継ぎ文書です。
 
 ---
 
-## 1. 現在の状態（2026-06 更新）
+## 1. 現在の状態（2026-06-11 更新）
 
-- 参照モック準拠のUI刷新は完了し、mainにマージ済み（PR #10）。
-  - マップ / 記録一覧 / 記録詳細 / 保存前確認 / 田んぼ一覧 / メニュー / ホーム
-  - PWA対応済み（manifest / アイコン / 最小Service Worker / safe-area）
-  - UI確認は `npm run build && npm run start` + `node scripts/screenshot.mjs`
-- Supabaseスキーマは **適用済み**（0001〜0003、PR #11マージ済み）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）。
-- アプリ側のSupabase接続も実装済み:
-  - `lib/supabase/client.ts`（環境変数未設定ならnull→デモモード）
-  - `features/auth/`（Google OAuth + メールリンク。メニュー画面にログインカード）
-  - `lib/data/farm.ts`（マップの田んぼ/ポイント読込、なぞり描きポリゴンの保存、初回グループ自動作成RPC）
-  - 環境変数は `.env.example` 参照。**実値（キー・URL）はリポジトリに一切書かない**（Vercel環境変数 / `.env.local` で設定。例示ファイルにも書かない）
-- 未接続: 記録一覧/詳細/コメントのSupabase化、記録保存（T-043/T-044）、招待UI（T-041）
-- Vercelは未接続。ユーザーがダッシュボードからGitHubリポジトリをインポートする必要がある（下記）。
+- **本番公開済み**: https://rice-knowledge-map.vercel.app （Vercel接続済み。mainへのマージで自動デプロイ）
+- 参照モック準拠のUI刷新・PWA対応はmainにマージ済み（PR #10）。UI確認は `npm run build && npm run start` + `node scripts/screenshot.mjs`
+- Supabaseスキーマは **適用済み**（0001〜0003、PR #11）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）
+- 認証・マップのSupabase接続・田んぼ保存・招待は実装済み（PR #12/#13）。**メールリンクログインは実機確認済み**。Googleログインはユーザーのプロバイダ設定待ちでボタン非表示（`NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=1` で表示）
+- 環境変数は `.env.example` 参照。**実値（キー・URL）はリポジトリに一切書かない**（Vercel環境変数 / `.env.local` で設定。例示ファイルにも書かない。publishableキーは2026-06-11にローテーション済み）
+- 進捗・残タスクの一覧は `tasks/TASKS.md` が最新（4区分: 動作中/反映待ち/残り/ユーザー作業）
 
 ---
 
@@ -61,8 +55,10 @@ Claude Code向けの引き継ぎ文書です。
 
 ## 5. 次にやること（順番）
 
-1. **ユーザー**: Vercelダッシュボード → Add New → Project → GitHubの `kazu-4728/rice-knowledge-map` をインポートし、Environment Variables に `.env.example` の2変数を設定
-2. **ユーザー**: Supabaseダッシュボード → Authentication → Providers → Google を有効化（Google CloudのOAuthクライアントID/シークレットが必要）。メールリンクログインは設定不要で使える
-3. **ユーザー**: スマホ実機でPreview URLを確認（T-051）。ログイン→田んぼなぞり描き→保存まで試す（T-042検証）
-4. 記録保存（T-043/T-044）と記録一覧/詳細のSupabase接続（T-034残り）
-5. 招待URL発行UI（T-041、`redeem_group_invite` RPCは作成済み）
+詳細は `tasks/TASKS.md` を参照。要約:
+
+1. **ユーザー**: 本番反映後にスマホで動作確認（なぞり描き登録→タップで編集/削除→家族招待）
+2. 記録の保存（カメラ写真→Supabase Storage、音声メモ。T-044）
+3. 記録詳細の実データ化・コメント・「対応済みにする」（T-034b/T-045）
+4. ピンの登録・編集（T-043）
+5. （任意・ユーザー）Googleログイン設定 / レガシーanonキーの無効化

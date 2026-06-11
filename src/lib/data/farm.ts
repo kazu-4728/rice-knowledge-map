@@ -104,8 +104,9 @@ export async function loadFarmData(): Promise<FarmData> {
       }),
     };
   } catch (err) {
+    // 設定済み環境では一時的なエラーでも偽のサンプル区画を見せない
     console.warn("[farm] load error", err);
-    return DEMO_DATA;
+    return ANON_DATA;
   }
 }
 
