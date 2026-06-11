@@ -156,6 +156,8 @@ export default function MapCanvas() {
         updateField(target.id, name, vertices).then((result) => {
           if (result === "saved") setToast("田んぼを描き直しました");
           else if (result === "demo") setToast("ローカルで更新しました（ログインすると共有されます）");
+          else if (result === "denied")
+            setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
           else setToast("更新を保存できませんでした。通信環境を確認してください");
         });
       } else {
@@ -169,8 +171,16 @@ export default function MapCanvas() {
     if (vertices.length < 3) return;
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
       if (status === "saved") {
-        // 保存直後の編集・削除ができるよう、ローカルidをDBのidへ差し替える
-        if (id) replaceSavedFieldId(localId, id);
+        // 保存直後の編集・削除ができるよう、ローカルidをDBのidへ差し替える。
+        // 保存完了前に操作カード等を開いていた場合も選択中idを同期する
+        if (id) {
+          replaceSavedFieldId(localId, id);
+          const sync = (prev: SelectedField | null) =>
+            prev && prev.id === localId ? { ...prev, id } : prev;
+          setSelectedField(sync);
+          setRedrawTarget(sync);
+          setRenameTarget(sync);
+        }
         setToast("田んぼを保存しました");
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有保存されます）");
@@ -201,6 +211,8 @@ export default function MapCanvas() {
       updateField(target.id, name).then((result) => {
         if (result === "saved") setToast("名前を変更しました");
         else if (result === "demo") setToast("ローカルで変更しました（ログインすると共有されます）");
+        else if (result === "denied")
+          setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
         else setToast("名前の変更を保存できませんでした");
       });
     } else {

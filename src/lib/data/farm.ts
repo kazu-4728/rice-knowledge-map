@@ -178,6 +178,8 @@ export async function saveFieldPolygon(
   }
 }
 
+export type UpdateFieldResult = "saved" | "demo" | "denied" | "error";
+
 /**
  * 田んぼの名前・輪郭を更新する。verticesを省略すると名前のみ変更。
  * 未設定・未ログイン時は "demo"（ローカル表示のみ）を返す。
@@ -186,7 +188,7 @@ export async function updateField(
   id: string,
   name: string,
   vertices?: [number, number][]
-): Promise<SaveFieldResult> {
+): Promise<UpdateFieldResult> {
   if (vertices && vertices.length < 3) return "error";
 
   const sb = getSupabase();
@@ -204,11 +206,13 @@ export async function updateField(
       patch.center_latitude = vertices.reduce((s, v) => s + v[1], 0) / vertices.length;
     }
 
-    const { error } = await sb.from("farm_fields").update(patch).eq("id", id);
+    // RLSで弾かれた更新はエラーにならず0件成功になるため、結果行で判定する
+    const { data, error } = await sb.from("farm_fields").update(patch).eq("id", id).select("id");
     if (error) {
       console.warn("[farm] update field failed", error);
       return "error";
     }
+    if (!data || data.length === 0) return "denied";
     return "saved";
   } catch (err) {
     console.warn("[farm] update error", err);
