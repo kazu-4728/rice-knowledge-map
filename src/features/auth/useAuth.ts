@@ -36,22 +36,23 @@ export function useAuth() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  /** redirectPath: ログイン後に戻すパス（例 "/invite"）。省略時はトップ */
+  const signInWithGoogle = async (redirectPath?: string) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase未設定です" };
     const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}${redirectPath ?? ""}` },
     });
     return { error: error?.message ?? null };
   };
 
-  const signInWithEmail = async (email: string) => {
+  const signInWithEmail = async (email: string, redirectPath?: string) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase未設定です" };
     const { error } = await sb.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: `${window.location.origin}${redirectPath ?? ""}` },
     });
     return { error: error?.message ?? null };
   };

@@ -21,13 +21,17 @@ export default function InviteButton() {
   const [copied, setCopied] = useState(false);
 
   const handleInvite = async () => {
+    // 再発行時に前回の結果が残らないよう必ず初期化する
+    setMessage(null);
+    setInviteUrl(null);
+    setCopied(false);
+
     const sb = getSupabase();
     if (!sb) {
       setMessage("デモモードでは招待URLを発行できません");
       return;
     }
     setBusy(true);
-    setMessage(null);
     try {
       const { data: sessionData } = await sb.auth.getSession();
       const user = sessionData.session?.user;

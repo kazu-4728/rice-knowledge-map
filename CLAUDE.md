@@ -15,7 +15,7 @@ Claude Code向けの引き継ぎ文書です。
   - `lib/supabase/client.ts`（環境変数未設定ならnull→デモモード）
   - `features/auth/`（Google OAuth + メールリンク。メニュー画面にログインカード）
   - `lib/data/farm.ts`（マップの田んぼ/ポイント読込、なぞり描きポリゴンの保存、初回グループ自動作成RPC）
-  - 環境変数は `.env.example` 参照（publishableキーは公開前提）
+  - 環境変数は `.env.example` 参照。**実値（キー・URL）はリポジトリに一切書かない**（Vercel環境変数 / `.env.local` で設定。例示ファイルにも書かない）
 - 未接続: 記録一覧/詳細/コメントのSupabase化、記録保存（T-043/T-044）、招待UI（T-041）
 - Vercelは未接続。ユーザーがダッシュボードからGitHubリポジトリをインポートする必要がある（下記）。
 

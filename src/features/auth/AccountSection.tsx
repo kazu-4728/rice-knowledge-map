@@ -4,8 +4,13 @@ import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { IconCheck, IconUserFill } from "../../components/ui/icons";
 
+type Props = {
+  /** ログイン後に戻すパス（例 "/invite"）。省略時はトップ */
+  redirectPath?: string;
+};
+
 /** メニュー画面のアカウントカード。ログイン状態の表示とGoogle/メールログイン導線 */
-export default function AccountSection() {
+export default function AccountSection({ redirectPath }: Props = {}) {
   const { configured, loading, session, signInWithGoogle, signInWithEmail, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -62,7 +67,7 @@ export default function AccountSection() {
 
   const handleGoogle = async () => {
     setBusy(true);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle(redirectPath);
     if (error) setMessage(`Googleログインに失敗: ${error}`);
     setBusy(false);
   };
@@ -73,7 +78,7 @@ export default function AccountSection() {
       return;
     }
     setBusy(true);
-    const { error } = await signInWithEmail(email);
+    const { error } = await signInWithEmail(email, redirectPath);
     setMessage(error ? `送信に失敗: ${error}` : "ログイン用リンクをメールに送りました");
     setBusy(false);
   };

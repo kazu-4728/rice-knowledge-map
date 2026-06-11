@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "../../lib/supabase/client";
 import { useAuth } from "./useAuth";
@@ -8,6 +8,9 @@ import AccountSection from "./AccountSection";
 import { IconCheck, IconUsers, IconWarningFill, LogoRice } from "../../components/ui/icons";
 
 const PENDING_KEY = "rkm_pending_invite_token";
+
+/** InviteButtonが生成する招待トークンの形式（UUID2つ分の64桁hex） */
+const INVITE_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
 type RedeemState = "idle" | "need_login" | "redeeming" | "done" | "error" | "no_token";
 
@@ -19,12 +22,20 @@ export default function InviteRedeemScreen() {
   const { configured, loading, session } = useAuth();
   const [state, setState] = useState<RedeemState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  // 一回限りの招待トークンをStrictModeの二重実行や認証イベント重複で多重消費しない
+  const redeemStartedRef = useRef(false);
 
   useEffect(() => {
     if (loading) return;
+    // 引き換え開始後はセッション更新（トークンリフレッシュ等）による再実行で
+    // 状態を上書きしない（成功表示が消える・RPCの多重実行を防ぐ）
+    if (state !== "idle" && state !== "need_login") return;
 
-    // URLハッシュのトークンを保存（ログインリダイレクトで消えるため）
-    const hashToken = window.location.hash.replace(/^#/, "");
+    // URLハッシュのトークンを保存（ログインリダイレクトで消えるため）。
+    // OAuth/メールリンク復帰時の #access_token=... 等を招待トークンと誤認しないよう
+    // 形式が一致するものだけ受け付ける
+    const rawHash = window.location.hash.replace(/^#/, "");
+    const hashToken = INVITE_TOKEN_PATTERN.test(rawHash) ? rawHash : "";
     if (hashToken) {
       localStorage.setItem(PENDING_KEY, hashToken);
       // 画面リロードや共有時にトークンが残らないようにする
@@ -46,6 +57,8 @@ export default function InviteRedeemScreen() {
       return;
     }
 
+    if (redeemStartedRef.current) return;
+    redeemStartedRef.current = true;
     setState("redeeming");
     getSupabase()!
       .rpc("redeem_group_invite", { p_token: token })
@@ -58,7 +71,7 @@ export default function InviteRedeemScreen() {
           setState("done");
         }
       });
-  }, [configured, loading, session]);
+  }, [configured, loading, session, state]);
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col items-center bg-gray-100 px-4 pt-16">
@@ -90,7 +103,7 @@ export default function InviteRedeemScreen() {
                 ログインすると家族グループに参加できます
               </p>
             </div>
-            <AccountSection />
+            <AccountSection redirectPath="/invite" />
           </>
         )}
 
