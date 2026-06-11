@@ -2,15 +2,18 @@ import type { FieldPointType } from "../../types";
 
 /** supabase/migrations/0001_init.sql の行型（アプリで使う列のみ） */
 
+/** Postgresのnumeric/decimalはPostgRESTからstringで返る場合がある */
+export type Numeric = string | number;
+
 export type FarmFieldRow = {
   id: string;
   group_id: string;
   name: string;
   memo: string | null;
-  center_latitude: number | null;
-  center_longitude: number | null;
+  center_latitude: Numeric | null;
+  center_longitude: Numeric | null;
   boundary_geojson: GeoJSON.Polygon | null;
-  area_sqm: number | null;
+  area_sqm: Numeric | null;
   display_order: number;
 };
 
@@ -20,8 +23,8 @@ export type FieldPointRow = {
   field_id: string | null;
   point_type: FieldPointType;
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude: Numeric;
+  longitude: Numeric;
   status: "normal" | "needs_check" | "issue" | "resolved";
   memo: string | null;
   last_checked_at: string | null;

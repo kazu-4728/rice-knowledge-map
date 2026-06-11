@@ -69,15 +69,26 @@ export async function loadFarmData(): Promise<FarmData> {
     return {
       live: true,
       fieldsGeoJSON,
-      points: points.map((p) => ({
-        id: p.id,
-        fieldId: p.field_id ?? "",
-        name: p.name,
-        type: p.point_type,
-        status: p.status,
-        lastRecord: formatTimestamp(p.last_checked_at),
-        lngLat: [Number(p.longitude), Number(p.latitude)] as [number, number],
-      })),
+      // numeric列はstringで返る場合があるためNumber変換し、不正座標は除外する
+      points: points.flatMap((p) => {
+        const lng = Number(p.longitude);
+        const lat = Number(p.latitude);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          console.warn("[farm] invalid point coordinates", p.id);
+          return [];
+        }
+        return [
+          {
+            id: p.id,
+            fieldId: p.field_id ?? "",
+            name: p.name,
+            type: p.point_type,
+            status: p.status,
+            lastRecord: formatTimestamp(p.last_checked_at),
+            lngLat: [lng, lat] as [number, number],
+          },
+        ];
+      }),
     };
   } catch (err) {
     console.warn("[farm] load error", err);

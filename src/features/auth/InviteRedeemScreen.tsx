@@ -90,7 +90,7 @@ export default function InviteRedeemScreen() {
                 ログインすると家族グループに参加できます
               </p>
             </div>
-            <AccountSection />
+            <AccountSection redirectPath="/invite" />
           </>
         )}
 
