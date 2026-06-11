@@ -33,3 +33,4 @@ tmp/
 .cache/
 .npm-cache/
 coverage/
+*.tsbuildinfo

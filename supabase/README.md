@@ -4,10 +4,11 @@ Supabase関連のファイルを置くディレクトリです。
 
 ## 適用状況（2026-06-10）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001 / 0002 適用済み**。
-- セキュリティアドバイザリの残りWARN 3件（`is_group_member` / `has_group_role` /
-  `redeem_group_invite` が authenticated から実行可能）は**設計上意図したもの**。
-  前2つはRLSポリシー評価に必要で、呼び出し元自身の所属可否しか返さない。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001 / 0002 / 0003 適用済み**。
+- セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
+  `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
+  **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
+  各関数の内部で権限・トークン検証を行っている。
 
 ## migrations/
 
@@ -23,17 +24,18 @@ Supabase関連のファイルを置くディレクトリです。
 - `0002_harden_functions.sql` — アドバイザリ対応
   - trigger関数の `search_path` 固定
   - SECURITY DEFINER 関数の実行権限を最小化
+- `0003_create_group_helper.sql` — グループ作成RPC（`create_farm_group`）
+  - RLSの構造上クライアントから直接できない「グループ作成+owner登録」を
+    1トランザクションで行う
 
-## 適用手順（ユーザー承認後のみ / T-032〜T-033）
+## 今後migrationを追加するとき
 
-1. Supabaseプロジェクト `rice-farm-app` が一時停止中の場合は復元する
-2. ダッシュボードの SQL Editor で `0001_init.sql` を実行する
-   （またはSupabase MCP / CLI の migration 適用を使用）
-3. `select * from pg_tables where schemaname = 'public';` でテーブル作成を確認
-4. Authentication → Providers で Google を有効化する（Phase 4）
+1. `0004_xxx.sql` のように連番でこのディレクトリに追加する
+2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
+   （docs/NEGATIVE_ACTIONS.md 参照）
+3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
 
 ## 戻し方
 
-このmigrationは新規オブジェクトの追加のみで、既存の `fields` / `field_logs`
-には触れません。取り消す場合は作成したテーブル・型・関数・バケットポリシーを
-dropします（必要になった時点で 0002_rollback 案を作成します）。
+0001〜0003は新規オブジェクトの追加のみ。取り消す場合は作成したテーブル・型・
+関数・バケットポリシーをdropします。
