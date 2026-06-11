@@ -17,7 +17,7 @@ export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUn
         <div className="bg-blue-600 text-white rounded-xl px-4 py-3 shadow-lg">
           <p className="text-sm font-bold">田んぼの輪郭を描いています</p>
           <p className="text-xs mt-0.5 text-blue-100">
-            地図をタップして頂点を追加 — {vertexCount} 点
+            指でなぞるか、タップで点を打って輪郭を描く — {vertexCount} 点
             {vertexCount < 3 && `（あと ${3 - vertexCount} 点で完成できます）`}
           </p>
         </div>

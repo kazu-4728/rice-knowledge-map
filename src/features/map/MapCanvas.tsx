@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Map as MLMap, GeoJSONSource, MapMouseEvent } from "maplibre-gl";
+import type {
+  Map as MLMap,
+  GeoJSONSource,
+  MapMouseEvent,
+  MapTouchEvent,
+  Marker,
+} from "maplibre-gl";
 import type { GeoJSON } from "geojson";
 import type { FieldPoint } from "../../types";
-import { loadFarmData, saveFieldPolygon } from "../../lib/data/farm";
+import { loadFarmData, saveFieldPolygon, updateField, deleteField } from "../../lib/data/farm";
 import MapBottomSheet from "./MapBottomSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
@@ -21,6 +27,11 @@ import {
 
 const INITIAL_CENTER: [number, number] = [138.8305, 37.4252];
 const INITIAL_ZOOM = 14.4;
+/** なぞり描き中、この画面距離(px)以上動いたら頂点を追加する */
+const TRACE_MIN_DISTANCE_PX = 12;
+
+/** タップで選択された田んぼ */
+type SelectedField = { id: string; name: string };
 
 /** 田んぼ名ラベル（白チップ）をHTML Markerとして追加する */
 function addFieldLabel(
@@ -28,12 +39,23 @@ function addFieldLabel(
   map: MLMap,
   name: string,
   lngLat: [number, number]
-) {
+): Marker {
   const el = document.createElement("div");
   el.textContent = name;
   el.className =
     "rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-gray-900 shadow-md pointer-events-none whitespace-nowrap";
-  new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
+  return new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
+}
+
+/** 点がリング（経度緯度の多角形）の内側にあるか（ray casting法） */
+function pointInRing([x, y]: [number, number], ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 function polygonCentroid(coords: number[][]): [number, number] {
@@ -49,7 +71,17 @@ export default function MapCanvas() {
   const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
   const [tileError, setTileError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const labeledFieldIds = useRef<Set<string>>(new Set());
+  const [liveEmpty, setLiveEmpty] = useState(false);
+  const [anonMode, setAnonMode] = useState(false);
+  const [serverFields, setServerFields] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [selectedField, setSelectedField] = useState<SelectedField | null>(null);
+  const [redrawTarget, setRedrawTarget] = useState<SelectedField | null>(null);
+  const [renameTarget, setRenameTarget] = useState<SelectedField | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const locationMarkerRef = useRef<Marker | null>(null);
+  const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
+  const farmLiveRef = useRef(false);
 
   const {
     drawState,
@@ -60,7 +92,12 @@ export default function MapCanvas() {
     finishDraw,
     cancelDraw,
     saveName,
+    closeNaming,
     undoVertex,
+    updateSavedField,
+    deleteSavedField,
+    replaceSavedFieldId,
+    savedFields,
     drawingGeoJSON,
     savedFieldsGeoJSON,
   } = useFieldDraw();
@@ -69,17 +106,144 @@ export default function MapCanvas() {
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
 
-  // 名前確定時: ローカル表示に反映しつつSupabaseへ保存（T-042）
-  const handleSaveField = () => {
-    const name = pendingName.trim() || "新しい田んぼ";
-    const vertices = drawState.mode === "naming" ? drawState.vertices : [];
-    saveName(pendingName);
-    if (vertices.length < 3) return;
-    saveFieldPolygon(name, vertices).then((result) => {
-      if (result === "saved") setToast("田んぼを保存しました");
-      else if (result === "demo") setToast("ローカルに追加しました（ログインすると共有保存されます）");
-      else setToast("保存に失敗しました。通信環境を確認してください");
+  /** サーバー由来フィールドの名前・輪郭をローカル状態へ反映する */
+  const applyServerFieldUpdate = (id: string, name: string, vertices?: [number, number][]) => {
+    setServerFields((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        features: prev.features.map((f) =>
+          String(f.id ?? f.properties?.id) === id
+            ? {
+                ...f,
+                properties: { ...f.properties, name },
+                geometry: vertices
+                  ? { type: "Polygon" as const, coordinates: [[...vertices, vertices[0]]] }
+                  : f.geometry,
+              }
+            : f
+        ),
+      };
     });
+  };
+
+  /** ローカル表示（サーバー由来・このセッションで描いた両方）から田んぼを取り除く */
+  const removeFieldLocally = (id: string) => {
+    deleteSavedField(id);
+    setServerFields((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        features: prev.features.filter((f) => String(f.id ?? f.properties?.id) !== id),
+      };
+    });
+  };
+
+  // 名前確定時: 新規保存 or 描き直しの更新（T-042）
+  const handleSaveField = () => {
+    const vertices = drawState.mode === "naming" ? drawState.vertices : [];
+    const name = pendingName.trim() || redrawTarget?.name || "新しい田んぼ";
+
+    // 描き直し: 既存の田んぼの輪郭・名前を更新する
+    if (redrawTarget) {
+      const target = redrawTarget;
+      setRedrawTarget(null);
+      closeNaming();
+      if (vertices.length < 3) return;
+      updateSavedField(target.id, name, vertices);
+      applyServerFieldUpdate(target.id, name, vertices);
+      if (farmLiveRef.current) {
+        updateField(target.id, name, vertices).then((result) => {
+          if (result === "saved") setToast("田んぼを描き直しました");
+          else if (result === "demo") setToast("ローカルで更新しました（ログインすると共有されます）");
+          else if (result === "denied")
+            setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
+          else setToast("更新を保存できませんでした。通信環境を確認してください");
+        });
+      } else {
+        setToast("田んぼを描き直しました");
+      }
+      return;
+    }
+
+    // 新規: ローカル表示に追加しつつSupabaseへ保存
+    const localId = saveName(pendingName);
+    if (vertices.length < 3) return;
+    saveFieldPolygon(name, vertices).then(({ status, id }) => {
+      if (status === "saved") {
+        // 保存直後の編集・削除ができるよう、ローカルidをDBのidへ差し替える。
+        // 保存完了前に操作カード等を開いていた場合も選択中idを同期する
+        if (id) {
+          replaceSavedFieldId(localId, id);
+          const sync = (prev: SelectedField | null) =>
+            prev && prev.id === localId ? { ...prev, id } : prev;
+          setSelectedField(sync);
+          setRedrawTarget(sync);
+          setRenameTarget(sync);
+        }
+        setToast("田んぼを保存しました");
+      } else if (status === "demo") {
+        setToast("ローカルに追加しました（ログインすると共有保存されます）");
+      } else {
+        setToast("保存に失敗しました。通信環境を確認してください");
+      }
+    });
+  };
+
+  /** 操作カードの「描き直す」 */
+  const startRedraw = () => {
+    if (!selectedField) return;
+    setRedrawTarget(selectedField);
+    setSelectedField(null);
+    startDraw();
+  };
+
+  /** 名前変更ダイアログの確定 */
+  const commitRename = () => {
+    const target = renameTarget;
+    if (!target) return;
+    const name = renameValue.trim() || target.name;
+    setRenameTarget(null);
+    setSelectedField(null);
+    updateSavedField(target.id, name);
+    applyServerFieldUpdate(target.id, name);
+    if (farmLiveRef.current) {
+      updateField(target.id, name).then((result) => {
+        if (result === "saved") setToast("名前を変更しました");
+        else if (result === "demo") setToast("ローカルで変更しました（ログインすると共有されます）");
+        else if (result === "denied")
+          setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
+        else setToast("名前の変更を保存できませんでした");
+      });
+    } else {
+      setToast("名前を変更しました");
+    }
+  };
+
+  /** 削除確認の確定 */
+  const handleDeleteConfirmed = () => {
+    const target = selectedField;
+    if (!target) return;
+    setConfirmingDelete(false);
+    setSelectedField(null);
+    if (farmLiveRef.current) {
+      deleteField(target.id).then((result) => {
+        if (result === "deleted") {
+          removeFieldLocally(target.id);
+          setToast("田んぼを削除しました");
+        } else if (result === "denied") {
+          setToast("削除は管理者のみ行えます");
+        } else if (result === "demo") {
+          removeFieldLocally(target.id);
+          setToast("ローカルで削除しました");
+        } else {
+          setToast("削除に失敗しました。通信環境を確認してください");
+        }
+      });
+    } else {
+      removeFieldLocally(target.id);
+      setToast("田んぼを削除しました");
+    }
   };
 
   // トーストの自動消去
@@ -89,11 +253,77 @@ export default function MapCanvas() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // 描き直しの名前入力には現在の名前を初期表示する
+  useEffect(() => {
+    if (isNaming && redrawTarget) setPendingName(redrawTarget.name);
+  }, [isNaming, redrawTarget, setPendingName]);
+
+  /** GPSで現在地へ移動し、青い現在地ドットを表示する */
+  const flyToCurrentLocation = (silent = false) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!("geolocation" in navigator)) {
+      if (!silent) setToast("この端末では位置情報を利用できません");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        import("maplibre-gl").then((maplibre) => {
+          if (!mapRef.current) return;
+          if (!locationMarkerRef.current) {
+            const el = document.createElement("div");
+            el.className =
+              "h-4 w-4 rounded-full border-[3px] border-white bg-blue-500 shadow-[0_0_0_6px_rgba(59,130,246,0.25)]";
+            locationMarkerRef.current = new maplibre.Marker({ element: el, anchor: "center" })
+              .setLngLat(lngLat)
+              .addTo(mapRef.current);
+          } else {
+            locationMarkerRef.current.setLngLat(lngLat);
+          }
+          mapRef.current.flyTo({ center: lngLat, zoom: 16.5 });
+        });
+      },
+      () => {
+        if (!silent) setToast("現在地を取得できません。位置情報の許可を確認してください");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
+
+  /**
+   * タップ座標に重なる田んぼを座標計算で探す（このセッションで描いたものを優先）。
+   * 描画済みピクセルへの問い合わせ（queryRenderedFeatures）は低速端末で
+   * 描画完了前のタップを取りこぼすため使わない。
+   */
+  const findFieldAt = (lngLat: [number, number]): SelectedField | null => {
+    for (let i = savedFields.length - 1; i >= 0; i--) {
+      const f = savedFields[i];
+      if (pointInRing(lngLat, [...f.vertices, f.vertices[0]])) {
+        return { id: f.id, name: f.name };
+      }
+    }
+    for (const feat of serverFields?.features ?? []) {
+      if (feat.geometry.type !== "Polygon") continue;
+      if (pointInRing(lngLat, feat.geometry.coordinates[0])) {
+        return {
+          id: String(feat.id ?? feat.properties?.id ?? ""),
+          name: String(feat.properties?.name ?? ""),
+        };
+      }
+    }
+    return null;
+  };
+
   // クリックハンドラを付け替えずに済むよう、最新状態をrefで参照する
   const isDrawingRef = useRef(isDrawing);
   isDrawingRef.current = isDrawing;
   const addVertexRef = useRef(addVertex);
   addVertexRef.current = addVertex;
+  const flyToCurrentLocationRef = useRef(flyToCurrentLocation);
+  flyToCurrentLocationRef.current = flyToCurrentLocation;
+  const findFieldAtRef = useRef(findFieldAt);
+  findFieldAtRef.current = findFieldAt;
 
   // マップ初期化
   useEffect(() => {
@@ -105,6 +335,9 @@ export default function MapCanvas() {
     // 地図ライブラリと田んぼデータ（Supabaseまたはサンプル）を並行読込
     Promise.all([import("maplibre-gl"), loadFarmData()]).then(([maplibre, farm]) => {
       if (cancelled || !mapContainerRef.current) return;
+
+      farmLiveRef.current = farm.mode === "live";
+      setAnonMode(farm.mode === "anon");
 
       // 参照モック同様、初期表示は先頭の地点を選択状態にする
       setSelectedPoint(farm.points[0] ?? null);
@@ -139,18 +372,41 @@ export default function MapCanvas() {
         }
       });
 
-      // 描画モード: 頂点追加 / 通常モード: 選択解除
+      // 通常モード: 田んぼタップで操作カード、それ以外は選択解除
+      // （描画モードの頂点追加はなぞり描きハンドラが担当）
       map.on("click", (e: MapMouseEvent) => {
-        if (isDrawingRef.current) {
-          addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
-        } else {
-          setSelectedPoint(null);
-        }
+        if (isDrawingRef.current) return;
+        const hit = findFieldAtRef.current([e.lngLat.lng, e.lngLat.lat]);
+        setSelectedField(hit);
+        setSelectedPoint(null);
       });
 
       map.on("load", () => {
         if (!map) return;
         map.resize();
+
+        // 初期表示位置: 自分のデータがあればそこへ、なければ現在地を取得
+        const coords: [number, number][] = [
+          ...farm.points.map((p) => p.lngLat),
+          ...farm.fieldsGeoJSON.features.flatMap((f) =>
+            f.geometry.type === "Polygon" ? (f.geometry.coordinates[0] as [number, number][]) : []
+          ),
+        ];
+        if (farm.mode === "live" && coords.length > 0) {
+          const lngs = coords.map((c) => c[0]);
+          const lats = coords.map((c) => c[1]);
+          map.fitBounds(
+            [
+              [Math.min(...lngs), Math.min(...lats)],
+              [Math.max(...lngs), Math.max(...lats)],
+            ],
+            { padding: 60, maxZoom: 16.5, duration: 0 }
+          );
+        } else if (farm.mode === "live") {
+          // ログイン済みでまだ田んぼ未登録: 現在地から始める + 登録を促す
+          setLiveEmpty(true);
+          flyToCurrentLocationRef.current(true);
+        }
 
         // ── 田んぼポリゴン ──────────────────────
         map.addSource("fields", {
@@ -170,13 +426,6 @@ export default function MapCanvas() {
           paint: { "line-color": "#ffffff", "line-width": 2.5 },
         });
 
-        // 田んぼ名ラベル（白チップ）
-        farm.fieldsGeoJSON.features.forEach((feature) => {
-          if (feature.geometry.type !== "Polygon") return;
-          const center = polygonCentroid(feature.geometry.coordinates[0]);
-          addFieldLabel(maplibre, map!, feature.properties?.name ?? "", center);
-        });
-
         // ── ユーザー描画済みポリゴン ──────────────────
         map.addSource("user-fields", {
           type: "geojson",
@@ -193,6 +442,22 @@ export default function MapCanvas() {
           type: "line",
           source: "user-fields",
           paint: { "line-color": "#ffffff", "line-width": 2.5 },
+        });
+
+        // ── 選択中の田んぼの強調表示 ──────────────────
+        map.addLayer({
+          id: "fields-selected",
+          type: "line",
+          source: "fields",
+          paint: { "line-color": "#16A34A", "line-width": 4.5 },
+          filter: ["==", ["get", "id"], "__none__"],
+        });
+        map.addLayer({
+          id: "user-fields-selected",
+          type: "line",
+          source: "user-fields",
+          paint: { "line-color": "#16A34A", "line-width": 4.5 },
+          filter: ["==", ["get", "id"], "__none__"],
         });
 
         // ── 描画中プレビュー（線・頂点） ───────────────
@@ -253,6 +518,7 @@ export default function MapCanvas() {
           const handleActivate = (e: Event) => {
             e.stopPropagation();
             setSelectedPoint(point);
+            setSelectedField(null);
           };
           el.addEventListener("click", handleActivate);
           el.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -270,6 +536,9 @@ export default function MapCanvas() {
             .setLngLat(point.lngLat)
             .addTo(map!);
         });
+
+        // 名前ラベルの生成・編集・削除はラベル同期effectが担当する
+        setServerFields(farm.fieldsGeoJSON);
       });
     });
 
@@ -282,39 +551,147 @@ export default function MapCanvas() {
     };
   }, []);
 
-  // 描画中はカーソルを十字に
+  // 描画モード: 地図の移動を止め、指・マウスのなぞり軌跡を頂点として記録する
+  // （タップ/クリックは押した1点だけ追加されるので、1点ずつの打点も引き続き可能）
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     map.getCanvas().style.cursor = isDrawing ? "crosshair" : "";
+    if (!isDrawing) return;
+
+    map.dragPan.disable();
+    let tracing = false;
+    let lastPoint: { x: number; y: number } | null = null;
+
+    const start = (e: MapMouseEvent | MapTouchEvent) => {
+      // ピンチ操作（2本指）はズームに譲る
+      if ("points" in e && e.points.length > 1) {
+        tracing = false;
+        return;
+      }
+      tracing = true;
+      lastPoint = e.point;
+      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+    };
+    const move = (e: MapMouseEvent | MapTouchEvent) => {
+      if (!tracing || !lastPoint) return;
+      if ("points" in e && e.points.length > 1) {
+        tracing = false;
+        return;
+      }
+      const dx = e.point.x - lastPoint.x;
+      const dy = e.point.y - lastPoint.y;
+      if (dx * dx + dy * dy < TRACE_MIN_DISTANCE_PX * TRACE_MIN_DISTANCE_PX) return;
+      lastPoint = e.point;
+      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+    };
+    const end = () => {
+      tracing = false;
+      lastPoint = null;
+    };
+
+    map.on("mousedown", start);
+    map.on("mousemove", move);
+    map.on("mouseup", end);
+    map.on("touchstart", start);
+    map.on("touchmove", move);
+    map.on("touchend", end);
+    map.on("touchcancel", end);
+
+    return () => {
+      map.off("mousedown", start);
+      map.off("mousemove", move);
+      map.off("mouseup", end);
+      map.off("touchstart", start);
+      map.off("touchmove", move);
+      map.off("touchend", end);
+      map.off("touchcancel", end);
+      map.dragPan.enable();
+    };
   }, [isDrawing]);
 
   // 描画中 GeoJSON を更新
+  // （isStyleLoaded()はタイル読込失敗中にfalseを返し同期漏れするため、ソース存在のみ確認）
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
     const src = map.getSource<GeoJSONSource>("drawing");
     if (src) src.setData(drawingGeoJSON);
   }, [drawingGeoJSON]);
 
-  // 保存済みフィールド GeoJSON を更新 + ラベルを追加
+  // サーバー由来フィールド GeoJSON を更新（編集・削除の反映）
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !serverFields) return;
+    const src = map.getSource<GeoJSONSource>("fields");
+    if (src) src.setData(serverFields);
+  }, [serverFields]);
+
+  // このセッションで描いたフィールド GeoJSON を更新
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
     const src = map.getSource<GeoJSONSource>("user-fields");
     if (src) src.setData(savedFieldsGeoJSON);
+  }, [savedFieldsGeoJSON]);
+
+  // 選択中の田んぼを強調表示
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const idValue = selectedField?.id ?? "__none__";
+    for (const layer of ["fields-selected", "user-fields-selected"]) {
+      if (map.getLayer(layer)) map.setFilter(layer, ["==", ["get", "id"], idValue]);
+    }
+  }, [selectedField]);
+
+  // 名前ラベル（白チップ）を全フィールドと同期（追加・名前変更・移動・削除）
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const features: GeoJSON.Feature[] = [
+      ...(serverFields?.features ?? []),
+      ...savedFields.map((f) => ({
+        type: "Feature" as const,
+        id: f.id,
+        properties: { id: f.id, name: f.name },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [[...f.vertices, f.vertices[0]]],
+        },
+      })),
+    ];
 
     import("maplibre-gl").then((maplibre) => {
-      savedFieldsGeoJSON.features.forEach((feature) => {
-        const id = String(feature.id ?? feature.properties?.name ?? "");
-        if (labeledFieldIds.current.has(id)) return;
+      if (!mapRef.current) return;
+      const seen = new Set<string>();
+      features.forEach((feature) => {
         if (feature.geometry.type !== "Polygon") return;
-        const center = polygonCentroid((feature.geometry as GeoJSON.Polygon).coordinates[0]);
-        addFieldLabel(maplibre, map, feature.properties?.name ?? "", center);
-        labeledFieldIds.current.add(id);
+        const id = String(feature.id ?? feature.properties?.id ?? "");
+        if (!id) return;
+        seen.add(id);
+        const center = polygonCentroid(feature.geometry.coordinates[0]);
+        const name = String(feature.properties?.name ?? "");
+        const existing = fieldLabelsRef.current.get(id);
+        if (existing) {
+          existing.setLngLat(center);
+          existing.getElement().textContent = name;
+        } else {
+          fieldLabelsRef.current.set(
+            id,
+            addFieldLabel(maplibre, mapRef.current!, name, center)
+          );
+        }
       });
+      for (const [id, marker] of fieldLabelsRef.current) {
+        if (!seen.has(id)) {
+          marker.remove();
+          fieldLabelsRef.current.delete(id);
+        }
+      }
     });
-  }, [savedFieldsGeoJSON]);
+  }, [serverFields, savedFields]);
 
   return (
     <div className="absolute inset-0">
@@ -332,6 +709,24 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
+          {/* 未ログインの案内 */}
+          {anonMode && (
+            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg">
+              <p className="text-sm font-bold text-gray-900">ログインすると家族の田んぼが表示されます</p>
+              <p className="mt-0.5 text-xs text-gray-500">メニュー画面からメールアドレスでログインできます</p>
+            </div>
+          )}
+
+          {/* ログイン済み・田んぼ未登録の案内 */}
+          {liveEmpty && (
+            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-green-700 px-4 py-3 text-white shadow-lg">
+              <p className="text-sm font-bold">まだ田んぼが登録されていません</p>
+              <p className="mt-0.5 text-xs text-green-100">
+                右下の緑の＋ボタンを押して、地図上の田んぼを指でなぞると登録できます
+              </p>
+            </div>
+          )}
+
           {/* 凡例 */}
           <div className="absolute left-3 top-3 z-10 space-y-2 rounded-xl bg-white px-2.5 py-2.5 shadow-md">
             {[
@@ -349,9 +744,7 @@ export default function MapCanvas() {
           {/* 右側コントロール（現在地・ズーム・田んぼ追加） */}
           <div className="absolute bottom-[230px] right-3 z-10 flex flex-col items-center gap-2">
             <button
-              onClick={() =>
-                mapRef.current?.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
-              }
+              onClick={() => flyToCurrentLocation()}
               aria-label="現在地に戻る"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md hover:bg-gray-50"
             >
@@ -375,7 +768,10 @@ export default function MapCanvas() {
               </button>
             </div>
             <button
-              onClick={startDraw}
+              onClick={() => {
+                setLiveEmpty(false);
+                startDraw();
+              }}
               aria-label="田んぼを追加"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-green-700 text-white shadow-md hover:bg-green-800"
             >
@@ -383,8 +779,51 @@ export default function MapCanvas() {
             </button>
           </div>
 
-          {/* 常設ボトムシート */}
-          <MapBottomSheet point={selectedPoint} />
+          {/* 田んぼ選択中は操作カード、それ以外は常設ボトムシート */}
+          {selectedField ? (
+            <div className="absolute inset-x-0 bottom-0 z-30">
+              <div className="rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)]">
+                <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-gray-300" />
+                <div className="flex items-center gap-2">
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-sm border-2 border-white bg-green-600 shadow" />
+                  <h2 className="truncate text-base font-bold text-gray-900">
+                    {selectedField.name || "名前のない田んぼ"}
+                  </h2>
+                  <button
+                    onClick={() => setSelectedField(null)}
+                    className="ml-auto shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-100"
+                  >
+                    閉じる
+                  </button>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setRenameTarget(selectedField);
+                      setRenameValue(selectedField.name);
+                    }}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-800 transition-colors hover:bg-gray-50"
+                  >
+                    名前を変更
+                  </button>
+                  <button
+                    onClick={startRedraw}
+                    className="flex-1 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
+                  >
+                    描き直す
+                  </button>
+                  <button
+                    onClick={() => setConfirmingDelete(true)}
+                    className="flex-1 rounded-xl border border-red-300 bg-white py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <MapBottomSheet point={selectedPoint} />
+          )}
         </>
       )}
 
@@ -393,19 +832,65 @@ export default function MapCanvas() {
         <FieldDrawOverlay
           vertexCount={vertexCount}
           onFinish={finishDraw}
-          onCancel={cancelDraw}
+          onCancel={() => {
+            setRedrawTarget(null);
+            cancelDraw();
+          }}
           onUndo={undoVertex}
         />
       )}
 
-      {/* ── 名前入力ダイアログ ──────────────────────────── */}
+      {/* ── 名前入力ダイアログ（新規・描き直し共用） ──────────── */}
       {isNaming && (
         <FieldNameDialog
+          title={redrawTarget ? "描き直した田んぼの名前" : "田んぼの名前を入力"}
           value={pendingName}
           onChange={setPendingName}
           onSave={handleSaveField}
-          onCancel={cancelDraw}
+          onCancel={() => {
+            setRedrawTarget(null);
+            cancelDraw();
+          }}
         />
+      )}
+
+      {/* ── 名前変更ダイアログ ──────────────────────────── */}
+      {renameTarget && (
+        <FieldNameDialog
+          title="田んぼの名前を変更"
+          value={renameValue}
+          onChange={setRenameValue}
+          onSave={commitRename}
+          onCancel={() => setRenameTarget(null)}
+        />
+      )}
+
+      {/* ── 削除確認 ─────────────────────────────────── */}
+      {confirmingDelete && selectedField && (
+        <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40 pb-24">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-base font-bold text-gray-900">
+              「{selectedField.name || "名前のない田んぼ"}」を削除しますか？
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              この田んぼに紐づくピンや記録は消えませんが、田んぼとのつながりは外れます。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-200"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 保存結果トースト */}
