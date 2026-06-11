@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { IconCheck, IconUserFill } from "../../components/ui/icons";
 
+// Googleログインは Supabase 側のプロバイダ設定（Google CloudのOAuthクライアント）が
+// 必要なため、設定が済むまでボタンを出さない（壊れたボタンを見せない）
+const GOOGLE_LOGIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN === "1";
+
 type Props = {
   /** ログイン後に戻すパス（例 "/invite"）。省略時はトップ */
   redirectPath?: string;
@@ -90,13 +94,15 @@ export default function AccountSection({ redirectPath }: Props = {}) {
         ログインすると田んぼや記録が家族と共有されます
       </p>
 
-      <button
-        onClick={handleGoogle}
-        disabled={busy}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800 disabled:opacity-50"
-      >
-        Googleでログイン
-      </button>
+      {GOOGLE_LOGIN_ENABLED && (
+        <button
+          onClick={handleGoogle}
+          disabled={busy}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800 disabled:opacity-50"
+        >
+          Googleでログイン
+        </button>
+      )}
 
       <div className="mt-3 flex gap-2">
         <input

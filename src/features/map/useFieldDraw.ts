@@ -53,11 +53,12 @@ export function useFieldDraw() {
     setPendingName("");
   }, []);
 
+  /** 描いた輪郭をローカル表示に追加して名前入力を終える。追加したローカルidを返す */
   const saveName = useCallback((name: string) => {
+    const id = `user-field-${Date.now()}`;
     setDrawState((prev) => {
       if (prev.mode !== "naming") return prev;
       const color = FIELD_COLORS[savedFields.length % FIELD_COLORS.length];
-      const id = `user-field-${Date.now()}`;
       setSavedFields((fields) => [
         ...fields,
         { id, name: name.trim() || "新しい田んぼ", color, vertices: prev.vertices },
@@ -65,13 +66,44 @@ export function useFieldDraw() {
       return { mode: "idle" };
     });
     setPendingName("");
+    return id;
   }, [savedFields.length]);
+
+  /** DB保存後に、ローカルidをDB上のidへ差し替える（保存直後の編集・削除のため） */
+  const replaceSavedFieldId = useCallback((oldId: string, newId: string) => {
+    setSavedFields((fields) => fields.map((f) => (f.id === oldId ? { ...f, id: newId } : f)));
+  }, []);
 
   const undoVertex = useCallback(() => {
     setDrawState((prev) => {
       if (prev.mode !== "drawing") return prev;
       return { mode: "drawing", vertices: prev.vertices.slice(0, -1) };
     });
+  }, []);
+
+  /** ローカル保存せずに名前入力を閉じる（描き直し・サーバー保存フィールド用） */
+  const closeNaming = useCallback(() => {
+    setDrawState({ mode: "idle" });
+    setPendingName("");
+  }, []);
+
+  /** ローカル表示中の田んぼを更新する。verticesを省略すると名前のみ変更 */
+  const updateSavedField = useCallback(
+    (id: string, name: string, vertices?: [number, number][]) => {
+      setSavedFields((fields) =>
+        fields.map((f) =>
+          f.id === id
+            ? { ...f, name: name.trim() || f.name, vertices: vertices ?? f.vertices }
+            : f
+        )
+      );
+    },
+    []
+  );
+
+  /** ローカル表示中の田んぼを削除する */
+  const deleteSavedField = useCallback((id: string) => {
+    setSavedFields((fields) => fields.filter((f) => f.id !== id));
   }, []);
 
   // 描画中の仮ポリゴン（線と頂点）を GeoJSON で返す
@@ -129,7 +161,11 @@ export function useFieldDraw() {
     finishDraw,
     cancelDraw,
     saveName,
+    closeNaming,
     undoVertex,
+    updateSavedField,
+    deleteSavedField,
+    replaceSavedFieldId,
     savedFields,
     drawingGeoJSON,
     savedFieldsGeoJSON,

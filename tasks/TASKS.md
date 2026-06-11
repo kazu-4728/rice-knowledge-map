@@ -1,97 +1,59 @@
 # TASKS.md
 
-このタスクリストは、作業の優先順位と完了条件を固定するための管理表です。
+いま何が動いていて、何が残っているかを一目で分かるようにする管理表です。
+状態は `TODO / IN_PROGRESS / REVIEW / DONE` のみ。`DONE` には証拠（PR・スクリーンショット・実機確認）が必要です。
 
-現在の最優先は、メインマップ画面を参照モック画像に近いスマホアプリUIへ引き上げることです。
-
-UIが合格するまで、DB接続や機能追加へ進みません。
-
-状態は `TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE` のみ使用します。`DONE` には証拠が必要です。
+本番URL: https://rice-knowledge-map.vercel.app
 
 ---
 
-## Phase 0: 方針整理
+## 1. 完成して動いているもの
 
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-000 | DONE | GPT | リポジトリ確認 | `kazu-4728/rice-knowledge-map` を確認済み |
-| T-001 | DONE | GPT | README作成 | README.md が存在 |
-| T-002 | DONE | GPT | 初期ドキュメント作成 | docs/tasks が追加済み |
-| T-003 | DONE | Claude Code | アーキテクチャ再設計 | Tailwind / MapLibre / Next.js 方針を反映済み |
-| T-004 | DONE | GPT | UI優先方針へREADME上書き | mainに反映済み |
-| T-005 | DONE | GPT | UI_REPRODUCTION_SPEC上書き | 参照画像優先の仕様へ修正済み |
-| T-006 | DONE | GPT | CLAUDE.md上書き | Claude Code向けUI優先指示へ修正済み |
-| T-007 | DONE | GPT | AGENTS.md上書き | UI優先ルールへ修正済み |
-| T-008 | DONE | GPT | ARCHITECTURE.md上書き | Next.js内UI再現優先へ修正済み |
-| T-009 | DONE | GPT | REVIEW_CHECKLIST上書き | UI品質ゲートへ修正済み |
+| 内容 | 証拠 |
+|---|---|
+| 全画面UI（マップ/記録一覧/記録詳細/保存前確認/田んぼ一覧/メニュー/ホーム）+ PWA | PR #10 |
+| Supabaseスキーマ（11テーブル・RLS・Storage・招待RPC） | PR #11、migration 0001〜0003適用済み |
+| 認証（メールリンクログイン）・マップのSupabase読込・田んぼ保存 | PR #12、実機ログイン確認済み（2026-06-11） |
+| 招待URLの発行・引き換え（/invite） | PR #12/#13 |
+| Vercel本番公開・リポジトリからのキー排除（キーはローテーション済み） | PR #13、デプロイ確認済み |
 
----
+## 2. 修正済み・本番反映待ち（作業ブランチ上）
 
-## Phase 1: メインマップUI品質改善
+| ID | 状態 | 内容 |
+|---|---|---|
+| T-060 | REVIEW | 田んぼの「なぞり描き」（指でなぞって一筆描き。タップ打ちも併用可） |
+| T-061 | REVIEW | GPS現在地ボタン（実GPS+青ドット。初期表示も自分のデータ位置 or 現在地） |
+| T-062 | REVIEW | 田んぼの編集（タップ選択→名前変更・輪郭の描き直し・削除） |
+| T-063 | REVIEW | 本番からサンプル区画/ピンを排除（サンプル表示はSupabase未設定のデモ環境のみ） |
+| T-064 | REVIEW | 未設定のGoogleログインボタンを非表示（環境変数で有効化可能） |
 
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-010 | REVIEW | Claude Code | メインマップ画面を参照モック画像に近づける | スクショで参照画像と比較できる |
-| T-011 | REVIEW | Claude Code | ヘッダーを軽くする | 地図の主役感を邪魔しない |
-| T-012 | REVIEW | Claude Code | 下部ボトムシートを整える | スマホアプリらしく見える |
-| T-013 | REVIEW | Claude Code | フローティング操作を整える | 写真で記録 / 音声メモ導線が分かる |
-| T-014 | REVIEW | Claude Code | 地図上のピンとラベルを整理する | ラベル過多にならず、地点種別が分かる |
-| T-015 | TODO | ユーザー | メインマップUIレビュー | 古い業務UIに見えないことを確認 |
+→ PRマージで本番に自動反映。反映後にユーザーがスマホで再確認する。
 
----
+## 3. 残りの開発（優先順）
 
-## Phase 2: 記録フローUI
+| ID | 状態 | 内容 |
+|---|---|---|
+| T-044 | TODO | 記録の保存: カメラ撮影写真をSupabase Storageへ保存し記録を作成（次の本命） |
+| T-044b | TODO | 記録の保存: 音声メモの録音・保存 |
+| T-034b | TODO | 記録詳細の実データ化（現在は実記録をタップしてもサンプル詳細が出る） |
+| T-045 | TODO | 記録へのコメントと「対応済みにする」 |
+| T-043 | TODO | ピン（入水口/出水口/異常箇所）の登録・編集 |
+| T-047 | TODO | 検索・絞り込みの実装（現在は見た目のみ） |
+| T-048 | TODO | （任意）記録のAI整理・要約 |
 
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-020 | REVIEW | Claude Code | 写真で記録画面 | 写真、位置、田んぼ候補、音声追加導線がある |
-| T-021 | REVIEW | Claude Code | 音声メモ画面 | 録音開始/停止/再生のUIがある |
-| T-022 | REVIEW | Claude Code | 保存前確認画面 | AI整理結果を確認できる想定UIがある |
-| T-023 | REVIEW | Claude Code | 記録詳細画面 | 写真、地図位置、コメント、状態操作が見える |
-| T-024 | TODO | ユーザー | 記録フローUIレビュー | 現場で1分以内に使えそうか確認 |
+## 4. ユーザーにしかできない作業
 
----
-
-## Phase 3: Supabase設計と接続
-
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-030 | DONE | Claude Code | Supabaseスキーマ案の再確認 | DATA_MODEL.mdと実装予定の整合性を確認 |
-| T-031 | DONE | Claude Code | migration SQL作成 | apply前のSQL案がある |
-| T-032 | DONE | ユーザー | migration適用承認 | 影響と戻し方を確認済み |
-| T-033 | DONE | Claude Code | migration適用 | 承認後のみ実行、結果報告あり |
-| T-034 | IN_PROGRESS | Claude Code | Supabase接続 | マップ（田んぼ/固定ポイント）と記録一覧は接続済み（未ログイン・0件時はサンプル表示）。記録詳細は未接続 |
+| ID | 状態 | 内容 |
+|---|---|---|
+| U-001 | TODO | 各修正の本番反映後、スマホで動作確認（なぞり描き→保存→編集→家族招待まで） |
+| U-002 | TODO | （任意）Googleログインを使う場合: Google CloudでOAuthクライアント作成→Supabaseに設定→Vercelの環境変数 `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=1` を追加 |
+| U-003 | TODO | （任意）Supabaseのレガシーanonキーを無効化（API Keysページ） |
 
 ---
 
-## Phase 4: 保存処理
+## 運用ルール
 
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-040 | REVIEW | Claude Code | Google認証接続 | アプリ側実装済み（Google/メールリンク）。SupabaseダッシュボードでのGoogleプロバイダ有効化はユーザー作業 |
-| T-041 | REVIEW | Claude Code | グループ参加/招待UI | メニューから招待URL発行（7日有効・editor）、/invite で参加。実機検証待ち |
-| T-042 | REVIEW | Claude Code | 田んぼ保存 | なぞり描き→名前入力→farm_fieldsへ保存（初回はグループ自動作成）。実機検証待ち |
-| T-043 | TODO | Claude Code | 固定ポイント保存 | 入水口/出水口等が保存できる |
-| T-044 | TODO | Claude Code | 記録保存 | 写真/音声/位置/状態が保存できる |
-| T-045 | TODO | ユーザー | 保存処理レビュー | DB状態と画面で確認 |
-
----
-
-## Phase 5: Preview運用
-
-| ID | 状態 | 担当 | タスク | 完了条件 |
-|---|---|---|---|---|
-| T-050 | TODO | Claude Code | Vercel Preview接続 | Preview URLが発行される |
-| T-051 | TODO | ユーザー | スマホ実機確認 | 現場利用視点で確認 |
-| T-052 | TODO | Claude Code | UI修正 | 指摘事項ごとに小タスク化 |
-
----
-
-## 運用メモ
-
-- UI作業は、参照モック画像との比較を必須にする。
-- 要素を全部並べることより、画像に近い見た目を優先する。
-- スクリーンショットまたはPreview URLなしでUIタスクをDONEにしない。
-- UIが古い管理画面に見える状態でDB接続へ進まない。
-- Supabase変更は承認後のみ。
-- リリース判断はユーザー承認後のみ。
+- 1タスク1目的。UI作業とDB作業を混ぜない
+- スクリーンショットまたは動画なしにUI作業を完了扱いにしない
+- mainへのマージ（=本番反映）とSupabase変更はユーザー承認後のみ
+- キー・URL等の実値はリポジトリに一切書かない

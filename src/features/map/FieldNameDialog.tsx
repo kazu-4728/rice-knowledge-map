@@ -7,9 +7,16 @@ type Props = {
   onChange: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  title?: string;
 };
 
-export default function FieldNameDialog({ value, onChange, onSave, onCancel }: Props) {
+export default function FieldNameDialog({
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  title = "田んぼの名前を入力",
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -26,7 +33,7 @@ export default function FieldNameDialog({ value, onChange, onSave, onCancel }: P
     /* 背景オーバーレイ */
     <div className="absolute inset-0 z-30 flex items-end justify-center pb-20 bg-black/40">
       <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl p-5">
-        <h2 className="text-base font-bold text-gray-800 mb-1">🌾 田んぼの名前を入力</h2>
+        <h2 className="text-base font-bold text-gray-800 mb-1">{title}</h2>
         <p className="text-xs text-gray-500 mb-3">後から変更できます</p>
 
         <input
