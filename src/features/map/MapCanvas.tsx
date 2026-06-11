@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Map as MLMap, GeoJSONSource, MapMouseEvent } from "maplibre-gl";
+import type { Map as MLMap, GeoJSONSource, MapMouseEvent, MapTouchEvent, Marker } from "maplibre-gl";
 import type { GeoJSON } from "geojson";
 import type { FieldPoint } from "../../types";
 import { loadFarmData, saveFieldPolygon } from "../../lib/data/farm";
@@ -21,6 +21,8 @@ import {
 
 const INITIAL_CENTER: [number, number] = [138.8305, 37.4252];
 const INITIAL_ZOOM = 14.4;
+/** なぞり描き中、この画面距離(px)以上動いたら頂点を追加する */
+const TRACE_MIN_DISTANCE_PX = 12;
 
 /** 田んぼ名ラベル（白チップ）をHTML Markerとして追加する */
 function addFieldLabel(
@@ -49,7 +51,9 @@ export default function MapCanvas() {
   const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
   const [tileError, setTileError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [liveEmpty, setLiveEmpty] = useState(false);
   const labeledFieldIds = useRef<Set<string>>(new Set());
+  const locationMarkerRef = useRef<Marker | null>(null);
 
   const {
     drawState,
@@ -89,11 +93,46 @@ export default function MapCanvas() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  /** GPSで現在地へ移動し、青い現在地ドットを表示する */
+  const flyToCurrentLocation = (silent = false) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!("geolocation" in navigator)) {
+      if (!silent) setToast("この端末では位置情報を利用できません");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        import("maplibre-gl").then((maplibre) => {
+          if (!mapRef.current) return;
+          if (!locationMarkerRef.current) {
+            const el = document.createElement("div");
+            el.className =
+              "h-4 w-4 rounded-full border-[3px] border-white bg-blue-500 shadow-[0_0_0_6px_rgba(59,130,246,0.25)]";
+            locationMarkerRef.current = new maplibre.Marker({ element: el, anchor: "center" })
+              .setLngLat(lngLat)
+              .addTo(mapRef.current);
+          } else {
+            locationMarkerRef.current.setLngLat(lngLat);
+          }
+          mapRef.current.flyTo({ center: lngLat, zoom: 16.5 });
+        });
+      },
+      () => {
+        if (!silent) setToast("現在地を取得できません。位置情報の許可を確認してください");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
+
   // クリックハンドラを付け替えずに済むよう、最新状態をrefで参照する
   const isDrawingRef = useRef(isDrawing);
   isDrawingRef.current = isDrawing;
   const addVertexRef = useRef(addVertex);
   addVertexRef.current = addVertex;
+  const flyToCurrentLocationRef = useRef(flyToCurrentLocation);
+  flyToCurrentLocationRef.current = flyToCurrentLocation;
 
   // マップ初期化
   useEffect(() => {
@@ -139,18 +178,38 @@ export default function MapCanvas() {
         }
       });
 
-      // 描画モード: 頂点追加 / 通常モード: 選択解除
-      map.on("click", (e: MapMouseEvent) => {
-        if (isDrawingRef.current) {
-          addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
-        } else {
-          setSelectedPoint(null);
-        }
+      // 通常モード: 選択解除（描画モードの頂点追加はなぞり描きハンドラが担当）
+      map.on("click", () => {
+        if (isDrawingRef.current) return;
+        setSelectedPoint(null);
       });
 
       map.on("load", () => {
         if (!map) return;
         map.resize();
+
+        // 初期表示位置: 自分のデータがあればそこへ、なければ現在地を取得
+        const coords: [number, number][] = [
+          ...farm.points.map((p) => p.lngLat),
+          ...farm.fieldsGeoJSON.features.flatMap((f) =>
+            f.geometry.type === "Polygon" ? (f.geometry.coordinates[0] as [number, number][]) : []
+          ),
+        ];
+        if (farm.live && coords.length > 0) {
+          const lngs = coords.map((c) => c[0]);
+          const lats = coords.map((c) => c[1]);
+          map.fitBounds(
+            [
+              [Math.min(...lngs), Math.min(...lats)],
+              [Math.max(...lngs), Math.max(...lats)],
+            ],
+            { padding: 60, maxZoom: 16.5, duration: 0 }
+          );
+        } else if (farm.live) {
+          // ログイン済みでまだ田んぼ未登録: 現在地から始める + 登録を促す
+          setLiveEmpty(true);
+          flyToCurrentLocationRef.current(true);
+        }
 
         // ── 田んぼポリゴン ──────────────────────
         map.addSource("fields", {
@@ -282,11 +341,63 @@ export default function MapCanvas() {
     };
   }, []);
 
-  // 描画中はカーソルを十字に
+  // 描画モード: 地図の移動を止め、指・マウスのなぞり軌跡を頂点として記録する
+  // （タップ/クリックは押した1点だけ追加されるので、1点ずつの打点も引き続き可能）
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     map.getCanvas().style.cursor = isDrawing ? "crosshair" : "";
+    if (!isDrawing) return;
+
+    map.dragPan.disable();
+    let tracing = false;
+    let lastPoint: { x: number; y: number } | null = null;
+
+    const start = (e: MapMouseEvent | MapTouchEvent) => {
+      // ピンチ操作（2本指）はズームに譲る
+      if ("points" in e && e.points.length > 1) {
+        tracing = false;
+        return;
+      }
+      tracing = true;
+      lastPoint = e.point;
+      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+    };
+    const move = (e: MapMouseEvent | MapTouchEvent) => {
+      if (!tracing || !lastPoint) return;
+      if ("points" in e && e.points.length > 1) {
+        tracing = false;
+        return;
+      }
+      const dx = e.point.x - lastPoint.x;
+      const dy = e.point.y - lastPoint.y;
+      if (dx * dx + dy * dy < TRACE_MIN_DISTANCE_PX * TRACE_MIN_DISTANCE_PX) return;
+      lastPoint = e.point;
+      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+    };
+    const end = () => {
+      tracing = false;
+      lastPoint = null;
+    };
+
+    map.on("mousedown", start);
+    map.on("mousemove", move);
+    map.on("mouseup", end);
+    map.on("touchstart", start);
+    map.on("touchmove", move);
+    map.on("touchend", end);
+    map.on("touchcancel", end);
+
+    return () => {
+      map.off("mousedown", start);
+      map.off("mousemove", move);
+      map.off("mouseup", end);
+      map.off("touchstart", start);
+      map.off("touchmove", move);
+      map.off("touchend", end);
+      map.off("touchcancel", end);
+      map.dragPan.enable();
+    };
   }, [isDrawing]);
 
   // 描画中 GeoJSON を更新
@@ -332,6 +443,16 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
+          {/* ログイン済み・田んぼ未登録の案内 */}
+          {liveEmpty && (
+            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-green-700 px-4 py-3 text-white shadow-lg">
+              <p className="text-sm font-bold">まだ田んぼが登録されていません</p>
+              <p className="mt-0.5 text-xs text-green-100">
+                右下の緑の＋ボタンを押して、地図上の田んぼを指でなぞると登録できます
+              </p>
+            </div>
+          )}
+
           {/* 凡例 */}
           <div className="absolute left-3 top-3 z-10 space-y-2 rounded-xl bg-white px-2.5 py-2.5 shadow-md">
             {[
@@ -349,9 +470,7 @@ export default function MapCanvas() {
           {/* 右側コントロール（現在地・ズーム・田んぼ追加） */}
           <div className="absolute bottom-[230px] right-3 z-10 flex flex-col items-center gap-2">
             <button
-              onClick={() =>
-                mapRef.current?.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
-              }
+              onClick={() => flyToCurrentLocation()}
               aria-label="現在地に戻る"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md hover:bg-gray-50"
             >
@@ -375,7 +494,10 @@ export default function MapCanvas() {
               </button>
             </div>
             <button
-              onClick={startDraw}
+              onClick={() => {
+                setLiveEmpty(false);
+                startDraw();
+              }}
               aria-label="田んぼを追加"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-green-700 text-white shadow-md hover:bg-green-800"
             >
