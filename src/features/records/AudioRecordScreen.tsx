@@ -57,6 +57,12 @@ export default function AudioRecordScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // 「修正する」で戻ってきたとき、録音日時を引き継ぐ（録り直したらリセット）
   const recordedAtRef = useRef<string | null>(null);
+  // getUserMedia待ちの多重起動を防ぐフラグ
+  const startingRef = useRef(false);
+  // unmount済みフラグ（awaitの後の後処理を防ぐ）
+  const unmountedRef = useRef(false);
+  // 「次へ」でpreviewUrlをdraftに渡した後はunmount時にrevokeしない
+  const urlHandedOffRef = useRef(false);
 
   // 「修正する」で戻ってきたときは下書きを復元する
   useEffect(() => {
@@ -87,23 +93,39 @@ export default function AudioRecordScreen() {
     streamRef.current = null;
   };
 
-  // unmount時にタイマー・マイクを確実に解放する
+  // unmount時にタイマー・マイク・Object URLを確実に解放する
   useEffect(() => {
     return () => {
+      unmountedRef.current = true;
       stopTimer();
       if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
       stopStream();
+      // 「次へ」を押さずに離脱した場合のみpreviewUrlを解放する
+      if (!urlHandedOffRef.current) {
+        setAudio((prev) => {
+          if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+          return prev;
+        });
+      }
     };
   }, []);
 
   const startRecording = async () => {
+    if (startingRef.current || recState !== "idle") return;
     setMessage(null);
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setMessage("この端末・ブラウザでは録音に対応していません");
       return;
     }
+    startingRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // unmount済みまたはすでに録音中になっていたらstreamを即解放して終了
+      if (unmountedRef.current || recState !== "idle") {
+        stream.getTracks().forEach((t) => t.stop());
+        startingRef.current = false;
+        return;
+      }
       streamRef.current = stream;
       const mimeType = pickMimeType();
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -129,6 +151,7 @@ export default function AudioRecordScreen() {
         setRecState("done");
       };
       recorder.start();
+      startingRef.current = false;
       setElapsed(0);
       setRecState("recording");
       timerRef.current = setInterval(() => {
@@ -144,7 +167,10 @@ export default function AudioRecordScreen() {
     } catch (err) {
       console.warn("[audio] getUserMedia failed", err);
       stopStream();
-      setMessage("マイクを使用できませんでした。ブラウザのマイク許可を確認してください");
+      startingRef.current = false;
+      if (!unmountedRef.current) {
+        setMessage("マイクを使用できませんでした。ブラウザのマイク許可を確認してください");
+      }
     }
   };
 
@@ -154,6 +180,10 @@ export default function AudioRecordScreen() {
   };
 
   const retake = () => {
+    setAudio((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
     setRecState("idle");
     setElapsed(0);
     setMessage(null);
@@ -174,6 +204,7 @@ export default function AudioRecordScreen() {
     // 田んぼ一覧の読み込みが終わる前に「修正する」から進み直した場合は、元の下書きの田んぼを引き継ぐ
     const prev = getRecordDraft();
     const restored = !selected && selectedFieldId && prev?.fieldId === selectedFieldId ? prev : null;
+    urlHandedOffRef.current = true;
     setRecordDraft({
       kind: "audio",
       file: audio.blob,
