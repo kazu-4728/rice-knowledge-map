@@ -85,7 +85,7 @@ export async function loadFarmData(): Promise<FarmData> {
         .map((f, i) => ({
           type: "Feature" as const,
           id: f.id,
-          properties: { id: f.id, name: f.name, color: FIELD_COLORS[i % FIELD_COLORS.length] },
+          properties: { id: f.id, name: f.name, color: FIELD_COLORS[i % FIELD_COLORS.length], area_sqm: f.area_sqm ?? null },
           geometry: f.boundary_geojson as GeoJSON.Polygon,
         })),
     };

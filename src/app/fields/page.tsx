@@ -25,7 +25,7 @@ export default function FieldsPage() {
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
         color: String(f.properties?.color ?? "#22C55E"),
-        areaSqm: null,
+        areaSqm: typeof f.properties?.area_sqm === "number" ? f.properties.area_sqm : null,
       }));
       setFields(items);
     });
