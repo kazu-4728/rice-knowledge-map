@@ -62,23 +62,27 @@ export type Member = {
 };
 
 export type RecordComment = {
+  id?: string;
   author: string;
   isRecorder?: boolean;
   text: string;
   timestamp: string;
 };
 
-/** 記録詳細画面のサンプルデータ */
 export type RecordDetail = {
   id: string;
   fieldName: string;
   pointTypeLabel: string;
   statusLabel: string;
+  status: "open" | "needs_check" | "resolved" | "monitoring";
   title: string;
   address: string;
   recorder: string;
   recordedAt: string;
   summary: string;
-  audioDuration: string;
+  note: string;
+  recordType: "photo" | "voice" | "water" | "work" | "issue" | "check" | "other";
   comments: RecordComment[];
+  latitude: number | null;
+  longitude: number | null;
 };

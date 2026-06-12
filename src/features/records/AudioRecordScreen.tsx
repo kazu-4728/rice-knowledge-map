@@ -100,7 +100,6 @@ export default function AudioRecordScreen() {
       stopTimer();
       if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
       stopStream();
-      // 「次へ」を押さずに離脱した場合のみpreviewUrlを解放する
       if (!urlHandedOffRef.current) {
         setAudio((prev) => {
           if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
@@ -120,7 +119,6 @@ export default function AudioRecordScreen() {
     startingRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // unmount済みまたはすでに録音中になっていたらstreamを即解放して終了
       if (unmountedRef.current || recState !== "idle") {
         stream.getTracks().forEach((t) => t.stop());
         startingRef.current = false;
