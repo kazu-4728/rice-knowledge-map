@@ -382,6 +382,11 @@ export default function MapCanvas() {
     } else if (status === "demo") {
       setToast("ローカルに追加しました（ログインすると共有されます）");
     } else {
+      // 保存失敗時は楽観追加分をロールバック
+      const old = pinMarkersRef.current.get(newPoint.id);
+      if (old) old.remove();
+      pinMarkersRef.current.delete(newPoint.id);
+      setSelectedPoint((prev) => (prev?.id === newPoint.id ? null : prev));
       setToast("ピンの保存に失敗しました。通信環境を確認してください");
     }
   };
