@@ -28,7 +28,7 @@
 
 | ID | 状態 | 内容 |
 |---|---|---|
-| T-044b | REVIEW | 記録の保存: 音声メモの録音・保存（Phase B2、PRレビュー中） |
+| T-044b | REVIEW | 記録の保存: 音声メモの録音・保存（Phase B2、**PR #17レビュー中** — レビュー全対応後squashマージ） |
 | T-034b | TODO | 記録詳細の実データ化（現在は実記録をタップしてもサンプル詳細が出る。Phase C） |
 | T-045 | TODO | 記録へのコメントと「対応済みにする」（Phase C） |
 | T-043 | TODO | ピン（入水口/出水口/異常箇所）の登録・編集（Phase D） |
@@ -39,8 +39,8 @@
 
 | ID | 状態 | 内容 |
 |---|---|---|
-| U-001 | TODO | 本番反映後、スマホで動作確認（写真記録の保存→一覧に実写真表示まで） |
-| U-002 | TODO | Googleログイン設定（PWAでログインが毎回必要になる問題の解決に必要）: Google CloudでOAuthクライアント作成→Supabaseに設定→Vercelの環境変数 `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=1` を追加 |
+| U-001 | TODO | 本番でPhase B/B2を実機確認（写真記録の保存→一覧に実写真表示 / 音声メモの録音→保存） |
+| U-002 | DONE | Googleログイン設定（Google Cloud OAuth + Supabase + Vercel環境変数）。**2026-06-12 実機ログイン成功を確認** |
 | U-003 | TODO | （任意）Supabaseのレガシーanonキーを無効化（API Keysページ） |
 
 ---
