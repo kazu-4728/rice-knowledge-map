@@ -32,7 +32,7 @@ export default function FieldsPage() {
   }, []);
 
   const formatArea = (sqm: number | null) => {
-    if (!sqm) return null;
+    if (sqm === null) return null;
     if (sqm >= 10000) return `${(sqm / 10000).toFixed(2)}ha`;
     return `${sqm.toFixed(0)}㎡`;
   };

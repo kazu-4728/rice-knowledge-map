@@ -73,7 +73,7 @@ export default function HomeScreen() {
                 >
                   <RecordThumb
                     media={record.media}
-                    variant={record.category === "作業" ? "grass" : "water"}
+                    variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
                     duration={record.audioDuration}
                     thumbUrl={thumbUrls[record.id]}
                     className="h-14 w-[4.5rem] shrink-0 rounded-lg"

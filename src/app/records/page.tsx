@@ -5,7 +5,7 @@ import RecordsScreen from "../../features/records/RecordsScreen";
 export default function RecordsPage() {
   return (
     <AppShell>
-      <Suspense>
+      <Suspense fallback={null}>
         <RecordsScreen />
       </Suspense>
     </AppShell>
