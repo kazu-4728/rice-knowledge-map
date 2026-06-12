@@ -70,13 +70,6 @@ function createPinMarker(
     e.stopPropagation();
     onActivate();
   });
-  el.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onActivate();
-    }
-  });
-
   return new maplibre.Marker({ element: el, anchor: "bottom" }).setLngLat(point.lngLat).addTo(map);
 }
 
