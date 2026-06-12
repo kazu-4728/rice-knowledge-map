@@ -8,6 +8,7 @@ import {
   IconCamera,
   IconDropFill,
   IconMic,
+  IconPin,
   IconPinFill,
 } from "../../components/ui/icons";
 
@@ -20,13 +21,15 @@ const STATUS_CHIP: Record<string, string> = {
 
 type Props = {
   point: FieldPoint | null;
+  onAddPin?: () => void;
+  onEditPin?: (point: FieldPoint) => void;
 };
 
 /**
  * マップ下部の常設ボトムシート。
  * ピン選択時は地点情報＋「詳細 / 記録する」、未選択時は写真・音声の記録導線を出す。
  */
-export default function MapBottomSheet({ point }: Props) {
+export default function MapBottomSheet({ point, onAddPin, onEditPin }: Props) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-30">
       <div className="rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)]">
@@ -62,14 +65,21 @@ export default function MapBottomSheet({ point }: Props) {
               )}
             </div>
 
-            <div className="mt-3 flex gap-3">
-              {/* 地点ごとの記録詳細はPhase Cで実装。それまで無効化して誤遷移を防ぐ */}
-              <button
-                disabled
-                className="flex-1 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 py-3 text-center text-sm font-bold text-gray-400"
+            <div className="mt-3 flex gap-2">
+              <Link
+                href={`/records?point=${point.id}`}
+                className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
               >
-                詳細（準備中）
-              </button>
+                詳細
+              </Link>
+              {onEditPin && (
+                <button
+                  onClick={() => onEditPin(point)}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  編集
+                </button>
+              )}
               <Link
                 href="/records/new"
                 className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
@@ -82,7 +92,7 @@ export default function MapBottomSheet({ point }: Props) {
           <>
             <h2 className="text-sm font-bold text-gray-900">きょうの様子を記録しましょう</h2>
             <p className="mt-0.5 text-xs text-gray-500">地点を選ぶと最新の状態を確認できます</p>
-            <div className="mt-3 flex gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-2">
               <Link
                 href="/records/new"
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
@@ -97,6 +107,15 @@ export default function MapBottomSheet({ point }: Props) {
                 <IconMic className="h-5 w-5" />
                 音声メモ
               </Link>
+              {onAddPin && (
+                <button
+                  onClick={onAddPin}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <IconPin className="h-5 w-5 text-green-700" />
+                  ピン追加
+                </button>
+              )}
             </div>
           </>
         )}

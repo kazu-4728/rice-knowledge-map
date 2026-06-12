@@ -11,11 +11,21 @@ import type {
   Marker,
 } from "maplibre-gl";
 import type { GeoJSON } from "geojson";
-import type { FieldPoint } from "../../types";
-import { loadFarmData, saveFieldPolygon, updateField, deleteField } from "../../lib/data/farm";
+import type { FieldPoint, FieldPointType } from "../../types";
+import {
+  loadFarmData,
+  saveFieldPolygon,
+  updateField,
+  deleteField,
+  saveFieldPoint,
+  updateFieldPoint,
+  deleteFieldPoint,
+} from "../../lib/data/farm";
 import MapBottomSheet from "./MapBottomSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
+import AddPinSheet from "./AddPinSheet";
+import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import {
@@ -33,6 +43,42 @@ const TRACE_MIN_DISTANCE_PX = 12;
 
 /** タップで選択された田んぼ */
 type SelectedField = { id: string; name: string };
+
+/**
+ * ピンMarkerを作成してマップに追加する。
+ * クリック時にonActivateを呼ぶ。戻り値はMarkerインスタンス。
+ */
+function createPinMarker(
+  maplibre: typeof import("maplibre-gl"),
+  map: MLMap,
+  point: FieldPoint,
+  onActivate: () => void
+): Marker {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.setAttribute("aria-label", `${point.name}（${STATUS_LABELS[point.status] ?? point.status}）`);
+  el.style.cssText = "position:relative;background:none;border:none;padding:0;cursor:pointer;";
+  el.innerHTML = pinSVG(point.type);
+
+  const chip = document.createElement("span");
+  chip.textContent = point.pinLabel ?? TYPE_LABELS[point.type];
+  chip.className =
+    "absolute left-full top-1 ml-1 rounded-md bg-white px-1.5 py-0.5 text-[11px] font-semibold text-gray-800 shadow whitespace-nowrap pointer-events-none";
+  el.appendChild(chip);
+
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onActivate();
+  });
+  el.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onActivate();
+    }
+  });
+
+  return new maplibre.Marker({ element: el, anchor: "bottom" }).setLngLat(point.lngLat).addTo(map);
+}
 
 /** 田んぼ名ラベル（白チップ）をHTML Markerとして追加する */
 function addFieldLabel(
@@ -80,6 +126,16 @@ export default function MapCanvas() {
   const [renameTarget, setRenameTarget] = useState<SelectedField | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /** ピン追加モード: trueのときマップタップで座標を取得する */
+  const [addingPin, setAddingPin] = useState(false);
+  /** ピン追加の仮座標（タップ済み） */
+  const [pendingPinLngLat, setPendingPinLngLat] = useState<[number, number] | null>(null);
+  /** 編集対象のピン */
+  const [editingPoint, setEditingPoint] = useState<FieldPoint | null>(null);
+  /** マップ上のピンMarker登録簿 id → Marker */
+  const pinMarkersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
+  /** サーバーから読み込んだ field 一覧（AddPinSheet 用） */
+  const [fieldList, setFieldList] = useState<{ id: string; name: string }[]>([]);
   const locationMarkerRef = useRef<Marker | null>(null);
   const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   const farmLiveRef = useRef(false);
@@ -266,6 +322,136 @@ export default function MapCanvas() {
     }
   };
 
+  /** AddPinSheetの「ここに追加」確定 */
+  const handleAddPinConfirm = async (params: {
+    name: string;
+    pointType: FieldPointType;
+    fieldId: string | null;
+  }) => {
+    const lngLat = pendingPinLngLat;
+    if (!lngLat) return;
+    setPendingPinLngLat(null);
+    setAddingPin(false);
+
+    const newPoint: FieldPoint = {
+      id: `local-${Date.now()}`,
+      fieldId: params.fieldId ?? "",
+      name: params.name,
+      type: params.pointType,
+      status: "normal",
+      lastRecord: "記録なし",
+      lngLat,
+    };
+
+    // 楽観的にローカル表示
+    setSelectedPoint(newPoint);
+
+    // Markerを即座にマップへ追加
+    import("maplibre-gl").then((maplibre) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const localPoint = newPoint;
+      const marker = createPinMarker(maplibre, map, localPoint, () => {
+        setSelectedPoint(localPoint);
+        setSelectedField(null);
+      });
+      pinMarkersRef.current.set(localPoint.id, marker);
+    });
+
+    // DB保存（ログイン済みの場合のみ）
+    if (farmLiveRef.current) {
+      const { status, id } = await saveFieldPoint({
+        fieldId: params.fieldId,
+        pointType: params.pointType,
+        name: params.name,
+        latitude: lngLat[1],
+        longitude: lngLat[0],
+      });
+      if (status === "saved" && id) {
+        // ローカルIDをDB IDに差し替える
+        setSelectedPoint((prev) => (prev?.id === newPoint.id ? { ...prev, id } : prev));
+        const marker = pinMarkersRef.current.get(newPoint.id);
+        if (marker) {
+          pinMarkersRef.current.delete(newPoint.id);
+          pinMarkersRef.current.set(id, marker);
+        }
+        setToast("ピンを保存しました");
+      } else if (status === "demo") {
+        setToast("ローカルに追加しました（ログインすると共有されます）");
+      } else {
+        setToast("ピンの保存に失敗しました。通信環境を確認してください");
+      }
+    } else {
+      setToast("ピンを追加しました");
+    }
+  };
+
+  /** PointEditDialogの「保存」確定 */
+  const handleEditPinSave = async (
+    point: FieldPoint,
+    patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"] }
+  ) => {
+    setEditingPoint(null);
+    const updated: FieldPoint = { ...point, name: patch.name, type: patch.pointType, status: patch.status };
+
+    if (selectedPoint?.id === point.id) setSelectedPoint(updated);
+
+    // Markerを作り直す（SVGアイコンと種別ラベルを更新するため）
+    import("maplibre-gl").then((maplibre) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const old = pinMarkersRef.current.get(point.id);
+      if (old) old.remove();
+      const marker = createPinMarker(maplibre, map, updated, () => {
+        setSelectedPoint(updated);
+        setSelectedField(null);
+      });
+      pinMarkersRef.current.set(point.id, marker);
+    });
+
+    if (farmLiveRef.current) {
+      const result = await updateFieldPoint(point.id, {
+        name: patch.name,
+        pointType: patch.pointType,
+        status: patch.status,
+      });
+      if (result === "saved") {
+        setToast("ピンを更新しました");
+      } else if (result === "denied") {
+        setToast("更新できませんでした（編集権限がありません）");
+      } else if (result !== "demo") {
+        setToast("更新の保存に失敗しました");
+      }
+    } else {
+      setToast("ピンを更新しました");
+    }
+  };
+
+  /** PointEditDialogの「削除」確定 */
+  const handleEditPinDelete = async (point: FieldPoint) => {
+    setEditingPoint(null);
+    setSelectedPoint(null);
+
+    const marker = pinMarkersRef.current.get(point.id);
+    if (marker) {
+      marker.remove();
+      pinMarkersRef.current.delete(point.id);
+    }
+
+    if (farmLiveRef.current) {
+      const result = await deleteFieldPoint(point.id);
+      if (result === "deleted") {
+        setToast("ピンを削除しました");
+      } else if (result === "denied") {
+        setToast("削除できませんでした（編集権限がありません）");
+      } else if (result !== "demo") {
+        setToast("削除に失敗しました");
+      }
+    } else {
+      setToast("ピンを削除しました");
+    }
+  };
+
   // トーストの自動消去
   useEffect(() => {
     if (!toast) return;
@@ -344,6 +530,8 @@ export default function MapCanvas() {
   flyToCurrentLocationRef.current = flyToCurrentLocation;
   const findFieldAtRef = useRef(findFieldAt);
   findFieldAtRef.current = findFieldAt;
+  const addingPinRef = useRef(addingPin);
+  addingPinRef.current = addingPin;
 
   // マップ初期化
   useEffect(() => {
@@ -397,9 +585,13 @@ export default function MapCanvas() {
       });
 
       // 通常モード: 田んぼタップで操作カード、それ以外は選択解除
-      // （描画モードの頂点追加はなぞり描きハンドラが担当）
+      // ピン追加モード: タップ座標を pendingPinLngLat にセットして種別選択シートへ
       map.on("click", (e: MapMouseEvent) => {
         if (isDrawingRef.current) return;
+        if (addingPinRef.current) {
+          setPendingPinLngLat([e.lngLat.lng, e.lngLat.lat]);
+          return;
+        }
         const hit = findFieldAtRef.current([e.lngLat.lng, e.lngLat.lat]);
         setSelectedField(hit);
         setSelectedPoint(null);
@@ -523,46 +715,21 @@ export default function MapCanvas() {
 
         // ── 地点ピン（ティアドロップ＋ラベルチップ） ─────────
         farm.points.forEach((point) => {
-          const el = document.createElement("button");
-          el.type = "button";
-          el.setAttribute(
-            "aria-label",
-            `${point.name}（${STATUS_LABELS[point.status] ?? point.status}）`
-          );
-          el.style.cssText = "position:relative;background:none;border:none;padding:0;cursor:pointer;";
-          el.innerHTML = pinSVG(point.type);
-
-          // ピン右横の白チップラベル
-          const chip = document.createElement("span");
-          chip.textContent = point.pinLabel ?? TYPE_LABELS[point.type];
-          chip.className =
-            "absolute left-full top-1 ml-1 rounded-md bg-white px-1.5 py-0.5 text-[11px] font-semibold text-gray-800 shadow whitespace-nowrap pointer-events-none";
-          el.appendChild(chip);
-
-          const handleActivate = (e: Event) => {
-            e.stopPropagation();
+          const marker = createPinMarker(maplibre, map!, point, () => {
             setSelectedPoint(point);
             setSelectedField(null);
-          };
-          el.addEventListener("click", handleActivate);
-          el.addEventListener("keydown", (e: KeyboardEvent) => {
-            if (e.key === "Enter") {
-              handleActivate(e);
-              return;
-            }
-            if (e.key === " ") {
-              e.preventDefault();
-              handleActivate(e);
-            }
           });
-
-          new maplibre.Marker({ element: el, anchor: "bottom" })
-            .setLngLat(point.lngLat)
-            .addTo(map!);
+          pinMarkersRef.current.set(point.id, marker);
         });
 
         // 名前ラベルの生成・編集・削除はラベル同期effectが担当する
         setServerFields(farm.fieldsGeoJSON);
+        setFieldList(
+          (farm.fieldsGeoJSON.features ?? []).map((f) => ({
+            id: String(f.id ?? f.properties?.id ?? ""),
+            name: String(f.properties?.name ?? ""),
+          }))
+        );
       });
     });
 
@@ -849,7 +1016,16 @@ export default function MapCanvas() {
               </div>
             </div>
           ) : (
-            <MapBottomSheet point={selectedPoint} />
+            <MapBottomSheet
+              point={selectedPoint}
+              onAddPin={() => {
+                setSelectedField(null);
+                setSelectedPoint(null);
+                setAddingPin(true);
+                setToast("地図をタップしてピンの場所を選んでください");
+              }}
+              onEditPin={(p) => setEditingPoint(p)}
+            />
           )}
         </>
       )}
@@ -918,6 +1094,40 @@ export default function MapCanvas() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── ピン追加モード: 場所選択バナー ────────────────── */}
+      {addingPin && !pendingPinLngLat && (
+        <div className="absolute inset-x-0 bottom-0 z-40">
+          <div className="rounded-t-3xl bg-gray-900 px-4 pb-8 pt-4 text-center text-white shadow-2xl">
+            <p className="text-sm font-bold">地図をタップしてピンの場所を選んでください</p>
+            <button
+              onClick={() => { setAddingPin(false); setPendingPinLngLat(null); }}
+              className="mt-3 rounded-xl border border-gray-600 px-6 py-2.5 text-sm font-semibold text-gray-300"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── ピン追加: 種別・名前選択シート ───────────────── */}
+      {pendingPinLngLat && (
+        <AddPinSheet
+          fields={fieldList}
+          onConfirm={handleAddPinConfirm}
+          onCancel={() => { setPendingPinLngLat(null); setAddingPin(false); }}
+        />
+      )}
+
+      {/* ── ピン編集ダイアログ ─────────────────────────── */}
+      {editingPoint && (
+        <PointEditDialog
+          point={editingPoint}
+          onSave={(patch) => handleEditPinSave(editingPoint, patch)}
+          onDelete={() => handleEditPinDelete(editingPoint)}
+          onCancel={() => setEditingPoint(null)}
+        />
       )}
 
       {/* 保存結果トースト */}

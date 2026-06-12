@@ -231,6 +231,124 @@ export async function updateField(
   }
 }
 
+export type SaveFieldPointResult = "saved" | "demo" | "error";
+export type UpdateFieldPointResult = "saved" | "demo" | "denied" | "error";
+export type DeleteFieldPointResult = "deleted" | "demo" | "denied" | "error";
+
+/**
+ * 新しいピンを保存する。
+ * 未設定・未ログイン時は "demo" を返す。
+ * 保存成功時はDB上のidを返す。
+ */
+export async function saveFieldPoint(params: {
+  fieldId: string | null;
+  pointType: FieldPointRow["point_type"];
+  name: string;
+  latitude: number;
+  longitude: number;
+  status?: FieldPointRow["status"];
+  memo?: string;
+}): Promise<{ status: SaveFieldPointResult; id: string | null }> {
+  const sb = getSupabase();
+  if (!sb) return { status: "demo", id: null };
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) return { status: "demo", id: null };
+
+    const groupId = await ensureGroupId();
+    if (!groupId) return { status: "error", id: null };
+
+    const { data, error } = await sb
+      .from("field_points")
+      .insert({
+        group_id: groupId,
+        field_id: params.fieldId,
+        point_type: params.pointType,
+        name: params.name,
+        latitude: params.latitude,
+        longitude: params.longitude,
+        status: params.status ?? "normal",
+        memo: params.memo ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.warn("[farm] save point failed", error);
+      return { status: "error", id: null };
+    }
+    return { status: "saved", id: (data?.id as string) ?? null };
+  } catch (err) {
+    console.warn("[farm] save point error", err);
+    return { status: "error", id: null };
+  }
+}
+
+/**
+ * ピンの名前・種別・状態を更新する。
+ * RLSで弾かれた場合は "denied" を返す。
+ */
+export async function updateFieldPoint(
+  id: string,
+  patch: Partial<{
+    name: string;
+    pointType: FieldPointRow["point_type"];
+    status: FieldPointRow["status"];
+    memo: string;
+  }>
+): Promise<UpdateFieldPointResult> {
+  const sb = getSupabase();
+  if (!sb) return "demo";
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData.session) return "demo";
+
+    const row: Record<string, unknown> = {};
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.pointType !== undefined) row.point_type = patch.pointType;
+    if (patch.status !== undefined) row.status = patch.status;
+    if (patch.memo !== undefined) row.memo = patch.memo;
+
+    const { data, error } = await sb.from("field_points").update(row).eq("id", id).select("id");
+    if (error) {
+      console.warn("[farm] update point failed", error);
+      return "error";
+    }
+    if (!data || data.length === 0) return "denied";
+    return "saved";
+  } catch (err) {
+    console.warn("[farm] update point error", err);
+    return "error";
+  }
+}
+
+/**
+ * ピンを削除する。
+ * RLSで弾かれた場合は "denied" を返す。
+ */
+export async function deleteFieldPoint(id: string): Promise<DeleteFieldPointResult> {
+  const sb = getSupabase();
+  if (!sb) return "demo";
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData.session) return "demo";
+
+    const { data, error } = await sb.from("field_points").delete().eq("id", id).select("id");
+    if (error) {
+      console.warn("[farm] delete point failed", error);
+      return "error";
+    }
+    if (!data || data.length === 0) return "denied";
+    return "deleted";
+  } catch (err) {
+    console.warn("[farm] delete point error", err);
+    return "error";
+  }
+}
+
 export type DeleteFieldResult = "deleted" | "demo" | "denied" | "error";
 
 /**
