@@ -120,16 +120,24 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
 
   const photos: string[] = [];
   if (imagePaths.length > 0) {
-    const { data: signed } = await sb.storage.from("images").createSignedUrls(imagePaths, 3600);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) photos.push(s.signedUrl);
-    });
+    const { data: signed, error: signError } = await sb.storage.from("images").createSignedUrls(imagePaths, 3600);
+    if (signError) {
+      console.warn("[recordDetail] image sign urls failed", signError);
+    } else {
+      signed?.forEach((s) => {
+        if (s.signedUrl && !s.error) photos.push(s.signedUrl);
+      });
+    }
   }
 
   let audio: string | null = null;
   if (audioMedia) {
-    const { data: signed } = await sb.storage.from("audio").createSignedUrl(audioMedia.storage_path, 3600);
-    if (signed?.signedUrl) audio = signed.signedUrl;
+    const { data: signed, error: signError } = await sb.storage.from("audio").createSignedUrl(audioMedia.storage_path, 3600);
+    if (signError) {
+      console.warn("[recordDetail] audio sign url failed", signError);
+    } else if (signed?.signedUrl) {
+      audio = signed.signedUrl;
+    }
   }
 
   const comments: RecordComment[] = [...(row.record_comments ?? [])]
@@ -175,8 +183,8 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     note: row.note || "",
     recordType: safeRecordType,
     comments,
-    latitude: row.latitude != null ? Number(row.latitude) : null,
-    longitude: row.longitude != null ? Number(row.longitude) : null,
+    latitude: (() => { const v = Number(row.latitude); return Number.isFinite(v) ? v : null; })(),
+    longitude: (() => { const v = Number(row.longitude); return Number.isFinite(v) ? v : null; })(),
   };
 
   return { mode: "live", record, mediaUrls: { photos, audio } };

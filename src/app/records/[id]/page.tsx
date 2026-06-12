@@ -141,12 +141,10 @@ export default function RecordDetailPage() {
     setMessage(null);
     setResolving(true);
     const { error } = await resolveRecord(id);
-    if (error) {
-      setMessage(`更新に失敗しました: ${error}`);
-    } else {
-      const refreshed = await loadRecordDetail(id);
-      setData(refreshed);
-    }
+    // ステータス更新自体は成功している可能性があるため、エラー有無に関わらず再読込する
+    const refreshed = await loadRecordDetail(id);
+    setData(refreshed);
+    if (error) setMessage(error);
     setResolving(false);
   };
 
