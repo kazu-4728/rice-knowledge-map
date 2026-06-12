@@ -361,6 +361,13 @@ export default function MapCanvas() {
       longitude: lngLat[0],
     });
     if (status === "saved" && id) {
+      // 保存完了前にユーザーがローカルピンを削除していた場合はDBも取り消す
+      if (!pinMarkersRef.current.has(newPoint.id)) {
+        deleteFieldPoint(id).then((r) => {
+          if (r !== "deleted") console.warn("[farm] cancel-delete failed", r, id);
+        });
+        return;
+      }
       // Markerを作り直してDB IDのオブジェクトを参照させる
       // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
       const dbPoint: FieldPoint = { ...newPoint, id };
@@ -370,7 +377,14 @@ export default function MapCanvas() {
         const map = mapRef.current;
         if (!map) return;
         const old = pinMarkersRef.current.get(newPoint.id);
-        if (old) old.remove();
+        // import().then()の間にローカルピンが削除された場合もDBを取り消す
+        if (!old) {
+          deleteFieldPoint(id).then((r) => {
+            if (r !== "deleted") console.warn("[farm] cancel-delete failed", r, id);
+          });
+          return;
+        }
+        old.remove();
         pinMarkersRef.current.delete(newPoint.id);
         const marker = createPinMarker(maplibre, map, dbPoint, () => {
           setSelectedPoint(dbPoint);
@@ -862,7 +876,11 @@ export default function MapCanvas() {
       if (!id) return [];
       return [{ id, name: String(f.properties?.name ?? "") }];
     });
-    const fromLocal = savedFields.map((f) => ({ id: f.id, name: f.name }));
+    // liveモード時のみ user-field-*（DB未保存）を除外してFK不整合を防ぐ
+    // demo/anonモードでは saveFieldPoint もローカル保存なので除外不要
+    const fromLocal = savedFields
+      .filter((f) => !farmLiveRef.current || !f.id.startsWith("user-field-"))
+      .map((f) => ({ id: f.id, name: f.name }));
     const seen = new Set<string>();
     const merged = [...fromServer, ...fromLocal].filter(({ id }) => {
       if (seen.has(id)) return false;
