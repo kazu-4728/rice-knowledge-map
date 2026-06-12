@@ -403,20 +403,21 @@ export default function MapCanvas() {
     setEditingPoint(null);
     const updated: FieldPoint = { ...point, name: patch.name, type: patch.pointType, status: patch.status };
 
-    if (selectedPoint?.id === point.id) setSelectedPoint(updated);
-
-    // Markerを作り直す（SVGアイコンと種別ラベルを更新するため）
-    import("maplibre-gl").then((maplibre) => {
-      const map = mapRef.current;
-      if (!map) return;
-      const old = pinMarkersRef.current.get(point.id);
-      if (old) old.remove();
-      const marker = createPinMarker(maplibre, map, updated, () => {
-        setSelectedPoint(updated);
-        setSelectedField(null);
+    const applyLocally = () => {
+      if (selectedPoint?.id === point.id) setSelectedPoint(updated);
+      // Markerを作り直す（SVGアイコンと種別ラベルを更新するため）
+      import("maplibre-gl").then((maplibre) => {
+        const map = mapRef.current;
+        if (!map) return;
+        const old = pinMarkersRef.current.get(point.id);
+        if (old) old.remove();
+        const marker = createPinMarker(maplibre, map, updated, () => {
+          setSelectedPoint(updated);
+          setSelectedField(null);
+        });
+        pinMarkersRef.current.set(point.id, marker);
       });
-      pinMarkersRef.current.set(point.id, marker);
-    });
+    };
 
     if (farmLiveRef.current) {
       const result = await updateFieldPoint(point.id, {
@@ -425,8 +426,10 @@ export default function MapCanvas() {
         status: patch.status,
       });
       if (result === "saved") {
+        applyLocally();
         setToast("ピンを更新しました");
       } else if (result === "demo") {
+        applyLocally();
         setToast("ローカルで更新しました（ログインすると共有されます）");
       } else if (result === "denied") {
         setToast("更新できませんでした（編集権限がありません）");
@@ -434,6 +437,7 @@ export default function MapCanvas() {
         setToast("更新の保存に失敗しました");
       }
     } else {
+      applyLocally();
       setToast("ピンを更新しました");
     }
   };
@@ -441,19 +445,23 @@ export default function MapCanvas() {
   /** PointEditDialogの「削除」確定 */
   const handleEditPinDelete = async (point: FieldPoint) => {
     setEditingPoint(null);
-    setSelectedPoint(null);
 
-    const marker = pinMarkersRef.current.get(point.id);
-    if (marker) {
-      marker.remove();
-      pinMarkersRef.current.delete(point.id);
-    }
+    const removeLocally = () => {
+      setSelectedPoint(null);
+      const marker = pinMarkersRef.current.get(point.id);
+      if (marker) {
+        marker.remove();
+        pinMarkersRef.current.delete(point.id);
+      }
+    };
 
     if (farmLiveRef.current) {
       const result = await deleteFieldPoint(point.id);
       if (result === "deleted") {
+        removeLocally();
         setToast("ピンを削除しました");
       } else if (result === "demo") {
+        removeLocally();
         setToast("ローカルで削除しました（ログインすると共有されます）");
       } else if (result === "denied") {
         setToast("削除できませんでした（編集権限がありません）");
@@ -461,6 +469,7 @@ export default function MapCanvas() {
         setToast("削除に失敗しました");
       }
     } else {
+      removeLocally();
       setToast("ピンを削除しました");
     }
   };
@@ -738,10 +747,11 @@ export default function MapCanvas() {
         // 名前ラベルの生成・編集・削除はラベル同期effectが担当する
         setServerFields(farm.fieldsGeoJSON);
         setFieldList(
-          (farm.fieldsGeoJSON.features ?? []).map((f) => ({
-            id: String(f.id ?? f.properties?.id ?? ""),
-            name: String(f.properties?.name ?? ""),
-          }))
+          (farm.fieldsGeoJSON.features ?? []).flatMap((f) => {
+            const id = String(f.id ?? f.properties?.id ?? "");
+            if (!id) return [];
+            return [{ id, name: String(f.properties?.name ?? "") }];
+          })
         );
       });
     });

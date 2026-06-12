@@ -295,7 +295,7 @@ export async function updateFieldPoint(
     name: string;
     pointType: FieldPointRow["point_type"];
     status: FieldPointRow["status"];
-    memo: string;
+    memo: string | null;
   }>
 ): Promise<UpdateFieldPointResult> {
   const sb = getSupabase();
