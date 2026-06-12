@@ -108,8 +108,8 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
 
   const row = data as unknown as DetailRow;
 
-  // created_at昇順にソートして順序を確定する
-  const sortedMedia = [...row.record_media].sort(
+  // created_at昇順にソートして順序を確定する（record_mediaがnullの場合は空配列にフォールバック）
+  const sortedMedia = [...(row.record_media ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
@@ -132,7 +132,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     if (signed?.signedUrl) audio = signed.signedUrl;
   }
 
-  const comments: RecordComment[] = [...row.record_comments]
+  const comments: RecordComment[] = [...(row.record_comments ?? [])]
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map((c) => ({
       id: c.id,
@@ -152,19 +152,28 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const pointTypeLabel = row.ai_category ? (POINT_TYPE_LABELS[row.ai_category] ?? "") : "";
   const statusLabel = STATUS_LABELS[row.status] ?? row.status;
 
+  const VALID_STATUSES: RecordDetail["status"][] = ["open", "needs_check", "resolved", "monitoring"];
+  const VALID_RECORD_TYPES: RecordDetail["recordType"][] = ["photo", "voice", "water", "work", "issue", "check", "other"];
+  const safeStatus = (VALID_STATUSES as string[]).includes(row.status)
+    ? (row.status as RecordDetail["status"])
+    : "open";
+  const safeRecordType = (VALID_RECORD_TYPES as string[]).includes(row.record_type)
+    ? (row.record_type as RecordDetail["recordType"])
+    : "other";
+
   const record: RecordDetail = {
     id: row.id,
     fieldName: row.farm_fields?.name ?? "田んぼ未選択",
     pointTypeLabel,
     statusLabel,
-    status: row.status as RecordDetail["status"],
+    status: safeStatus,
     title: row.title || "（無題の記録）",
     address: "",
     recorder: recorderName,
     recordedAt: formatDateTime(row.recorded_at),
     summary: row.ai_summary || row.note || "",
     note: row.note || "",
-    recordType: row.record_type as RecordDetail["recordType"],
+    recordType: safeRecordType,
     comments,
     latitude: row.latitude != null ? Number(row.latitude) : null,
     longitude: row.longitude != null ? Number(row.longitude) : null,
@@ -206,16 +215,18 @@ export async function resolveRecord(recordId: string): Promise<{ error: string |
     .single();
   if (fetchError || !current) return { error: fetchError?.message ?? "記録が見つかりません" };
 
-  // updateして更新されたrowを返させ、0件ならRLSで拒否されたと判断する
+  // すでにresolvedなら二重更新・二重イベントを防ぐ
+  if (current.status === "resolved") return { error: null };
+
+  // select()で返り値の配列件数を見てRLS拒否（0件更新）を検知する
   const { data: updated, error: updateError } = await sb
     .from("records")
     .update({ status: "resolved" })
     .eq("id", recordId)
-    .select("id")
-    .single();
+    .select("id");
 
   if (updateError) return { error: updateError.message };
-  if (!updated) return { error: "更新できませんでした。権限を確認してください" };
+  if (!updated || updated.length === 0) return { error: "更新できませんでした。権限を確認してください" };
 
   // ステータス変更イベントを記録
   const { error: eventError } = await sb.from("record_status_events").insert({
