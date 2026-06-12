@@ -736,7 +736,7 @@ export default function MapCanvas() {
           {/* 未ログインの案内 */}
           {anonMode && (
             <Link
-              href="/login"
+              href="/login?redirect=%2Fmap"
               className="absolute top-3 left-1/2 z-20 block w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg"
             >
               <p className="text-sm font-bold text-gray-900">ログインすると家族の田んぼが表示されます</p>

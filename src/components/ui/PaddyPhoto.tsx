@@ -168,16 +168,19 @@ export function PaddyPhoto({
   );
 }
 
-/** 記録一覧などのサムネイル。音声記録は波形＋再生ボタン表示にする */
+/** 記録一覧などのサムネイル。実写真があればそれを、なければ田園SVGを表示。音声記録は波形表示 */
 export function RecordThumb({
   media,
   variant = "field",
   duration,
+  thumbUrl,
   className = "",
 }: {
   media: "photo" | "audio";
   variant?: Variant;
   duration?: string;
+  /** 実写真の署名URL（写真記録のみ） */
+  thumbUrl?: string;
   className?: string;
 }) {
   if (media === "audio") {
@@ -194,6 +197,14 @@ export function RecordThumb({
         {duration && (
           <span className="absolute bottom-1 right-1.5 text-[10px] font-semibold text-white/90">{duration}</span>
         )}
+      </div>
+    );
+  }
+  if (thumbUrl) {
+    return (
+      <div className={`overflow-hidden bg-gray-200 ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Supabase署名URL（有効期限つき）のため next/image を使わない */}
+        <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
       </div>
     );
   }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { IconMic, IconPinFill, IconPlayFill } from "../../components/ui/icons";
 
 type RecordState = "idle" | "recording" | "done";
@@ -134,13 +133,13 @@ export default function AudioRecordScreen() {
             </div>
           </div>
 
-          {/* 次へ */}
-          <Link
-            href="/records/new/confirm"
-            className="block w-full rounded-xl bg-green-700 py-4 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
+          {/* 音声の保存はPhase B2で実装。下書きが無いまま確認画面へ進むと差し戻されるため無効化 */}
+          <button
+            disabled
+            className="block w-full cursor-not-allowed rounded-xl bg-gray-300 py-4 text-center text-sm font-bold text-white"
           >
-            次へ（AI整理へ）
-          </Link>
+            保存は準備中です（今後のアップデートで使えます）
+          </button>
         </>
       )}
     </div>
