@@ -1,0 +1,203 @@
+import type { RecordDetail, RecordComment } from "../../types";
+import { getSupabase } from "../supabase/client";
+
+type MediaRow = {
+  id: string;
+  media_type: "image" | "audio";
+  storage_bucket: string;
+  storage_path: string;
+};
+
+type CommentRow = {
+  id: string;
+  user_id: string;
+  comment: string;
+  created_at: string;
+  profiles: { display_name: string } | null;
+};
+
+type DetailRow = {
+  id: string;
+  field_id: string | null;
+  point_id: string | null;
+  record_type: string;
+  status: string;
+  title: string;
+  note: string | null;
+  ai_summary: string | null;
+  ai_category: string | null;
+  recorded_by: string;
+  recorded_at: string;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  farm_fields: { name: string } | null;
+  record_media: MediaRow[];
+  record_comments: CommentRow[];
+};
+
+export type RecordDetailData =
+  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls }
+  | { mode: "notfound" }
+  | { mode: "error"; message: string }
+  | { mode: "anon" };
+
+export type MediaUrls = {
+  /** 写真の署名URL一覧（時系列順） */
+  photos: string[];
+  /** 音声の署名URL（最初の1件）*/
+  audio: string | null;
+};
+
+const POINT_TYPE_LABELS: Record<string, string> = {
+  inlet: "入水口",
+  outlet: "出水口",
+  weed: "雑草",
+  caution: "異常",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  open: "未対応",
+  needs_check: "要確認",
+  resolved: "対応済み",
+  monitoring: "経過観察",
+};
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatCommentTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
+  const sb = getSupabase();
+  if (!sb) return { mode: "error", message: "Supabase未設定" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { mode: "anon" };
+
+  const userId = sessionData.session.user.id;
+
+  const { data, error } = await sb
+    .from("records")
+    .select(
+      `id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
+       farm_fields(name),
+       record_media(id, media_type, storage_bucket, storage_path),
+       record_comments(id, user_id, comment, created_at, profiles(display_name))`
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return { mode: "notfound" };
+    console.warn("[recordDetail] fetch failed", error);
+    return { mode: "error", message: error.message };
+  }
+
+  const row = data as unknown as DetailRow;
+
+  // 写真・音声の署名URLを発行
+  const imagePaths = row.record_media
+    .filter((m) => m.media_type === "image" && m.storage_bucket === "images")
+    .map((m) => m.storage_path);
+  const audioMedia = row.record_media.find((m) => m.media_type === "audio" && m.storage_bucket === "audio");
+
+  const photos: string[] = [];
+  if (imagePaths.length > 0) {
+    const { data: signed } = await sb.storage.from("images").createSignedUrls(imagePaths, 3600);
+    signed?.forEach((s) => {
+      if (s.signedUrl && !s.error) photos.push(s.signedUrl);
+    });
+  }
+
+  let audio: string | null = null;
+  if (audioMedia) {
+    const { data: signed } = await sb.storage.from("audio").createSignedUrl(audioMedia.storage_path, 3600);
+    if (signed?.signedUrl) audio = signed.signedUrl;
+  }
+
+  const comments: RecordComment[] = row.record_comments
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .map((c) => ({
+      id: c.id,
+      author: c.profiles?.display_name || "メンバー",
+      isRecorder: c.user_id === userId,
+      text: c.comment,
+      timestamp: formatCommentTime(c.created_at),
+    }));
+
+  const pointTypeLabel = row.ai_category ? (POINT_TYPE_LABELS[row.ai_category] ?? "") : "";
+  const statusLabel = STATUS_LABELS[row.status] ?? row.status;
+
+  const record: RecordDetail = {
+    id: row.id,
+    fieldName: row.farm_fields?.name ?? "田んぼ未選択",
+    pointTypeLabel,
+    statusLabel,
+    status: row.status as RecordDetail["status"],
+    title: row.title || "（無題の記録）",
+    address: row.farm_fields?.name ?? "",
+    recorder: row.recorded_by || "メンバー",
+    recordedAt: formatDateTime(row.recorded_at),
+    summary: row.ai_summary || row.note || "",
+    note: row.note || "",
+    recordType: row.record_type as RecordDetail["recordType"],
+    comments,
+    latitude: row.latitude != null ? Number(row.latitude) : null,
+    longitude: row.longitude != null ? Number(row.longitude) : null,
+  };
+
+  return { mode: "live", record, mediaUrls: { photos, audio } };
+}
+
+export async function addComment(recordId: string, text: string): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  if (!sb) return { error: "Supabase未設定" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { error: "ログインが必要です" };
+
+  const { error } = await sb.from("record_comments").insert({
+    record_id: recordId,
+    user_id: sessionData.session.user.id,
+    comment: text,
+  });
+
+  return { error: error?.message ?? null };
+}
+
+export async function resolveRecord(recordId: string): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  if (!sb) return { error: "Supabase未設定" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { error: "ログインが必要です" };
+
+  const userId = sessionData.session.user.id;
+
+  // 現在のステータスを確認（更新0件=アクセス権なし）
+  const { data: current } = await sb.from("records").select("status").eq("id", recordId).single();
+  if (!current) return { error: "記録が見つかりません" };
+
+  const { error: updateError } = await sb
+    .from("records")
+    .update({ status: "resolved" })
+    .eq("id", recordId);
+
+  if (updateError) return { error: updateError.message };
+
+  // ステータス変更イベントを記録
+  await sb.from("record_status_events").insert({
+    record_id: recordId,
+    from_status: current.status,
+    to_status: "resolved",
+    changed_by: userId,
+  });
+
+  return { error: null };
+}
