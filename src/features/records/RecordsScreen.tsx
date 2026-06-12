@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { loadRecords } from "../../lib/data/records";
+import { loadRecords, type RecordsData } from "../../lib/data/records";
 import { recentRecords } from "../../data/dummy";
+import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import {
@@ -63,12 +64,27 @@ const thumbVariant = (record: RecordItem) =>
 
 export default function RecordsScreen() {
   const [records, setRecords] = useState<RecordItem[]>(recentRecords);
+  const [mode, setMode] = useState<RecordsData["mode"]>("demo");
+  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterLabel>("すべて");
   const [query, setQuery] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRecords().then((data) => setRecords(data.records));
+    loadRecords().then((data) => {
+      setRecords(data.records);
+      setMode(data.mode);
+      setThumbUrls(data.thumbUrls);
+    });
+    // 保存直後の遷移ならトーストを出す
+    if (consumeJustSaved()) setToast("記録を保存しました");
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // フィルタチップ + キーワード（タイトル・圃場名の部分一致）で絞り込む
   const visibleRecords = records.filter((record) => {
@@ -120,11 +136,49 @@ export default function RecordsScreen() {
         </label>
       </div>
 
+      {/* 未ログイン */}
+      {mode === "anon" && (
+        <Link href="/login?redirect=%2Frecords" className="mt-8 block rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-sm font-bold text-gray-900">ログインすると家族の記録が表示されます</p>
+          <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
+        </Link>
+      )}
+
+      {/* 取得失敗 */}
+      {mode === "error" && (
+        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-sm font-bold text-gray-900">記録を読み込めませんでした</p>
+          <p className="mt-1 text-xs text-gray-500">通信環境を確認して開き直してください</p>
+        </div>
+      )}
+
+      {/* 記録がまだ1件もないとき */}
+      {mode === "live" && records.length === 0 && (
+        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-base font-bold text-gray-900">最初の記録を作りましょう</p>
+          <p className="mt-1 text-xs text-gray-500">田んぼの様子を写真で残すと、ここに一覧で並びます</p>
+          <Link
+            href="/records/new"
+            className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
+          >
+            <IconCamera className="h-5 w-5" />
+            写真で記録する
+          </Link>
+        </div>
+      )}
+
       {/* 絞り込み結果が空のとき */}
-      {groups.length === 0 && (
+      {records.length > 0 && groups.length === 0 && (
         <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm font-bold text-gray-900">該当する記録がありません</p>
           <p className="mt-1 text-xs text-gray-500">条件を変えて試してください</p>
+        </div>
+      )}
+
+      {/* 保存完了トースト */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
+          {toast}
         </div>
       )}
 
@@ -144,6 +198,7 @@ export default function RecordsScreen() {
                   media={record.media}
                   variant={thumbVariant(record)}
                   duration={record.audioDuration}
+                  thumbUrl={thumbUrls[record.id]}
                   className="h-16 w-20 shrink-0 rounded-lg"
                 />
                 <div className="min-w-0 flex-1">
