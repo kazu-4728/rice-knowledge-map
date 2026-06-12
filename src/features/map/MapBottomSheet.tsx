@@ -63,12 +63,13 @@ export default function MapBottomSheet({ point }: Props) {
             </div>
 
             <div className="mt-3 flex gap-3">
-              <Link
-                href={`/records/${point.id}`}
-                className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-800 transition-colors hover:bg-gray-50"
+              {/* 地点ごとの記録詳細はPhase Cで実装。それまで無効化して誤遷移を防ぐ */}
+              <button
+                disabled
+                className="flex-1 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 py-3 text-center text-sm font-bold text-gray-400"
               >
-                詳細
-              </Link>
+                詳細（準備中）
+              </button>
               <Link
                 href="/records/new"
                 className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"

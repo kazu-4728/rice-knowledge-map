@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
   Map as MLMap,
@@ -711,10 +712,13 @@ export default function MapCanvas() {
         <>
           {/* 未ログインの案内 */}
           {anonMode && (
-            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg">
+            <Link
+              href="/login"
+              className="absolute top-3 left-1/2 z-20 block w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg"
+            >
               <p className="text-sm font-bold text-gray-900">ログインすると家族の田んぼが表示されます</p>
-              <p className="mt-0.5 text-xs text-gray-500">メニュー画面からメールアドレスでログインできます</p>
-            </div>
+              <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
+            </Link>
           )}
 
           {/* ログイン済み・田んぼ未登録の案内 */}
