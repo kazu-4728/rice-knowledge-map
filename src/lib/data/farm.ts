@@ -11,8 +11,9 @@ export type FarmData = {
    * demo: Supabase未設定（サンプルデータを表示）
    * anon: Supabase設定済みだが未ログイン（実マップのみ。サンプルは出さない）
    * live: ログイン済み（自分のグループのデータ）
+   * error: ログイン済みだが取得失敗（未ログイン扱いにしない。編集系は各関数が再検証する）
    */
-  mode: "demo" | "anon" | "live";
+  mode: "demo" | "anon" | "live" | "error";
   fieldsGeoJSON: GeoJSON.FeatureCollection;
   points: FieldPoint[];
 };
@@ -27,6 +28,12 @@ const EMPTY_GEOJSON: GeoJSON.FeatureCollection = { type: "FeatureCollection", fe
 
 const ANON_DATA: FarmData = {
   mode: "anon",
+  fieldsGeoJSON: EMPTY_GEOJSON,
+  points: [],
+};
+
+const ERROR_DATA: FarmData = {
+  mode: "error",
   fieldsGeoJSON: EMPTY_GEOJSON,
   points: [],
 };
@@ -46,9 +53,13 @@ export async function loadFarmData(): Promise<FarmData> {
   const sb = getSupabase();
   if (!sb) return DEMO_DATA;
 
+  // ログイン確認後の失敗は「未ログイン」と区別する（ログイン済みユーザーを
+  // 誤ってログイン誘導しないため）
+  let authed = false;
   try {
     const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) return ANON_DATA;
+    authed = true;
 
     const [fieldsRes, pointsRes] = await Promise.all([
       sb
@@ -61,7 +72,7 @@ export async function loadFarmData(): Promise<FarmData> {
     ]);
     if (fieldsRes.error || pointsRes.error) {
       console.warn("[farm] fetch failed", fieldsRes.error ?? pointsRes.error);
-      return ANON_DATA;
+      return ERROR_DATA;
     }
 
     const fields = (fieldsRes.data ?? []) as FarmFieldRow[];
@@ -106,7 +117,7 @@ export async function loadFarmData(): Promise<FarmData> {
   } catch (err) {
     // 設定済み環境では一時的なエラーでも偽のサンプル区画を見せない
     console.warn("[farm] load error", err);
-    return ANON_DATA;
+    return authed ? ERROR_DATA : ANON_DATA;
   }
 }
 
