@@ -34,6 +34,9 @@ export default function ConfirmRecordScreen() {
 
   if (!draft) return null;
 
+  // 「戻る」「修正する」は来た画面（写真 or 音声）へ戻す
+  const backHref = draft.kind === "audio" ? "/records/new?type=audio" : "/records/new";
+
   const handleSave = async () => {
     if (busy) return;
     setBusy(true);
@@ -49,7 +52,11 @@ export default function ConfirmRecordScreen() {
     if (result.status === "demo") {
       setMessage("ログインしていないため保存できません。ログインしてからやり直してください");
     } else if (result.step === "upload") {
-      setMessage("写真のアップロードに失敗しました。通信環境を確認してもう一度お試しください");
+      setMessage(
+        draft.kind === "audio"
+          ? "音声のアップロードに失敗しました。通信環境を確認してもう一度お試しください"
+          : "写真のアップロードに失敗しました。通信環境を確認してもう一度お試しください"
+      );
     } else {
       setMessage("保存に失敗しました。通信環境を確認してもう一度お試しください");
     }
@@ -58,7 +65,7 @@ export default function ConfirmRecordScreen() {
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100">
       <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-        <Link href="/records/new" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <Link href={backHref} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
           <IconChevronLeft className="h-6 w-6" />
         </Link>
         <h1 className="text-lg font-bold text-green-700">保存前の確認</h1>
@@ -66,14 +73,17 @@ export default function ConfirmRecordScreen() {
 
       <main className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
         <section className="rounded-2xl bg-white p-3 shadow-sm">
-          {draft.previewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- ローカルBlobのプレビュー
-            <img
-              src={draft.previewUrl}
-              alt="撮影した写真"
-              className="max-h-72 w-full rounded-xl bg-gray-900 object-contain"
-            />
-          )}
+          {draft.previewUrl &&
+            (draft.kind === "audio" ? (
+              <audio controls src={draft.previewUrl} className="w-full" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- ローカルBlobのプレビュー
+              <img
+                src={draft.previewUrl}
+                alt="撮影した写真"
+                className="max-h-72 w-full rounded-xl bg-gray-900 object-contain"
+              />
+            ))}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {draft.fieldName && (
               <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
@@ -112,7 +122,7 @@ export default function ConfirmRecordScreen() {
 
       <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <Link
-          href="/records/new"
+          href={backHref}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
         >
           <IconPencil className="h-4.5 w-4.5" />

@@ -123,7 +123,8 @@ export async function loadRecords(): Promise<RecordsData> {
           pointType: toPointType(r),
           media: isVoice ? "audio" : "photo",
           photoCount: isVoice ? undefined : imageCount,
-          audioDuration: isVoice ? "--:--" : undefined,
+          // 長さはDBに保持していないため表示しない（ダミーの「--:--」を出さない）
+          audioDuration: undefined,
         } satisfies RecordItem;
       }),
     };

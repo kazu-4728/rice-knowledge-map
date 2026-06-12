@@ -23,14 +23,13 @@ export default function HomeScreen() {
             <IconCamera className="h-5 w-5" />
             写真で記録
           </Link>
-          {/* 音声メモの保存はPhase B2で実装。それまで無効化して誤遷移を防ぐ */}
-          <button
-            disabled
-            className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 py-3.5 text-sm font-bold text-gray-400"
+          <Link
+            href="/records/new?type=audio"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3.5 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
           >
             <IconMic className="h-5 w-5" />
-            音声メモ（準備中）
-          </button>
+            音声メモ
+          </Link>
         </div>
         <Link
           href="/map"
