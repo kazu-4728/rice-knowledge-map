@@ -868,9 +868,10 @@ export default function MapCanvas() {
       if (!id) return [];
       return [{ id, name: String(f.properties?.name ?? "") }];
     });
-    // user-field-* はDB未保存のローカルID（FK不整合を防ぐため除外）
+    // liveモード時のみ user-field-*（DB未保存）を除外してFK不整合を防ぐ
+    // demo/anonモードでは saveFieldPoint もローカル保存なので除外不要
     const fromLocal = savedFields
-      .filter((f) => !f.id.startsWith("user-field-"))
+      .filter((f) => !farmLiveRef.current || !f.id.startsWith("user-field-"))
       .map((f) => ({ id: f.id, name: f.name }));
     const seen = new Set<string>();
     const merged = [...fromServer, ...fromLocal].filter(({ id }) => {
