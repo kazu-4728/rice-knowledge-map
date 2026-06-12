@@ -249,6 +249,15 @@ export async function saveFieldPoint(params: {
   status?: FieldPointRow["status"];
   memo?: string;
 }): Promise<{ status: SaveFieldPointResult; id: string | null }> {
+  // 不正座標は保存せず即エラー（保存成功→次回読み込みで除外される矛盾を防ぐ）
+  if (
+    !Number.isFinite(params.latitude) || !Number.isFinite(params.longitude) ||
+    params.latitude < -90 || params.latitude > 90 ||
+    params.longitude < -180 || params.longitude > 180
+  ) {
+    return { status: "error", id: null };
+  }
+
   const sb = getSupabase();
   if (!sb) return { status: "demo", id: null };
 

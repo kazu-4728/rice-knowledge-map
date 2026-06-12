@@ -346,17 +346,18 @@ export default function MapCanvas() {
     // 楽観的にローカル表示
     setSelectedPoint(newPoint);
 
-    // Markerを即座にマップへ追加
-    import("maplibre-gl").then((maplibre) => {
+    // Markerをマップへ追加してから DB保存へ進む（awaitで順序を保証し二重表示を防ぐ）
+    {
+      const maplibre = await import("maplibre-gl");
       const map = mapRef.current;
-      if (!map) return;
-      const localPoint = newPoint;
-      const marker = createPinMarker(maplibre, map, localPoint, () => {
-        setSelectedPoint(localPoint);
-        setSelectedField(null);
-      });
-      pinMarkersRef.current.set(localPoint.id, marker);
-    });
+      if (map) {
+        const marker = createPinMarker(maplibre, map, newPoint, () => {
+          setSelectedPoint(newPoint);
+          setSelectedField(null);
+        });
+        pinMarkersRef.current.set(newPoint.id, marker);
+      }
+    }
 
     // DB保存（未ログイン時は saveFieldPoint が "demo" を返す）
     const { status, id } = await saveFieldPoint({
@@ -748,13 +749,7 @@ export default function MapCanvas() {
 
         // 名前ラベルの生成・編集・削除はラベル同期effectが担当する
         setServerFields(farm.fieldsGeoJSON);
-        setFieldList(
-          (farm.fieldsGeoJSON.features ?? []).flatMap((f) => {
-            const id = String(f.id ?? f.properties?.id ?? "");
-            if (!id) return [];
-            return [{ id, name: String(f.properties?.name ?? "") }];
-          })
-        );
+        // fieldList は serverFields/savedFields の変化に追随する useEffect で管理する
       });
     });
 
@@ -860,6 +855,23 @@ export default function MapCanvas() {
       if (map.getLayer(layer)) map.setFilter(layer, ["==", ["get", "id"], idValue]);
     }
   }, [selectedField]);
+
+  // AddPinSheet の田んぼ候補を serverFields + savedFields から常に同期する
+  useEffect(() => {
+    const fromServer = (serverFields?.features ?? []).flatMap((f) => {
+      const id = String(f.id ?? f.properties?.id ?? "");
+      if (!id) return [];
+      return [{ id, name: String(f.properties?.name ?? "") }];
+    });
+    const fromLocal = savedFields.map((f) => ({ id: f.id, name: f.name }));
+    const seen = new Set<string>();
+    const merged = [...fromServer, ...fromLocal].filter(({ id }) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    setFieldList(merged);
+  }, [serverFields, savedFields]);
 
   // 名前ラベル（白チップ）を全フィールドと同期（追加・名前変更・移動・削除）
   useEffect(() => {
