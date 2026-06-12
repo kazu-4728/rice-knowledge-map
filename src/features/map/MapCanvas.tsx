@@ -370,7 +370,9 @@ export default function MapCanvas() {
         const map = mapRef.current;
         if (!map) return;
         const old = pinMarkersRef.current.get(newPoint.id);
-        if (old) old.remove();
+        // ローカルピンが既に削除されていればDB markerを復活させない
+        if (!old) return;
+        old.remove();
         pinMarkersRef.current.delete(newPoint.id);
         const marker = createPinMarker(maplibre, map, dbPoint, () => {
           setSelectedPoint(dbPoint);
@@ -862,7 +864,10 @@ export default function MapCanvas() {
       if (!id) return [];
       return [{ id, name: String(f.properties?.name ?? "") }];
     });
-    const fromLocal = savedFields.map((f) => ({ id: f.id, name: f.name }));
+    // user-field-* はDB未保存のローカルID（FK不整合を防ぐため除外）
+    const fromLocal = savedFields
+      .filter((f) => !f.id.startsWith("user-field-"))
+      .map((f) => ({ id: f.id, name: f.name }));
     const seen = new Set<string>();
     const merged = [...fromServer, ...fromLocal].filter(({ id }) => {
       if (seen.has(id)) return false;
