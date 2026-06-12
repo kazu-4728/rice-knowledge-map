@@ -361,6 +361,11 @@ export default function MapCanvas() {
       longitude: lngLat[0],
     });
     if (status === "saved" && id) {
+      // 保存完了前にユーザーがローカルピンを削除していた場合はDBも取り消す
+      if (!pinMarkersRef.current.has(newPoint.id)) {
+        deleteFieldPoint(id).catch(() => {});
+        return;
+      }
       // Markerを作り直してDB IDのオブジェクトを参照させる
       // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
       const dbPoint: FieldPoint = { ...newPoint, id };
@@ -370,7 +375,6 @@ export default function MapCanvas() {
         const map = mapRef.current;
         if (!map) return;
         const old = pinMarkersRef.current.get(newPoint.id);
-        // ローカルピンが既に削除されていればDB markerを復活させない
         if (!old) return;
         old.remove();
         pinMarkersRef.current.delete(newPoint.id);
