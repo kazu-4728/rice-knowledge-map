@@ -363,7 +363,9 @@ export default function MapCanvas() {
     if (status === "saved" && id) {
       // 保存完了前にユーザーがローカルピンを削除していた場合はDBも取り消す
       if (!pinMarkersRef.current.has(newPoint.id)) {
-        deleteFieldPoint(id).catch(() => {});
+        deleteFieldPoint(id).then((r) => {
+          if (r !== "deleted") console.warn("[farm] cancel-delete failed", r, id);
+        });
         return;
       }
       // Markerを作り直してDB IDのオブジェクトを参照させる
@@ -375,7 +377,13 @@ export default function MapCanvas() {
         const map = mapRef.current;
         if (!map) return;
         const old = pinMarkersRef.current.get(newPoint.id);
-        if (!old) return;
+        // import().then()の間にローカルピンが削除された場合もDBを取り消す
+        if (!old) {
+          deleteFieldPoint(id).then((r) => {
+            if (r !== "deleted") console.warn("[farm] cancel-delete failed", r, id);
+          });
+          return;
+        }
         old.remove();
         pinMarkersRef.current.delete(newPoint.id);
         const marker = createPinMarker(maplibre, map, dbPoint, () => {
