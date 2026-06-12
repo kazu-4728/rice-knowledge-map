@@ -38,7 +38,11 @@ export default function RecordDetailPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    loadRecordDetail(id).then(setData);
+    let cancelled = false;
+    loadRecordDetail(id).then((result) => {
+      if (!cancelled) setData(result);
+    });
+    return () => { cancelled = true; };
   }, [id]);
 
   if (!data) {
@@ -111,12 +115,14 @@ export default function RecordDetailPage() {
     );
   }
 
+  if (data.mode !== "live" && data.mode !== "demo") return null;
   const record: RecordDetail = data.record;
   const mediaUrls: MediaUrls = data.mediaUrls;
   const isResolved = record.status === "resolved";
 
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
+    setMessage(null);
     setSubmitting(true);
     const { error } = await addComment(id, commentText.trim());
     if (error) {
@@ -132,6 +138,7 @@ export default function RecordDetailPage() {
 
   const handleResolve = async () => {
     if (isResolved) return;
+    setMessage(null);
     setResolving(true);
     const { error } = await resolveRecord(id);
     if (error) {

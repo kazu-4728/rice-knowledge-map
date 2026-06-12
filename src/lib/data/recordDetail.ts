@@ -1,11 +1,13 @@
 import type { RecordDetail, RecordComment } from "../../types";
 import { getSupabase } from "../supabase/client";
+import { sampleRecordDetail } from "../../data/dummy";
 
 type MediaRow = {
   id: string;
   media_type: "image" | "audio";
   storage_bucket: string;
   storage_path: string;
+  created_at: string;
 };
 
 type CommentRow = {
@@ -33,20 +35,24 @@ type DetailRow = {
   farm_fields: { name: string } | null;
   record_media: MediaRow[];
   record_comments: CommentRow[];
+  profiles: { display_name: string } | null;
 };
 
 export type RecordDetailData =
   | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls }
+  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls }
   | { mode: "notfound" }
   | { mode: "error"; message: string }
   | { mode: "anon" };
 
 export type MediaUrls = {
-  /** 写真の署名URL一覧（時系列順） */
+  /** 写真の署名URL一覧（created_at昇順） */
   photos: string[];
   /** 音声の署名URL（最初の1件）*/
   audio: string | null;
 };
+
+const DEMO_MEDIA: MediaUrls = { photos: [], audio: null };
 
 const POINT_TYPE_LABELS: Record<string, string> = {
   inlet: "入水口",
@@ -75,7 +81,7 @@ function formatCommentTime(iso: string): string {
 
 export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const sb = getSupabase();
-  if (!sb) return { mode: "error", message: "Supabase未設定" };
+  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA };
 
   const { data: sessionData } = await sb.auth.getSession();
   if (!sessionData.session) return { mode: "anon" };
@@ -86,8 +92,9 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     .from("records")
     .select(
       `id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
+       profiles(display_name),
        farm_fields(name),
-       record_media(id, media_type, storage_bucket, storage_path),
+       record_media(id, media_type, storage_bucket, storage_path, created_at),
        record_comments(id, user_id, comment, created_at, profiles(display_name))`
     )
     .eq("id", id)
@@ -101,11 +108,15 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
 
   const row = data as unknown as DetailRow;
 
-  // 写真・音声の署名URLを発行
-  const imagePaths = row.record_media
+  // created_at昇順にソートして順序を確定する
+  const sortedMedia = [...row.record_media].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  const imagePaths = sortedMedia
     .filter((m) => m.media_type === "image" && m.storage_bucket === "images")
     .map((m) => m.storage_path);
-  const audioMedia = row.record_media.find((m) => m.media_type === "audio" && m.storage_bucket === "audio");
+  const audioMedia = sortedMedia.find((m) => m.media_type === "audio" && m.storage_bucket === "audio");
 
   const photos: string[] = [];
   if (imagePaths.length > 0) {
@@ -121,15 +132,22 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     if (signed?.signedUrl) audio = signed.signedUrl;
   }
 
-  const comments: RecordComment[] = row.record_comments
+  const comments: RecordComment[] = [...row.record_comments]
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map((c) => ({
       id: c.id,
       author: c.profiles?.display_name || "メンバー",
-      isRecorder: c.user_id === userId,
+      // コメント投稿者が記録者本人かどうか（ログインユーザー本人かどうかではない）
+      isRecorder: c.user_id === row.recorded_by,
       text: c.comment,
       timestamp: formatCommentTime(c.created_at),
     }));
+
+  const displayName = row.profiles?.display_name || null;
+  const isSelf = row.recorded_by === userId;
+  const recorderName = displayName
+    ? isSelf ? `${displayName}（あなた）` : displayName
+    : isSelf ? "あなた" : "メンバー";
 
   const pointTypeLabel = row.ai_category ? (POINT_TYPE_LABELS[row.ai_category] ?? "") : "";
   const statusLabel = STATUS_LABELS[row.status] ?? row.status;
@@ -141,8 +159,8 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     statusLabel,
     status: row.status as RecordDetail["status"],
     title: row.title || "（無題の記録）",
-    address: row.farm_fields?.name ?? "",
-    recorder: row.recorded_by || "メンバー",
+    address: "",
+    recorder: recorderName,
     recordedAt: formatDateTime(row.recorded_at),
     summary: row.ai_summary || row.note || "",
     note: row.note || "",
@@ -180,24 +198,37 @@ export async function resolveRecord(recordId: string): Promise<{ error: string |
 
   const userId = sessionData.session.user.id;
 
-  // 現在のステータスを確認（更新0件=アクセス権なし）
-  const { data: current } = await sb.from("records").select("status").eq("id", recordId).single();
-  if (!current) return { error: "記録が見つかりません" };
+  // 現在のステータスを確認
+  const { data: current, error: fetchError } = await sb
+    .from("records")
+    .select("status")
+    .eq("id", recordId)
+    .single();
+  if (fetchError || !current) return { error: fetchError?.message ?? "記録が見つかりません" };
 
-  const { error: updateError } = await sb
+  // updateして更新されたrowを返させ、0件ならRLSで拒否されたと判断する
+  const { data: updated, error: updateError } = await sb
     .from("records")
     .update({ status: "resolved" })
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("id")
+    .single();
 
   if (updateError) return { error: updateError.message };
+  if (!updated) return { error: "更新できませんでした。権限を確認してください" };
 
   // ステータス変更イベントを記録
-  await sb.from("record_status_events").insert({
+  const { error: eventError } = await sb.from("record_status_events").insert({
     record_id: recordId,
     from_status: current.status,
     to_status: "resolved",
     changed_by: userId,
   });
+
+  if (eventError) {
+    console.warn("[resolveRecord] event insert failed", eventError);
+    return { error: `ステータスは更新しましたが、変更ログの記録に失敗しました: ${eventError.message}` };
+  }
 
   return { error: null };
 }
