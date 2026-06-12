@@ -400,7 +400,7 @@ export default function MapCanvas() {
     const updated: FieldPoint = { ...point, name: patch.name, type: patch.pointType, status: patch.status };
 
     const applyLocally = () => {
-      if (selectedPoint?.id === point.id) setSelectedPoint(updated);
+      setSelectedPoint((prev) => (prev?.id === point.id ? updated : prev));
       // Markerを作り直す（SVGアイコンと種別ラベルを更新するため）
       import("maplibre-gl").then((maplibre) => {
         const map = mapRef.current;
@@ -446,7 +446,7 @@ export default function MapCanvas() {
     setEditingPoint(null);
 
     const removeLocally = () => {
-      setSelectedPoint(null);
+      setSelectedPoint((prev) => (prev?.id === point.id ? null : prev));
       const marker = pinMarkersRef.current.get(point.id);
       if (marker) {
         marker.remove();
