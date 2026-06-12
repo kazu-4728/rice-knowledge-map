@@ -372,6 +372,7 @@ export default function MapCanvas() {
       // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
       const dbPoint: FieldPoint = { ...newPoint, id };
       setSelectedPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
+      setEditingPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
       import("maplibre-gl").then((maplibre) => {
         const map = mapRef.current;
         if (!map) return;
