@@ -271,6 +271,7 @@ export async function saveFieldPoint(params: {
         longitude: params.longitude,
         status: params.status ?? "normal",
         memo: params.memo ?? null,
+        created_by: user.id,
       })
       .select("id")
       .single();

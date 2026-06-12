@@ -358,40 +358,36 @@ export default function MapCanvas() {
       pinMarkersRef.current.set(localPoint.id, marker);
     });
 
-    // DB保存（ログイン済みの場合のみ）
-    if (farmLiveRef.current) {
-      const { status, id } = await saveFieldPoint({
-        fieldId: params.fieldId,
-        pointType: params.pointType,
-        name: params.name,
-        latitude: lngLat[1],
-        longitude: lngLat[0],
-      });
-      if (status === "saved" && id) {
-        // Markerを作り直してDB IDのオブジェクトを参照させる
-        // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
-        const dbPoint: FieldPoint = { ...newPoint, id };
-        setSelectedPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
-        import("maplibre-gl").then((maplibre) => {
-          const map = mapRef.current;
-          if (!map) return;
-          const old = pinMarkersRef.current.get(newPoint.id);
-          if (old) old.remove();
-          pinMarkersRef.current.delete(newPoint.id);
-          const marker = createPinMarker(maplibre, map, dbPoint, () => {
-            setSelectedPoint(dbPoint);
-            setSelectedField(null);
-          });
-          pinMarkersRef.current.set(id, marker);
+    // DB保存（未ログイン時は saveFieldPoint が "demo" を返す）
+    const { status, id } = await saveFieldPoint({
+      fieldId: params.fieldId,
+      pointType: params.pointType,
+      name: params.name,
+      latitude: lngLat[1],
+      longitude: lngLat[0],
+    });
+    if (status === "saved" && id) {
+      // Markerを作り直してDB IDのオブジェクトを参照させる
+      // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
+      const dbPoint: FieldPoint = { ...newPoint, id };
+      setSelectedPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
+      import("maplibre-gl").then((maplibre) => {
+        const map = mapRef.current;
+        if (!map) return;
+        const old = pinMarkersRef.current.get(newPoint.id);
+        if (old) old.remove();
+        pinMarkersRef.current.delete(newPoint.id);
+        const marker = createPinMarker(maplibre, map, dbPoint, () => {
+          setSelectedPoint(dbPoint);
+          setSelectedField(null);
         });
-        setToast("ピンを保存しました");
-      } else if (status === "demo") {
-        setToast("ローカルに追加しました（ログインすると共有されます）");
-      } else {
-        setToast("ピンの保存に失敗しました。通信環境を確認してください");
-      }
+        pinMarkersRef.current.set(id, marker);
+      });
+      setToast("ピンを保存しました");
+    } else if (status === "demo") {
+      setToast("ローカルに追加しました（ログインすると共有されます）");
     } else {
-      setToast("ピンを追加しました");
+      setToast("ピンの保存に失敗しました。通信環境を確認してください");
     }
   };
 
@@ -419,26 +415,22 @@ export default function MapCanvas() {
       });
     };
 
-    if (farmLiveRef.current) {
-      const result = await updateFieldPoint(point.id, {
-        name: patch.name,
-        pointType: patch.pointType,
-        status: patch.status,
-      });
-      if (result === "saved") {
-        applyLocally();
-        setToast("ピンを更新しました");
-      } else if (result === "demo") {
-        applyLocally();
-        setToast("ローカルで更新しました（ログインすると共有されます）");
-      } else if (result === "denied") {
-        setToast("更新できませんでした（編集権限がありません）");
-      } else {
-        setToast("更新の保存に失敗しました");
-      }
-    } else {
+    // 未ログイン時は updateFieldPoint が "demo" を返す
+    const result = await updateFieldPoint(point.id, {
+      name: patch.name,
+      pointType: patch.pointType,
+      status: patch.status,
+    });
+    if (result === "saved") {
       applyLocally();
       setToast("ピンを更新しました");
+    } else if (result === "demo") {
+      applyLocally();
+      setToast("ローカルで更新しました（ログインすると共有されます）");
+    } else if (result === "denied") {
+      setToast("更新できませんでした（編集権限がありません）");
+    } else {
+      setToast("更新の保存に失敗しました");
     }
   };
 
@@ -455,22 +447,18 @@ export default function MapCanvas() {
       }
     };
 
-    if (farmLiveRef.current) {
-      const result = await deleteFieldPoint(point.id);
-      if (result === "deleted") {
-        removeLocally();
-        setToast("ピンを削除しました");
-      } else if (result === "demo") {
-        removeLocally();
-        setToast("ローカルで削除しました（ログインすると共有されます）");
-      } else if (result === "denied") {
-        setToast("削除できませんでした（編集権限がありません）");
-      } else {
-        setToast("削除に失敗しました");
-      }
-    } else {
+    // 未ログイン時は deleteFieldPoint が "demo" を返す
+    const result = await deleteFieldPoint(point.id);
+    if (result === "deleted") {
       removeLocally();
       setToast("ピンを削除しました");
+    } else if (result === "demo") {
+      removeLocally();
+      setToast("ローカルで削除しました（ログインすると共有されます）");
+    } else if (result === "denied") {
+      setToast("削除できませんでした（編集権限がありません）");
+    } else {
+      setToast("削除に失敗しました");
     }
   };
 
