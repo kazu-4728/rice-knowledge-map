@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loadRecords, type RecordsData } from "../../lib/data/records";
-import { recentRecords } from "../../data/dummy";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -63,8 +62,9 @@ const thumbVariant = (record: RecordItem) =>
   record.category === "作業" ? ("grass" as const) : record.category === "異常" ? ("sprout" as const) : ("water" as const);
 
 export default function RecordsScreen() {
-  const [records, setRecords] = useState<RecordItem[]>(recentRecords);
-  const [mode, setMode] = useState<RecordsData["mode"]>("demo");
+  // 初期表示は空にして、loadRecords の結果だけを表示する（デモのサンプルもloadRecordsが返す）
+  const [records, setRecords] = useState<RecordItem[]>([]);
+  const [mode, setMode] = useState<RecordsData["mode"] | "loading">("loading");
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterLabel>("すべて");
   const [query, setQuery] = useState("");

@@ -33,9 +33,20 @@ const TYPE_TO_CATEGORY: Record<RecordRow["record_type"], RecordItem["category"]>
 type RecordListRow = RecordRow & {
   farm_fields: { name: string } | null;
   record_media: { media_type: "image" | "audio"; storage_bucket: string; storage_path: string }[];
+  ai_category: string | null;
   latitude: Numeric | null;
   longitude: Numeric | null;
 };
+
+/** 保存時にai_categoryへ保持したポイント種別を読み戻す（不正値はrecord_typeから推定） */
+const POINT_TYPES: readonly RecordItem["pointType"][] = ["inlet", "outlet", "weed", "caution"];
+
+function toPointType(r: RecordListRow): RecordItem["pointType"] {
+  if (r.ai_category && (POINT_TYPES as readonly string[]).includes(r.ai_category)) {
+    return r.ai_category as RecordItem["pointType"];
+  }
+  return r.record_type === "issue" ? "caution" : "inlet";
+}
 
 function formatDate(iso: string): { date: string; time: string } {
   const d = new Date(iso);
@@ -63,7 +74,7 @@ export async function loadRecords(): Promise<RecordsData> {
     const { data, error } = await sb
       .from("records")
       .select(
-        "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
+        "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
       )
       .order("recorded_at", { ascending: false })
       .limit(100);
@@ -109,7 +120,7 @@ export async function loadRecords(): Promise<RecordsData> {
           fieldName: r.farm_fields?.name ?? "田んぼ未選択",
           fieldArea: "",
           category: TYPE_TO_CATEGORY[r.record_type] ?? "作業",
-          pointType: r.record_type === "issue" ? "caution" : "inlet",
+          pointType: toPointType(r),
           media: isVoice ? "audio" : "photo",
           photoCount: isVoice ? undefined : imageCount,
           audioDuration: isVoice ? "--:--" : undefined,

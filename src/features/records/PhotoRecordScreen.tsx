@@ -66,7 +66,10 @@ export default function PhotoRecordScreen() {
   const [memo, setMemo] = useState("");
   const [location, setLocation] = useState<{ lng: number; lat: number } | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
+  const [farmError, setFarmError] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // 「修正する」で戻ってきたとき、撮影日時を引き継ぐ（写真を撮り直したらリセット）
+  const recordedAtRef = useRef<string | null>(null);
 
   // 「修正する」で戻ってきたときは下書きを復元する
   useEffect(() => {
@@ -77,6 +80,7 @@ export default function PhotoRecordScreen() {
       setPointType(draft.pointType);
       setMemo(draft.memo);
       setLocation(draft.location);
+      recordedAtRef.current = draft.recordedAt;
     }
   }, []);
 
@@ -87,6 +91,10 @@ export default function PhotoRecordScreen() {
       if (cancelled) return;
       if (farm.mode === "demo" || farm.mode === "anon") {
         setNeedLogin(farm.mode === "anon");
+        return;
+      }
+      if (farm.mode === "error") {
+        setFarmError(true);
         return;
       }
       const options: FieldOption[] = farm.fieldsGeoJSON.features.flatMap((f) => {
@@ -147,6 +155,7 @@ export default function PhotoRecordScreen() {
       const compressed = await compressImage(file);
       if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl);
       setPhoto(compressed);
+      recordedAtRef.current = null;
     } catch (err) {
       console.warn("[photo] compress failed", err);
       setMessage("写真を読み込めませんでした。別の写真でお試しください");
@@ -161,16 +170,19 @@ export default function PhotoRecordScreen() {
       return;
     }
     const selected = fields.find((f) => f.id === selectedFieldId) ?? null;
+    // 田んぼ一覧の読み込みが終わる前に「修正する」から進み直した場合は、元の下書きの田んぼを引き継ぐ
+    const prev = getRecordDraft();
+    const restored = !selected && selectedFieldId && prev?.fieldId === selectedFieldId ? prev : null;
     setRecordDraft({
       kind: "photo",
       file: photo.blob,
       previewUrl: photo.previewUrl,
-      fieldId: selected?.id ?? null,
-      fieldName: selected?.name ?? null,
+      fieldId: selected?.id ?? restored?.fieldId ?? null,
+      fieldName: selected?.name ?? restored?.fieldName ?? null,
       pointType,
       memo,
       location,
-      recordedAt: new Date().toISOString(),
+      recordedAt: recordedAtRef.current ?? new Date().toISOString(),
     });
     router.push("/records/new/confirm");
   };
@@ -251,7 +263,9 @@ export default function PhotoRecordScreen() {
           <p className="mt-2 text-xs text-gray-500">
             {needLogin
               ? "ログインすると登録済みの田んぼから選べます"
-              : "登録済みの田んぼがありません（マップの＋ボタンから登録できます）。選択しなくても記録は保存できます"}
+              : farmError
+                ? "田んぼ一覧を読み込めませんでした。通信環境を確認してください（選択しなくても記録は保存できます）"
+                : "登録済みの田んぼがありません（マップの＋ボタンから登録できます）。選択しなくても記録は保存できます"}
           </p>
         )}
       </div>

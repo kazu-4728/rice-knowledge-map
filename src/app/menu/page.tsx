@@ -24,7 +24,7 @@ export default function MenuPage() {
         <h1 className="px-1 text-2xl font-bold text-gray-900">メニュー</h1>
 
         {/* アカウント / ログイン */}
-        <AccountSection />
+        <AccountSection redirectPath="/menu" />
 
         {/* 家族・作業者 */}
         <section className="rounded-2xl bg-white p-4 shadow-sm">
