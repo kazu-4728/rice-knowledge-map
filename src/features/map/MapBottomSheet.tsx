@@ -67,7 +67,7 @@ export default function MapBottomSheet({ point, onAddPin, onEditPin }: Props) {
 
             <div className="mt-3 flex gap-2">
               <Link
-                href="/records"
+                href={`/records?point=${point.id}`}
                 className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
               >
                 詳細

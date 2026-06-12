@@ -415,6 +415,13 @@ export default function MapCanvas() {
       });
     };
 
+    // ローカルIDのピン（DB保存前）はDB操作をスキップしてローカルのみ更新
+    if (point.id.startsWith("local-")) {
+      applyLocally();
+      setToast("ローカルで更新しました（ログインすると共有されます）");
+      return;
+    }
+
     // 未ログイン時は updateFieldPoint が "demo" を返す
     const result = await updateFieldPoint(point.id, {
       name: patch.name,
@@ -446,6 +453,13 @@ export default function MapCanvas() {
         pinMarkersRef.current.delete(point.id);
       }
     };
+
+    // ローカルIDのピン（DB保存前）はDB操作をスキップしてローカルのみ削除
+    if (point.id.startsWith("local-")) {
+      removeLocally();
+      setToast("ピンを削除しました");
+      return;
+    }
 
     // 未ログイン時は deleteFieldPoint が "demo" を返す
     const result = await deleteFieldPoint(point.id);
