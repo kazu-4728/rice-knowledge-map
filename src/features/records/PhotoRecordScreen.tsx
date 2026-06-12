@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { loadFarmData } from "../../lib/data/farm";
 import { getRecordDraft, setRecordDraft } from "./recordDraft";
+import { useRecordFields } from "./useRecordFields";
 import type { FieldPointType } from "../../types";
 import {
   IconCamera,
@@ -22,19 +22,6 @@ const pointTypes: { type: FieldPointType; icon: React.ReactNode; label: string }
   { type: "weed", icon: <IconSprout className="h-6 w-6 text-green-600" />, label: "雑草" },
   { type: "caution", icon: <IconWarningFill className="h-6 w-6 text-amber-500" />, label: "異常" },
 ];
-
-type FieldOption = { id: string; name: string; center: [number, number] | null };
-
-/** 点がリング（経度緯度の多角形）の内側にあるか（ray casting法） */
-function pointInRing([x, y]: [number, number], ring: number[][]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
 
 /** 写真をアップロード向けに縮小する（長辺1600px・JPEG品質0.8） */
 async function compressImage(file: File): Promise<{ blob: Blob; previewUrl: string }> {
@@ -60,13 +47,10 @@ export default function PhotoRecordScreen() {
 
   const [photo, setPhoto] = useState<{ blob: Blob; previewUrl: string } | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [fields, setFields] = useState<FieldOption[]>([]);
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const { fields, selectedFieldId, setSelectedFieldId, location, setLocation, needLogin, farmError } =
+    useRecordFields();
   const [pointType, setPointType] = useState<FieldPointType | null>(null);
   const [memo, setMemo] = useState("");
-  const [location, setLocation] = useState<{ lng: number; lat: number } | null>(null);
-  const [needLogin, setNeedLogin] = useState(false);
-  const [farmError, setFarmError] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   // 「修正する」で戻ってきたとき、撮影日時を引き継ぐ（写真を撮り直したらリセット）
   const recordedAtRef = useRef<string | null>(null);
@@ -82,69 +66,7 @@ export default function PhotoRecordScreen() {
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
     }
-  }, []);
-
-  // 自分の田んぼ一覧と現在地から、候補の田んぼを初期選択する
-  useEffect(() => {
-    let cancelled = false;
-    loadFarmData().then((farm) => {
-      if (cancelled) return;
-      if (farm.mode === "demo" || farm.mode === "anon") {
-        setNeedLogin(farm.mode === "anon");
-        return;
-      }
-      if (farm.mode === "error") {
-        setFarmError(true);
-        return;
-      }
-      const options: FieldOption[] = farm.fieldsGeoJSON.features.flatMap((f) => {
-        if (f.geometry.type !== "Polygon") return [];
-        const ring = f.geometry.coordinates[0];
-        const pts = ring.slice(0, -1);
-        const center: [number, number] = [
-          pts.reduce((s, c) => s + c[0], 0) / pts.length,
-          pts.reduce((s, c) => s + c[1], 0) / pts.length,
-        ];
-        return [{ id: String(f.id ?? f.properties?.id ?? ""), name: String(f.properties?.name ?? ""), center }];
-      });
-      setFields(options);
-
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (cancelled) return;
-            const here: [number, number] = [pos.coords.longitude, pos.coords.latitude];
-            setLocation({ lng: here[0], lat: here[1] });
-            // いま立っている田んぼがあれば自動選択、なければ一番近い田んぼ
-            setSelectedFieldId((prev) => {
-              if (prev) return prev;
-              const inside = farm.fieldsGeoJSON.features.find(
-                (f) => f.geometry.type === "Polygon" && pointInRing(here, f.geometry.coordinates[0])
-              );
-              if (inside) return String(inside.id ?? inside.properties?.id ?? "");
-              let best: FieldOption | null = null;
-              let bestDist = Infinity;
-              for (const o of options) {
-                if (!o.center) continue;
-                const d = (o.center[0] - here[0]) ** 2 + (o.center[1] - here[1]) ** 2;
-                if (d < bestDist) {
-                  bestDist = d;
-                  best = o;
-                }
-              }
-              return best?.id ?? null;
-            });
-          },
-          () => {
-            // 位置情報なしでも記録は可能（田んぼは手動選択）
-          },
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-        );
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);
 
   const handleFileSelected = async (file: File | null) => {

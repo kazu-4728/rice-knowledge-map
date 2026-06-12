@@ -74,11 +74,14 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
 
     if (draft.file) {
       const bucket = draft.kind === "audio" ? "audio" : "images";
-      const ext = draft.kind === "audio" ? "webm" : "jpg";
+      // 音声はMediaRecorderの実際の形式に合わせる（Chrome=webm/opus、iOS Safari=mp4/AAC）
+      const mime = draft.file.type || (draft.kind === "audio" ? "audio/webm" : "image/jpeg");
+      const ext =
+        draft.kind === "audio" ? (mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm") : "jpg";
       const path = `groups/${groupId}/records/${recordId}/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadError } = await sb.storage.from(bucket).upload(path, draft.file, {
-        contentType: draft.kind === "audio" ? "audio/webm" : "image/jpeg",
+        contentType: mime,
       });
       if (uploadError) {
         console.warn("[record] upload failed", uploadError);
