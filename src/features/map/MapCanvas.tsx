@@ -327,7 +327,7 @@ export default function MapCanvas() {
     setAddingPin(false);
 
     const newPoint: FieldPoint = {
-      id: `local-${Date.now()}`,
+      id: `local-${crypto.randomUUID()}`,
       fieldId: params.fieldId ?? "",
       name: params.name,
       type: params.pointType,
