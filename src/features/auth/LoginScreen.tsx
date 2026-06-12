@@ -10,10 +10,17 @@ import { IconCheck, LogoRice } from "../../components/ui/icons";
 // 必要なため、設定が済むまでボタンを出さない（壊れたボタンを見せない）
 const GOOGLE_LOGIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN === "1";
 
+/** アプリ内パス（"/"始まり・"//"等の外部URL形式は不可）のみ許可する */
+function sanitizeRedirect(raw: string | null): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  return raw;
+}
+
 function LoginScreenInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/";
+  const redirect = sanitizeRedirect(searchParams.get("redirect"));
   const { configured, loading, session, signInWithGoogle, signInWithEmail } = useAuth();
 
   const [busy, setBusy] = useState(false);
