@@ -310,6 +310,7 @@ export async function updateFieldPoint(
     if (patch.pointType !== undefined) row.point_type = patch.pointType;
     if (patch.status !== undefined) row.status = patch.status;
     if (patch.memo !== undefined) row.memo = patch.memo;
+    if (Object.keys(row).length === 0) return "saved";
 
     const { data, error } = await sb.from("field_points").update(row).eq("id", id).select("id");
     if (error) {

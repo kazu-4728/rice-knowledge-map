@@ -368,13 +368,22 @@ export default function MapCanvas() {
         longitude: lngLat[0],
       });
       if (status === "saved" && id) {
-        // ローカルIDをDB IDに差し替える
-        setSelectedPoint((prev) => (prev?.id === newPoint.id ? { ...prev, id } : prev));
-        const marker = pinMarkersRef.current.get(newPoint.id);
-        if (marker) {
+        // Markerを作り直してDB IDのオブジェクトを参照させる
+        // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
+        const dbPoint: FieldPoint = { ...newPoint, id };
+        setSelectedPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
+        import("maplibre-gl").then((maplibre) => {
+          const map = mapRef.current;
+          if (!map) return;
+          const old = pinMarkersRef.current.get(newPoint.id);
+          if (old) old.remove();
           pinMarkersRef.current.delete(newPoint.id);
+          const marker = createPinMarker(maplibre, map, dbPoint, () => {
+            setSelectedPoint(dbPoint);
+            setSelectedField(null);
+          });
           pinMarkersRef.current.set(id, marker);
-        }
+        });
         setToast("ピンを保存しました");
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有されます）");
@@ -417,9 +426,11 @@ export default function MapCanvas() {
       });
       if (result === "saved") {
         setToast("ピンを更新しました");
+      } else if (result === "demo") {
+        setToast("ローカルで更新しました（ログインすると共有されます）");
       } else if (result === "denied") {
         setToast("更新できませんでした（編集権限がありません）");
-      } else if (result !== "demo") {
+      } else {
         setToast("更新の保存に失敗しました");
       }
     } else {
@@ -442,9 +453,11 @@ export default function MapCanvas() {
       const result = await deleteFieldPoint(point.id);
       if (result === "deleted") {
         setToast("ピンを削除しました");
+      } else if (result === "demo") {
+        setToast("ローカルで削除しました（ログインすると共有されます）");
       } else if (result === "denied") {
         setToast("削除できませんでした（編集権限がありません）");
-      } else if (result !== "demo") {
+      } else {
         setToast("削除に失敗しました");
       }
     } else {
