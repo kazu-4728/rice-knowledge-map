@@ -42,18 +42,17 @@ export default function MenuPage() {
         </section>
 
         {/* 固定ポイント管理 */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <IconPinFill className="h-6 w-6 text-green-700" />
-              <h2 className="text-base font-bold text-gray-900">固定ポイント管理</h2>
-            </div>
-            <ComingSoonBadge />
+        <Link
+          href="/map"
+          className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+        >
+          <IconPinFill className="h-6 w-6 shrink-0 text-green-700" />
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-gray-900">固定ポイント管理</p>
+            <p className="mt-0.5 text-xs text-gray-500">入水口・出水口・異常箇所のピンをマップで登録・編集</p>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            入水口・出水口・異常箇所のピン登録は今後のアップデートで使えるようになります
-          </p>
-        </section>
+          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        </Link>
 
         {/* 田んぼ一覧 */}
         <Link

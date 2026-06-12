@@ -66,9 +66,8 @@ export default function MapBottomSheet({ point, onAddPin, onEditPin }: Props) {
             </div>
 
             <div className="mt-3 flex gap-2">
-              {/* Phase Cで /records?point={point.id} の絞り込みを実装後、クエリを復元する */}
               <Link
-                href="/records"
+                href={`/records?point=${encodeURIComponent(point.id)}`}
                 className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
               >
                 詳細
