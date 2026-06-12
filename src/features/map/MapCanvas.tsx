@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
   Map as MLMap,
@@ -145,22 +146,32 @@ export default function MapCanvas() {
     const name = pendingName.trim() || redrawTarget?.name || "新しい田んぼ";
 
     // 描き直し: 既存の田んぼの輪郭・名前を更新する
+    // （権限なし等でDBに保存されない変更を見せないよう、ローカル反映は成功後に行う）
     if (redrawTarget) {
       const target = redrawTarget;
       setRedrawTarget(null);
       closeNaming();
       if (vertices.length < 3) return;
-      updateSavedField(target.id, name, vertices);
-      applyServerFieldUpdate(target.id, name, vertices);
+      const applyLocally = () => {
+        updateSavedField(target.id, name, vertices);
+        applyServerFieldUpdate(target.id, name, vertices);
+      };
       if (farmLiveRef.current) {
         updateField(target.id, name, vertices).then((result) => {
-          if (result === "saved") setToast("田んぼを描き直しました");
-          else if (result === "demo") setToast("ローカルで更新しました（ログインすると共有されます）");
-          else if (result === "denied")
-            setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
-          else setToast("更新を保存できませんでした。通信環境を確認してください");
+          if (result === "saved") {
+            applyLocally();
+            setToast("田んぼを描き直しました");
+          } else if (result === "demo") {
+            applyLocally();
+            setToast("ローカルで更新しました（ログインすると共有されます）");
+          } else if (result === "denied") {
+            setToast("変更できませんでした（編集権限がありません）");
+          } else {
+            setToast("更新を保存できませんでした。通信環境を確認してください");
+          }
         });
       } else {
+        applyLocally();
         setToast("田んぼを描き直しました");
       }
       return;
@@ -198,24 +209,33 @@ export default function MapCanvas() {
     startDraw();
   };
 
-  /** 名前変更ダイアログの確定 */
+  /** 名前変更ダイアログの確定（ローカル反映はDB更新の成功後） */
   const commitRename = () => {
     const target = renameTarget;
     if (!target) return;
     const name = renameValue.trim() || target.name;
     setRenameTarget(null);
     setSelectedField(null);
-    updateSavedField(target.id, name);
-    applyServerFieldUpdate(target.id, name);
+    const applyLocally = () => {
+      updateSavedField(target.id, name);
+      applyServerFieldUpdate(target.id, name);
+    };
     if (farmLiveRef.current) {
       updateField(target.id, name).then((result) => {
-        if (result === "saved") setToast("名前を変更しました");
-        else if (result === "demo") setToast("ローカルで変更しました（ログインすると共有されます）");
-        else if (result === "denied")
-          setToast("変更を保存できませんでした（編集権限がありません）。再表示で元に戻ります");
-        else setToast("名前の変更を保存できませんでした");
+        if (result === "saved") {
+          applyLocally();
+          setToast("名前を変更しました");
+        } else if (result === "demo") {
+          applyLocally();
+          setToast("ローカルで変更しました（ログインすると共有されます）");
+        } else if (result === "denied") {
+          setToast("変更できませんでした（編集権限がありません）");
+        } else {
+          setToast("名前の変更を保存できませんでした");
+        }
       });
     } else {
+      applyLocally();
       setToast("名前を変更しました");
     }
   };
@@ -336,8 +356,12 @@ export default function MapCanvas() {
     Promise.all([import("maplibre-gl"), loadFarmData()]).then(([maplibre, farm]) => {
       if (cancelled || !mapContainerRef.current) return;
 
-      farmLiveRef.current = farm.mode === "live";
+      // error はログイン済みの取得失敗（編集系の各関数がセッションを再検証するためliveと同等に扱う）
+      farmLiveRef.current = farm.mode === "live" || farm.mode === "error";
       setAnonMode(farm.mode === "anon");
+      if (farm.mode === "error") {
+        setToast("データを読み込めませんでした。通信環境を確認して開き直してください");
+      }
 
       // 参照モック同様、初期表示は先頭の地点を選択状態にする
       setSelectedPoint(farm.points[0] ?? null);
@@ -711,10 +735,13 @@ export default function MapCanvas() {
         <>
           {/* 未ログインの案内 */}
           {anonMode && (
-            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg">
+            <Link
+              href="/login"
+              className="absolute top-3 left-1/2 z-20 block w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg"
+            >
               <p className="text-sm font-bold text-gray-900">ログインすると家族の田んぼが表示されます</p>
-              <p className="mt-0.5 text-xs text-gray-500">メニュー画面からメールアドレスでログインできます</p>
-            </div>
+              <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
+            </Link>
           )}
 
           {/* ログイン済み・田んぼ未登録の案内 */}

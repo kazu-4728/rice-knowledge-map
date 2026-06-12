@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import BottomNav from "./BottomNav";
-import { IconBell, LogoRice } from "../ui/icons";
+import HeaderAccountChip from "./HeaderAccountChip";
+import { LogoRice } from "../ui/icons";
 
 type Props = {
   children: ReactNode;
@@ -8,7 +9,7 @@ type Props = {
   fullBleed?: boolean;
 };
 
-/** モック共通のヘッダー（中央ロゴ＋右ベル）と下部ナビを持つ画面シェル */
+/** モック共通のヘッダー（中央ロゴ＋右ログイン状態）と下部ナビを持つ画面シェル */
 export default function AppShell({ children, fullBleed = false }: Props) {
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-gray-100 relative overflow-hidden">
@@ -17,12 +18,7 @@ export default function AppShell({ children, fullBleed = false }: Props) {
           <LogoRice className="w-7 h-7" />
           <span className="text-green-700 font-bold text-lg tracking-tight">みらい稲作管理</span>
         </div>
-        <button
-          className="absolute right-2 p-2.5 text-gray-700 hover:text-gray-900"
-          aria-label="通知"
-        >
-          <IconBell className="w-6 h-6" />
-        </button>
+        <HeaderAccountChip />
       </header>
 
       <main

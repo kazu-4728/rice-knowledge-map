@@ -15,7 +15,6 @@ import {
   IconPin,
   IconPinFill,
   IconSearch,
-  IconSliders,
   IconSprout,
   IconWarningFill,
 } from "../../components/ui/icons";
@@ -26,7 +25,24 @@ const filterChips = [
   { label: "音声", Icon: IconMic },
   { label: "作業", Icon: IconSprout },
   { label: "水管理", Icon: IconDrop },
-];
+] as const;
+
+type FilterLabel = (typeof filterChips)[number]["label"];
+
+function matchesFilter(record: RecordItem, filter: FilterLabel): boolean {
+  switch (filter) {
+    case "写真":
+      return record.media === "photo";
+    case "音声":
+      return record.media === "audio";
+    case "作業":
+      return record.category === "作業";
+    case "水管理":
+      return record.category === "水管理";
+    default:
+      return true;
+  }
+}
 
 const categoryChip: Record<RecordItem["category"], string> = {
   水管理: "bg-blue-50 text-blue-600",
@@ -47,14 +63,24 @@ const thumbVariant = (record: RecordItem) =>
 
 export default function RecordsScreen() {
   const [records, setRecords] = useState<RecordItem[]>(recentRecords);
+  const [filter, setFilter] = useState<FilterLabel>("すべて");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     loadRecords().then((data) => setRecords(data.records));
   }, []);
 
+  // フィルタチップ + キーワード（タイトル・圃場名の部分一致）で絞り込む
+  const visibleRecords = records.filter((record) => {
+    if (!matchesFilter(record, filter)) return false;
+    const q = query.trim();
+    if (!q) return true;
+    return record.title.includes(q) || record.fieldName.includes(q);
+  });
+
   // 日付ごとにグループ化（日付降順で並んでいる前提）
   const groups: { date: string; items: RecordItem[] }[] = [];
-  for (const record of records) {
+  for (const record of visibleRecords) {
     const group = groups.find((g) => g.date === record.date);
     if (group) group.items.push(record);
     else groups.push({ date: record.date, items: [record] });
@@ -64,11 +90,12 @@ export default function RecordsScreen() {
     <div className="px-3 pb-6 pt-3">
       {/* フィルターチップ */}
       <div className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-white p-2 shadow-sm">
-        {filterChips.map(({ label, Icon }, i) => (
+        {filterChips.map(({ label, Icon }) => (
           <button
             key={label}
+            onClick={() => setFilter(label)}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              i === 0
+              filter === label
                 ? "bg-green-700 text-white"
                 : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
@@ -80,22 +107,26 @@ export default function RecordsScreen() {
       </div>
 
       {/* 検索バー */}
-      <div className="mt-3 flex items-center gap-2">
-        <label className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
+      <div className="mt-3">
+        <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
           <IconSearch className="h-5 w-5 text-gray-400" />
           <input
             type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="キーワードで検索（圃場名・作業内容など）"
             className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
           />
         </label>
-        <button
-          aria-label="絞り込み"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50"
-        >
-          <IconSliders className="h-5 w-5" />
-        </button>
       </div>
+
+      {/* 絞り込み結果が空のとき */}
+      {groups.length === 0 && (
+        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-sm font-bold text-gray-900">該当する記録がありません</p>
+          <p className="mt-1 text-xs text-gray-500">条件を変えて試してください</p>
+        </div>
+      )}
 
       {/* 日付グループ */}
       {groups.map((group) => (
