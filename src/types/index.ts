@@ -54,6 +54,7 @@ export type RecordItem = {
   media: "photo" | "audio";
   photoCount?: number;
   audioDuration?: string;
+  pointId?: string;
 };
 
 export type Member = {

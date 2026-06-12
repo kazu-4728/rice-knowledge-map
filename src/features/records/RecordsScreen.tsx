@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadRecords, type RecordsData } from "../../lib/data/records";
 import { consumeJustSaved } from "./recordDraft";
@@ -62,6 +63,9 @@ const thumbVariant = (record: RecordItem) =>
   record.category === "作業" ? ("grass" as const) : record.category === "異常" ? ("sprout" as const) : ("water" as const);
 
 export default function RecordsScreen() {
+  const searchParams = useSearchParams();
+  const pointFilter = searchParams.get("point");
+
   // 初期表示は空にして、loadRecords の結果だけを表示する（デモのサンプルもloadRecordsが返す）
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [mode, setMode] = useState<RecordsData["mode"] | "loading">("loading");
@@ -86,8 +90,9 @@ export default function RecordsScreen() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // フィルタチップ + キーワード（タイトル・圃場名の部分一致）で絞り込む
+  // フィルタチップ + キーワード（タイトル・圃場名の部分一致）+ ピン絞り込みで絞り込む
   const visibleRecords = records.filter((record) => {
+    if (pointFilter && record.pointId !== pointFilter) return false;
     if (!matchesFilter(record, filter)) return false;
     const q = query.trim();
     if (!q) return true;
@@ -104,6 +109,16 @@ export default function RecordsScreen() {
 
   return (
     <div className="px-3 pb-6 pt-3">
+      {/* ピン絞り込みバナー */}
+      {pointFilter && (
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5">
+          <p className="text-sm font-semibold text-green-800">このピンの記録を表示中</p>
+          <Link href="/records" className="text-xs font-bold text-green-700 underline">
+            解除
+          </Link>
+        </div>
+      )}
+
       {/* フィルターチップ */}
       <div className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-white p-2 shadow-sm">
         {filterChips.map(({ label, Icon }) => (

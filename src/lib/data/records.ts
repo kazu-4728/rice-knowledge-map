@@ -125,6 +125,7 @@ export async function loadRecords(): Promise<RecordsData> {
           photoCount: isVoice ? undefined : imageCount,
           // 長さはDBに保持していないため表示しない（ダミーの「--:--」を出さない）
           audioDuration: undefined,
+          pointId: r.point_id ?? undefined,
         } satisfies RecordItem;
       }),
     };
