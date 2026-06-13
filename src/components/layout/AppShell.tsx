@@ -3,6 +3,7 @@ import Link from "next/link";
 import BottomNav from "./BottomNav";
 import HeaderAccountChip from "./HeaderAccountChip";
 import BackButton from "./BackButton";
+import WeatherHeader from "../ui/WeatherHeader";
 import { IconChevronLeft, LogoRice } from "../ui/icons";
 
 type Props = {
@@ -38,6 +39,7 @@ export default function AppShell({ children, fullBleed = false, backHref, backLa
         </div>
         <HeaderAccountChip />
       </header>
+      <WeatherHeader />
 
       <main
         className={`flex-1 min-h-0 ${fullBleed ? "overflow-hidden relative" : "overflow-y-auto"}`}
