@@ -8,6 +8,7 @@ import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import type { RecordItem } from "../../types";
+import FAB from "../../components/ui/FAB";
 import {
   IconCamera,
   IconChevronRight,
@@ -284,6 +285,24 @@ export default function HomeScreen() {
           </div>
         )}
       </section>
+
+      {/* FAB */}
+      <FAB
+        actions={[
+          {
+            href: "/records/new",
+            icon: <IconCamera className="h-6 w-6 text-white" />,
+            label: "写真で記録",
+            color: "bg-green-600",
+          },
+          {
+            href: "/records/new?type=audio",
+            icon: <IconMic className="h-6 w-6 text-white" />,
+            label: "音声メモ",
+            color: "bg-teal-600",
+          },
+        ]}
+      />
     </div>
   );
 }

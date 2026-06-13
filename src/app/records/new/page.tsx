@@ -11,7 +11,7 @@ export default async function NewRecordPage({ searchParams }: Props) {
   const isAudio = params.type === "audio";
 
   return (
-    <AppShell>
+    <AppShell backDynamic backLabel="記録一覧">
       {isAudio ? <AudioRecordScreen /> : <PhotoRecordScreen />}
     </AppShell>
   );

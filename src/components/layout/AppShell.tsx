@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import BottomNav from "./BottomNav";
 import HeaderAccountChip from "./HeaderAccountChip";
+import BackButton from "./BackButton";
 import { IconChevronLeft, LogoRice } from "../ui/icons";
 
 type Props = {
@@ -12,17 +13,20 @@ type Props = {
   backHref?: string;
   /** 戻るボタンのラベル（省略時は「戻る」） */
   backLabel?: string;
+  /** true にすると router.back() で戻る動的バックボタンを表示（backHref より優先） */
+  backDynamic?: boolean;
 };
 
 /** モック共通のヘッダー（中央ロゴ＋右ログイン状態）と下部ナビを持つ画面シェル */
-export default function AppShell({ children, fullBleed = false, backHref, backLabel = "戻る" }: Props) {
+export default function AppShell({ children, fullBleed = false, backHref, backLabel = "戻る", backDynamic }: Props) {
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-gradient-to-b from-green-50 to-gray-100 relative overflow-hidden">
       <header className="relative flex items-center justify-center h-14 bg-white shrink-0 border-b border-gray-100">
-        {backHref && (
+        {backDynamic && <BackButton label={backLabel} />}
+        {!backDynamic && backHref && (
           <Link
             href={backHref}
-            className="absolute left-2 flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-50"
+            className="absolute left-2 flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-50 active:bg-green-100"
           >
             <IconChevronLeft className="h-4.5 w-4.5" />
             {backLabel}
