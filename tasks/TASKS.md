@@ -45,11 +45,11 @@
 
 | ID | 状態 | 内容 |
 |---|---|---|
-| PR-E | DONE | ヒーロー演出強化（Ken Burns・進捗バー・時間差フェード）・使い方全表示 | PR #29（ブランチ上） |
-| PR-F | DONE | 全ページ戻るボタン（BackButton/backDynamic）・FAB・トースト通知システム | PR #29（ブランチ上） |
-| PR-G | DONE | ヘッダー天気予報（現在地GPS→気象庁API・1週間ドロワー・SVG天気アイコン） | PR #29（ブランチ上） |
-| PR-H | DONE | カレンダー家族共有（migration 0005適用・月表示・予定CRUD・BottomNavに「予定」タブ） | PR #29（ブランチ上） |
-| PR-I | IN_PROGRESS | 未対応異常ダッシュボード・家族活動フィード・年次比較・共有/PDFエクスポート |
+| PR-E | DONE | ヒーロー演出強化（Ken Burns・進捗バー・時間差フェード）・使い方全表示 | PR #29（mainマージ済み） |
+| PR-F | DONE | 全ページ戻るボタン（BackButton/backDynamic）・FAB・トースト通知システム | PR #29（mainマージ済み） |
+| PR-G | DONE | ヘッダー天気予報（現在地GPS→気象庁API・1週間ドロワー・SVG天気アイコン） | PR #29（mainマージ済み） |
+| PR-H | DONE | カレンダー家族共有（migration 0005適用・月表示・予定CRUD・BottomNavに「予定」タブ） | PR #29（mainマージ済み） |
+| PR-I | DONE | 未対応異常バナー・記録エクスポート（年次/田んぼ別PDF）・メニューリンク追加 | PR #29（mainマージ済み） |
 | T-048 | TODO | 記録の AI 整理・要約（任意機能） |
 
 ---
@@ -66,6 +66,22 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-13（続き2） — UX大幅強化 PR-E〜I（PR #29）
+
+**実施内容:**
+
+- **PR-E（スプラッシュ強化）**: Ken Burns効果（3方向）・クロスフェード遷移（前/後2レイヤー）・テキスト時間差フェードイン・プログレスバー・CSS追加（ken-burns-*/sink/fab-pop/toast-in/out）・使い方セクション7項目に拡充（全表示）
+
+- **PR-F（戻るボタン・FAB・トースト）**: BackButtonクライアントコンポーネント新設・AppShellにbackDynamic prop追加・/records/new・/guide・/menu/siteに戻るボタン追加・FABコンポーネント（写真/音声の扇状展開）HomeScreenに配置・ToastProvider（success/error）をlayout.tsxに組み込み
+
+- **PR-G（天気予報ヘッダー）**: 気象庁無料API連携・GPS→最近傍都道府県エリアコード選択（47都道府県対応）・WeatherHeaderコンポーネント（日時表示＋今日の天気アイコン＋タップで1週間ドロワー展開）・SVG天気アイコン6種（sunny/partly-cloudy/cloudy/rainy/snowy/thundery）・AppShellに組み込み・30分キャッシュ
+
+- **PR-H（家族共有カレンダー）**: migration 0005（farm_schedulesテーブル・RLS・updated_atトリガー）Supabase本番適用・ScheduleデータLayer（CRUD）・CalendarScreen（月グリッド・日選択・予定追加フォーム・完了チェック・削除）・/calendar新設・BottomNavに「予定」タブ追加・IconTrash追加
+
+- **PR-I（異常バナー・エクスポート）**: HomeScreenに未対応異常件数バナー（open/needs_check件数）・/export記録PDFエクスポートページ（年＋田んぼフィルタ・月別グループ・window.print）・メニューにエクスポートリンク追加
+
+- **PR #29** squashマージ → main本番反映（Vercel自動デプロイ）
 
 ### 2026-06-13（続き） — UX リデザイン・Codex レビュー対応（PR #26〜#28）
 
