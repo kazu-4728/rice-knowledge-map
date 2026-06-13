@@ -30,10 +30,13 @@ type FieldItem = {
 };
 
 const features = [
-  { icon: <IconCamera className="h-4.5 w-4.5 text-green-700" />, title: "写真・音声で記録", desc: "田んぼの様子をすぐに保存。" },
-  { icon: <IconMap className="h-4.5 w-4.5 text-green-700" />, title: "空中写真マップ", desc: "実際の場所を確認しながら管理。" },
-  { icon: <IconPinFill className="h-4.5 w-4.5 text-green-700" />, title: "固定ポイント管理", desc: "入水口・異常箇所をピンで共有。" },
-  { icon: <IconCommentFill className="h-4.5 w-4.5 text-green-700" />, title: "家族でコメント", desc: "対応済みにして作業完了を共有。" },
+  { icon: <IconCamera className="h-4.5 w-4.5 text-green-700" />, title: "写真・音声で記録", desc: "田んぼの様子をすぐに保存。音声入力にも対応。" },
+  { icon: <IconMap className="h-4.5 w-4.5 text-green-700" />, title: "空中写真マップ", desc: "国土地理院の実際の空中写真で田んぼを確認・管理。" },
+  { icon: <IconPinFill className="h-4.5 w-4.5 text-green-700" />, title: "固定ポイント管理", desc: "入水口・出水口・異常箇所をピンで登録・共有。" },
+  { icon: <IconCommentFill className="h-4.5 w-4.5 text-green-700" />, title: "家族でコメント", desc: "記録にコメントを付けて対応完了を家族に知らせる。" },
+  { icon: <IconMic className="h-4.5 w-4.5 text-green-700" />, title: "音声メモ", desc: "両手がふさがっているときも声で記録できる。" },
+  { icon: <IconFieldGrid className="h-4.5 w-4.5 text-green-700" />, title: "田んぼ一覧管理", desc: "複数の田んぼをカバー写真付きで一目で把握。" },
+  { icon: <IconCommentFill className="h-4.5 w-4.5 text-green-700" />, title: "世代間の知恵継承", desc: "今年の記録が来年の判断を助ける。農家の知恵をデジタルで次世代へ。" },
 ];
 
 export default function HomeScreen() {
