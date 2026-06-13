@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loadRecords } from "../../lib/data/records";
+import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
 import {
@@ -12,23 +13,33 @@ import {
   IconMic,
   IconPin,
 } from "../../components/ui/icons";
+import HeroSection from "./HeroSection";
+import AppIntroSection from "./AppIntroSection";
 
 export default function HomeScreen() {
   const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
 
   useEffect(() => {
     loadRecords().then((data) => {
       setRecentRecords(data.records.slice(0, 4));
       setThumbUrls(data.thumbUrls);
     });
+    loadSiteContent().then((result) => {
+      setSlides(result.slides);
+    });
   }, []);
 
   return (
     <div className="space-y-3 px-3 pb-6 pt-3">
+      {/* ヒーローセクション */}
+      <HeroSection slides={slides} />
+
       {/* 記録導線（主役） */}
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <p className="text-base font-bold text-gray-900">きょうの様子を記録しましょう</p>
+        <p className="mt-0.5 text-xs text-gray-500">写真や音声で田んぼの状況をかんたんに記録できます</p>
         <div className="mt-3 flex gap-3">
           <Link
             href="/records/new"
@@ -53,6 +64,9 @@ export default function HomeScreen() {
           マップを開く
         </Link>
       </section>
+
+      {/* このアプリでできること */}
+      <AppIntroSection />
 
       {/* 最近の記録 */}
       {recentRecords.length > 0 && (
