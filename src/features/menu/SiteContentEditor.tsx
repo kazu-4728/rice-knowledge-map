@@ -33,8 +33,12 @@ async function compressImage(file: File): Promise<{ blob: Blob }> {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
-  const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/jpeg", 0.8));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas 2d context unavailable");
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  const blob = await new Promise<Blob>((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", 0.8)
+  );
   return { blob };
 }
 
@@ -69,7 +73,11 @@ export default function SiteContentEditor() {
     if (!groupId) return;
     setSaving(true);
     setMessage(null);
-    const { error } = await saveSiteContent(groupId, slides);
+    // blob: URLはローカルプレビュー専用のため保存しない
+    const slidesToSave = slides.map((s) =>
+      s.image_url?.startsWith("blob:") ? { ...s, image_url: undefined } : s
+    );
+    const { error } = await saveSiteContent(groupId, slidesToSave);
     setMessage(error ? `保存に失敗しました: ${error}` : "保存しました");
     setSaving(false);
   };

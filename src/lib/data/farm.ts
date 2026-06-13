@@ -121,10 +121,12 @@ export async function loadFarmData(): Promise<FarmData> {
   }
 }
 
-/** ログインユーザーの最初のグループにおけるロールを返す。未ログイン/未所属はnull */
+/** 指定グループにおけるログインユーザーのロールを返す。未ログイン/未所属はnull */
 export async function getMyRole(groupId: string): Promise<"owner" | "editor" | "viewer" | null> {
   const sb = getSupabase();
   if (!sb) return null;
+  const { data: session } = await sb.auth.getSession();
+  if (!session.session) return null;
   const { data } = await sb
     .from("farm_group_members")
     .select("role")

@@ -14,9 +14,9 @@ type Props = {
 
 /** 外部/署名URLの画像を表示し、読み込み失敗時はPaddyPhoto SVGにフォールバックする */
 export function RemotePhoto({ src, alt = "", className = "", fallbackVariant = "field" }: Props) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  if (!src || failed) {
+  if (!src || failedSrc === src) {
     return <PaddyPhoto variant={fallbackVariant} className={className} />;
   }
 
@@ -26,7 +26,7 @@ export function RemotePhoto({ src, alt = "", className = "", fallbackVariant = "
       src={src}
       alt={alt}
       className={className}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }

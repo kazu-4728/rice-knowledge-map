@@ -18,22 +18,24 @@ export default function HeroSection({ slides }: Props) {
 
   useEffect(() => {
     if (total <= 1) return;
+    let transitionTimeout: ReturnType<typeof setTimeout>;
     const timer = setInterval(() => {
       setTransitioning(true);
-      setTimeout(() => {
+      transitionTimeout = setTimeout(() => {
         setCurrent((c) => (c + 1) % total);
         setTransitioning(false);
       }, 600);
     }, SLIDE_INTERVAL_MS);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(transitionTimeout);
+    };
   }, [total]);
 
   const slide = slides[current] ?? slides[0];
   if (!slide) return null;
 
-  const imgSrc = slide.image_path
-    ? undefined // Storage パスは呼び出し元で署名URL変換済みの場合のみ渡す
-    : slide.image_url;
+  const imgSrc = slide.image_url;
 
   return (
     <section className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
