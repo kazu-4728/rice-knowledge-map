@@ -67,8 +67,12 @@ export default function FieldsPage() {
     if (!groupId) return;
     const path = await uploadFieldPhoto(groupId, field.id, file);
     if (!path) return;
-    await updateFieldPhoto(field.id, path);
-    const url = URL.createObjectURL(await compressImage(file));
+    const saved = await updateFieldPhoto(field.id, path);
+    if (!saved) return;
+    // revoke previous blob URL to avoid memory growth
+    const prevUrl = photoUrls[field.id];
+    if (prevUrl?.startsWith("blob:")) URL.revokeObjectURL(prevUrl);
+    const url = URL.createObjectURL(file);
     setPhotoUrls((prev) => ({ ...prev, [field.id]: url }));
     setFields((prev) => prev.map((f) => f.id === field.id ? { ...f, photoPath: path } : f));
   };
@@ -171,7 +175,7 @@ export default function FieldsPage() {
                       accept="image/*"
                       className="hidden"
                       ref={(el) => { fileInputRefs.current[field.id] = el; }}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(field, f); }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(field, f); e.currentTarget.value = ""; }}
                     />
                   </>
                 )}
