@@ -46,10 +46,25 @@ export async function loadSiteContent(): Promise<SiteContentResult> {
     .maybeSingle();
 
   const row = data as Pick<GroupSiteContentRow, "hero_slides"> | null;
-  const slides =
+  const rawSlides =
     row && Array.isArray(row.hero_slides) && row.hero_slides.length > 0
       ? (row.hero_slides as HeroSlide[])
       : DEFAULT_SLIDES;
+
+  // image_path（Storageパス）を持つスライドは署名URLに変換して表示できるようにする
+  const paths = rawSlides.flatMap((s) => (s.image_path ? [s.image_path] : []));
+  const signedMap = new Map<string, string>();
+  if (paths.length > 0) {
+    const { data: signed } = await sb.storage.from("images").createSignedUrls(paths, 3600);
+    signed?.forEach((s, i) => {
+      if (s.signedUrl && !s.error) signedMap.set(paths[i], s.signedUrl);
+    });
+  }
+  const slides = rawSlides.map((s) =>
+    s.image_path && signedMap.has(s.image_path)
+      ? { ...s, image_url: signedMap.get(s.image_path) }
+      : s
+  );
 
   return { mode: "live", groupId, slides };
 }

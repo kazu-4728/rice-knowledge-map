@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { loadSiteContent, saveSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import { getSupabase } from "../../lib/supabase/client";
-import { ensureGroupId } from "../../lib/data/farm";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
-import { IconCamera, IconCheck, IconMic, IconPlus } from "../../components/ui/icons";
+import { IconCamera, IconCheck, IconPlus } from "../../components/ui/icons";
 
 async function uploadSiteImage(groupId: string, file: File): Promise<string | null> {
   const sb = getSupabase();
@@ -21,7 +20,6 @@ async function uploadSiteImage(groupId: string, file: File): Promise<string | nu
     return null;
   }
 
-  const { data: signed } = await sb.storage.from("images").createSignedUrl(path, 3600);
   // image_path として保存するのはStorageパス（署名URLではない）
   return path;
 }
