@@ -29,16 +29,15 @@
 | UX PR-C | 音声入力（Web Speech API）を全テキスト欄 6 箇所に追加 | PR #24（7e0f366） |
 | UX PR-D | 田んぼ実写カバー写真・田んぼ→記録導線・point_id 連携 | PR #25（e3d5258） |
 | — | Google ログイン設定（Google Cloud OAuth + Supabase + Vercel 環境変数） | 実機ログイン成功確認済み 2026-06-12 |
+| — | PR #25 post-merge 修正（fields/page.tsx の groupId 参照修正） | PR #26（main マージ済み） |
+| UX リデザイン | スプラッシュページ（/）・/home 田んぼ一覧主役化・/fields/[id] 詳細ページ新設・緑グラデ背景・戻るボタン・折りたたみ（使い方/最近の記録）・ヒーロー画像を田んぼ写真に変更 | PR #27（main マージ済み） |
+| — | Codex/Copilot レビュー対応（pointType URL 連携・groupId undefined 修正・pointId クリア修正） | PR #28（main マージ済み） |
 
 ---
 
 ## 2. 修正済み・main へのマージ待ち
 
-| ID | 状態 | 内容 | ブランチ |
-|---|---|---|---|
-| — | IN_PROGRESS | PR #25 post-merge 修正（point_id 連携の完成 + fields/page.tsx の groupId 参照修正） | `claude/affectionate-knuth-lo4b5v`（da99c84） |
-
-→ **次のアクション**: ユーザーが PR を確認しマージ、またはレビューが来たら対応してマージ。
+現在なし。すべて main マージ済み。
 
 ---
 
@@ -58,7 +57,7 @@
 
 | ID | 状態 | 内容 |
 |---|---|---|
-| U-001 | TODO | Migration 0004 を Supabase 本番に apply（farm_fields.photo_path + group_site_content）。Supabase ダッシュボード → SQL Editor または MCP `apply_migration` |
+| U-001 | DONE | Migration 0004 を Supabase 本番に apply（farm_fields.photo_path + group_site_content）。2026-06-13 MCP apply_migration で適用確認済み |
 | U-002 | TODO | 本番で実機確認: 写真記録・音声メモの保存→一覧表示 / 田んぼカバー写真のアップロード / ヒーロースライドショー / 音声入力ボタン |
 | U-003 | DONE | Google ログイン設定（OAuth + Supabase + Vercel 環境変数）。2026-06-12 実機ログイン成功確認 |
 | U-004 | TODO | （任意）Supabase レガシー anon キーの無効化（API Keys ページ） |
@@ -66,6 +65,31 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-13（続き） — UX リデザイン・Codex レビュー対応（PR #26〜#28）
+
+**実施内容:**
+
+- **PR #26**: fields/page.tsx の groupId 参照を `field.groupId` に修正（削除済みの state 変数参照バグ）
+
+- **PR #27（UX リデザイン）**:
+  - `src/app/page.tsx`: スプラッシュページ（全画面ヒーロー + 「アプリへ入る」ボタン、sessionStorage でスキップ）
+  - `src/app/home/page.tsx`: /home ルート新設（AppShell + HomeScreen）
+  - `src/features/home/HomeScreen.tsx`: 田んぼ一覧を主役に全面再設計。最近の記録・使い方 を折りたたみ（デフォルト閉）、最大 5 件
+  - `src/app/fields/[id]/page.tsx`: 田んぼ詳細ページ新設（Next.js 15 準拠 `params: Promise<{id:string}>`）
+  - `src/features/fields/FieldDetailScreen.tsx`: 田んぼ詳細画面（カバー写真・ピン一覧・最近の記録・記録ボタン）
+  - `src/components/layout/AppShell.tsx`: backHref/backLabel props 追加・背景を緑グラデーション（from-green-50 to-gray-100）
+  - `src/components/layout/BottomNav.tsx`: ホームタブを /home に変更、/fields 配下もアクティブ判定
+  - `src/lib/data/siteContent.ts`: DEFAULT_SLIDES を田んぼ風景 Unsplash 画像 3 枚に変更
+
+- **PR #28（Codex/Copilot レビュー対応）**:
+  - PhotoRecordScreen / AudioRecordScreen: `?pointType=` URL パラメータの型安全バリデーション（VALID_POINT_TYPES Set）、欠落時は loadFarmData から推論
+  - FieldDetailScreen / HomeScreen / fields/page.tsx: groupId を `String()` でラップしない（undefined → "undefined" 文字列バグ修正）
+  - PhotoRecordScreen: 田んぼチップ選択/解除時に pointId もクリア
+  - FieldDetailScreen: 全 FieldPointType（canal/levee_damage/poor_drainage/other）を POINT_TYPE_LABELS に追加
+  - MapBottomSheet: 「記録する」リンクに `&pointType=` クエリ追加
+
+---
 
 ### 2026-06-13 — PR #22〜#25 UX 刷新 4 本・post-merge 修正
 
