@@ -25,6 +25,7 @@ import {
   type MediaUrls,
 } from "../../../lib/data/recordDetail";
 import type { RecordDetail } from "../../../types";
+import { VoiceInputButton } from "../../../components/ui/VoiceInputButton";
 
 export default function RecordDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -254,6 +255,10 @@ export default function RecordDetailPage() {
 
           {showCommentInput && (
             <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-600">コメント</span>
+                <VoiceInputButton onText={(t) => setCommentText((prev) => prev ? prev + " " + t : t)} />
+              </div>
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}

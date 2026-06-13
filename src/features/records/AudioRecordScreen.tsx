@@ -15,6 +15,7 @@ import {
   IconWarningFill,
   IconWaves,
 } from "../../components/ui/icons";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const pointTypes: { type: FieldPointType; icon: React.ReactNode; label: string }[] = [
   { type: "inlet", icon: <IconDropFill className="h-6 w-6 text-sky-500" />, label: "入水口" },
@@ -340,7 +341,12 @@ export default function AudioRecordScreen() {
 
           {/* メモ */}
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-sm font-bold text-gray-900">メモ（任意）</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold text-gray-900">メモ（任意）</p>
+              <VoiceInputButton
+                onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)}
+              />
+            </div>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
