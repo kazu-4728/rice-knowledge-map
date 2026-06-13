@@ -121,6 +121,19 @@ export async function loadFarmData(): Promise<FarmData> {
   }
 }
 
+/** ログインユーザーの最初のグループにおけるロールを返す。未ログイン/未所属はnull */
+export async function getMyRole(groupId: string): Promise<"owner" | "editor" | "viewer" | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data } = await sb
+    .from("farm_group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .limit(1)
+    .maybeSingle();
+  return (data?.role as "owner" | "editor" | "viewer") ?? null;
+}
+
 /** 所属グループIDを返す。未所属なら新規グループを作成する（create_farm_group RPC） */
 export async function ensureGroupId(): Promise<string | null> {
   const sb = getSupabase();

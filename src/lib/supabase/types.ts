@@ -30,6 +30,20 @@ export type FieldPointRow = {
   last_checked_at: string | null;
 };
 
+export type HeroSlide = {
+  image_path?: string;
+  image_url?: string;
+  title: string;
+  body: string;
+};
+
+export type GroupSiteContentRow = {
+  group_id: string;
+  hero_slides: HeroSlide[];
+  updated_by: string | null;
+  updated_at: string;
+};
+
 export type RecordRow = {
   id: string;
   group_id: string;
