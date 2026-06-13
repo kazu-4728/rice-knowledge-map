@@ -14,6 +14,7 @@ export type FarmData = {
    * error: ログイン済みだが取得失敗（未ログイン扱いにしない。編集系は各関数が再検証する）
    */
   mode: "demo" | "anon" | "live" | "error";
+  groupId?: string;
   fieldsGeoJSON: GeoJSON.FeatureCollection;
   points: FieldPoint[];
 };
@@ -64,7 +65,7 @@ export async function loadFarmData(): Promise<FarmData> {
     const [fieldsRes, pointsRes] = await Promise.all([
       sb
         .from("farm_fields")
-        .select("id, group_id, name, memo, center_latitude, center_longitude, boundary_geojson, area_sqm, display_order")
+        .select("id, group_id, name, memo, center_latitude, center_longitude, boundary_geojson, area_sqm, display_order, photo_path")
         .order("display_order"),
       sb
         .from("field_points")
@@ -85,13 +86,14 @@ export async function loadFarmData(): Promise<FarmData> {
         .map((f, i) => ({
           type: "Feature" as const,
           id: f.id,
-          properties: { id: f.id, name: f.name, color: FIELD_COLORS[i % FIELD_COLORS.length], area_sqm: f.area_sqm ?? null },
+          properties: { id: f.id, name: f.name, color: FIELD_COLORS[i % FIELD_COLORS.length], area_sqm: f.area_sqm ?? null, photo_path: f.photo_path ?? null },
           geometry: f.boundary_geojson as GeoJSON.Polygon,
         })),
     };
 
     return {
       mode: "live",
+      groupId: fields[0]?.group_id,
       fieldsGeoJSON,
       // numeric列はstringで返る場合があるためNumber変換し、不正座標は除外する
       points: points.flatMap((p) => {
@@ -244,6 +246,18 @@ export async function updateField(
     console.warn("[farm] update error", err);
     return "error";
   }
+}
+
+export async function updateFieldPhoto(fieldId: string, photoPath: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  const { data, error } = await sb
+    .from("farm_fields")
+    .update({ photo_path: photoPath })
+    .eq("id", fieldId)
+    .select("id");
+  if (error) { console.warn("[farm] updateFieldPhoto failed", error); return false; }
+  return !!(data && data.length > 0);
 }
 
 export type SaveFieldPointResult = "saved" | "demo" | "error";

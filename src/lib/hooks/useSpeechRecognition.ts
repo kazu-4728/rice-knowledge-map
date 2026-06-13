@@ -39,13 +39,14 @@ type Options = {
 };
 
 export function useSpeechRecognition({ onResult }: Options) {
-  const [supported] = useState(() => !!getSRConstructor());
+  // Initialize false to avoid server/client hydration mismatch; update after mount
+  const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
+    setSupported(!!getSRConstructor());
     return () => {
       if (recognitionRef.current) {
         detach(recognitionRef.current);
@@ -112,11 +113,10 @@ export function useSpeechRecognition({ onResult }: Options) {
   const stop = useCallback(() => {
     const rec = recognitionRef.current;
     if (!rec) return;
-    detach(rec);
-    recognitionRef.current = null;
+    // Keep handlers attached so onresult can still fire with the final utterance,
+    // then onend will clean up state and ref
     rec.stop();
     setListening(false);
-    setInterim("");
   }, []);
 
   return { supported, listening, interim, start, stop };

@@ -81,7 +81,7 @@ export default function MapBottomSheet({ point, onAddPin, onEditPin }: Props) {
                 </button>
               )}
               <Link
-                href="/records/new"
+                href={`/records/new?field=${encodeURIComponent(point.fieldId)}&point=${encodeURIComponent(point.id)}`}
                 className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
               >
                 記録する
