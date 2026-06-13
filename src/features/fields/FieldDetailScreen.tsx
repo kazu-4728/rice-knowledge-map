@@ -23,8 +23,12 @@ import {
 const POINT_TYPE_LABELS: Record<string, { label: string; icon: ReactNode; color: string }> = {
   inlet: { label: "入水口", icon: <IconDropFill className="h-4 w-4 text-sky-500" />, color: "bg-sky-50" },
   outlet: { label: "出水口", icon: <IconWaves className="h-4 w-4 text-blue-500" />, color: "bg-blue-50" },
+  canal: { label: "水路", icon: <IconWaves className="h-4 w-4 text-cyan-500" />, color: "bg-cyan-50" },
   weed: { label: "雑草", icon: <IconSprout className="h-4 w-4 text-green-600" />, color: "bg-green-50" },
   caution: { label: "異常", icon: <IconWarningFill className="h-4 w-4 text-amber-500" />, color: "bg-amber-50" },
+  levee_damage: { label: "畦崩れ", icon: <IconWarningFill className="h-4 w-4 text-red-500" />, color: "bg-red-50" },
+  poor_drainage: { label: "水抜け不良", icon: <IconDropFill className="h-4 w-4 text-orange-500" />, color: "bg-orange-50" },
+  other: { label: "その他", icon: <IconPinFill className="h-4 w-4 text-gray-500" />, color: "bg-gray-50" },
 };
 
 async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
@@ -64,7 +68,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       }
       setFieldName(String(feature.properties?.name ?? ""));
       setFieldColor(String(feature.properties?.color ?? "#22C55E"));
-      setFieldGroupId(String(feature.properties?.group_id ?? farm.groupId ?? ""));
+      setFieldGroupId(feature.properties?.group_id ?? farm.groupId ?? "");
       setAreaSqm(typeof feature.properties?.area_sqm === "number" ? feature.properties.area_sqm : null);
       const pPath: string | null = feature.properties?.photo_path ?? null;
 
@@ -203,7 +207,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               return (
                 <li key={point.id}>
                   <Link
-                    href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
+                    href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}&pointType=${encodeURIComponent(point.type)}`}
                     className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-colors hover:bg-gray-50"
                   >
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
