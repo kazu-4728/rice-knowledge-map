@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loadRecords } from "../../lib/data/records";
-import { loadFarmData } from "../../lib/data/farm";
+import { loadFarmData, ensureGroupId } from "../../lib/data/farm";
 import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
@@ -19,6 +19,7 @@ import {
   IconPin,
   IconPinFill,
   IconPlus,
+  IconWarningFill,
 } from "../../components/ui/icons";
 
 type FieldItem = {
@@ -48,8 +49,23 @@ export default function HomeScreen() {
   const [fieldsMode, setFieldsMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
 
   useEffect(() => {
+    // 未対応の異常件数
+    const sb = getSupabase();
+    if (sb) {
+      ensureGroupId().then(async (groupId) => {
+        if (!groupId) return;
+        const { count } = await sb
+          .from("field_records")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", groupId)
+          .in("status", ["open", "needs_check"]);
+        setOpenIssueCount(count ?? 0);
+      });
+    }
+
     loadFarmData().then(async (data) => {
       setFieldsMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
@@ -89,7 +105,24 @@ export default function HomeScreen() {
   };
 
   return (
-    <div className="space-y-3 px-3 pb-6 pt-3">
+    <div className="space-y-3 px-3 pb-24 pt-3">
+      {/* 未対応の異常バナー */}
+      {openIssueCount !== null && openIssueCount > 0 && (
+        <Link
+          href="/records?status=open"
+          className="flex items-center gap-3 rounded-2xl bg-amber-50 border border-amber-200 p-3.5 shadow-sm active:scale-98 transition-transform"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-800">未対応の異常が{openIssueCount}件あります</p>
+            <p className="text-xs text-amber-600 mt-0.5">タップして確認する</p>
+          </div>
+          <IconChevronRight className="h-4.5 w-4.5 text-amber-400 shrink-0" />
+        </Link>
+      )}
+
       {/* 田んぼ一覧（主役） */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
