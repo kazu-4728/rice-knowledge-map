@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Web Speech API minimal types (not always available in TypeScript's lib.dom.d.ts)
 interface ISpeechRecognitionEvent extends Event {
@@ -28,6 +28,12 @@ function getSRConstructor(): ISpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+function detach(rec: ISpeechRecognition) {
+  rec.onresult = null;
+  rec.onerror = null;
+  rec.onend = null;
+}
+
 type Options = {
   onResult: (text: string) => void;
 };
@@ -38,9 +44,27 @@ export function useSpeechRecognition({ onResult }: Options) {
   const [interim, setInterim] = useState("");
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        detach(recognitionRef.current);
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
   const start = useCallback(() => {
     const SR = getSRConstructor();
     if (!SR) return;
+
+    // Stop any previous instance before creating a new one
+    if (recognitionRef.current) {
+      detach(recognitionRef.current);
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
 
     const rec = new SR();
     rec.lang = "ja-JP";
@@ -69,17 +93,30 @@ export function useSpeechRecognition({ onResult }: Options) {
     };
 
     rec.onend = () => {
+      recognitionRef.current = null;
       setListening(false);
       setInterim("");
     };
 
     recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
+    try {
+      rec.start();
+      setListening(true);
+    } catch (err) {
+      console.warn("[SpeechRecognition] start failed:", err);
+      detach(rec);
+      recognitionRef.current = null;
+    }
   }, [onResult]);
 
   const stop = useCallback(() => {
-    recognitionRef.current?.stop();
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    detach(rec);
+    recognitionRef.current = null;
+    rec.stop();
+    setListening(false);
+    setInterim("");
   }, []);
 
   return { supported, listening, interim, start, stop };

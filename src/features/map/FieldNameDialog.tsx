@@ -19,6 +19,8 @@ export default function FieldNameDialog({
   title = "田んぼの名前を入力",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     // ダイアログ表示時にフォーカス
@@ -36,7 +38,7 @@ export default function FieldNameDialog({
       <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl p-5">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
-          <VoiceInputButton onText={(t) => onChange(value ? value + " " + t : t)} />
+          <VoiceInputButton onText={(t) => { const v = valueRef.current; onChange(v ? v + " " + t : t); }} />
         </div>
         <p className="text-xs text-gray-500 mb-3">後から変更できます</p>
 
