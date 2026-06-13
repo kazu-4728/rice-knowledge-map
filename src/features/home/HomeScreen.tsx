@@ -169,13 +169,13 @@ export default function HomeScreen() {
             <Link
               key={field.id}
               href={`/fields/${encodeURIComponent(field.id)}`}
-              className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm transition-colors hover:bg-gray-50"
+              className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-md transition-all hover:bg-gray-50 active:scale-95"
             >
               <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
                 <RemotePhoto
                   src={photoUrls[field.id]}
                   alt={field.name}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover animate-ken-burns-up"
                   fallbackVariant="field"
                 />
                 {!photoUrls[field.id] && (
