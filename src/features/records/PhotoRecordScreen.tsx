@@ -52,6 +52,7 @@ export default function PhotoRecordScreen() {
   const { fields, selectedFieldId, setSelectedFieldId, location, setLocation, needLogin, farmError } =
     useRecordFields();
   const [pointType, setPointType] = useState<FieldPointType | null>(null);
+  const [pointId, setPointId] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   // 「修正する」で戻ってきたとき、撮影日時を引き継ぐ（写真を撮り直したらリセット）
@@ -64,12 +65,15 @@ export default function PhotoRecordScreen() {
       if (draft.file && draft.previewUrl) setPhoto({ blob: draft.file, previewUrl: draft.previewUrl });
       setSelectedFieldId(draft.fieldId);
       setPointType(draft.pointType);
+      setPointId(draft.pointId ?? null);
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
     } else {
       const fieldParam = searchParams.get("field");
+      const pointParam = searchParams.get("point");
       if (fieldParam) setSelectedFieldId(fieldParam);
+      if (pointParam) setPointId(pointParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);
@@ -106,6 +110,7 @@ export default function PhotoRecordScreen() {
       previewUrl: photo.previewUrl,
       fieldId: selected?.id ?? restored?.fieldId ?? null,
       fieldName: selected?.name ?? restored?.fieldName ?? null,
+      pointId,
       pointType,
       memo,
       location,
