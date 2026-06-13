@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadSiteContent, type HeroSlide } from "../lib/data/siteContent";
-import { RemotePhoto } from "../components/ui/RemotePhoto";
+import { PaddyPhoto } from "../components/ui/PaddyPhoto";
 import { IconChevronRight, LogoRice } from "../components/ui/icons";
 
 const SLIDE_INTERVAL_MS = 6000;
@@ -73,13 +73,16 @@ function SplashHero({ slides }: { slides: HeroSlide[] }) {
     <div className="absolute inset-0 overflow-hidden">
       {/* ベースレイヤー: 新しいスライド（常に表示、Kenバーンズで動く） */}
       <div className="absolute inset-0">
-        <img
-          key={`base-${current}`}
-          src={slide.image_url ?? ""}
-          alt={slide.title}
-          className={`h-full w-full object-cover ${KB_CLASSES[current % 3]}`}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
+        <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
+        {slide.image_url && (
+          <img
+            key={`base-${current}`}
+            src={slide.image_url}
+            alt={slide.title}
+            className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[current % 3]}`}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
       </div>
 
@@ -92,12 +95,16 @@ function SplashHero({ slides }: { slides: HeroSlide[] }) {
             transition: `opacity ${TRANSITION_MS}ms ease-in-out`,
           }}
         >
-          <img
-            key={`leave-${leaving}`}
-            src={leaveSlide.image_url ?? ""}
-            alt={leaveSlide.title}
-            className={`h-full w-full object-cover ${KB_CLASSES[leaving! % 3]}`}
-          />
+          <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
+          {leaveSlide.image_url && (
+            <img
+              key={`leave-${leaving}`}
+              src={leaveSlide.image_url}
+              alt={leaveSlide.title}
+              className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[leaving! % 3]}`}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
         </div>
       )}

@@ -196,11 +196,11 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           <IconChevronRight className="h-4 w-4 text-gray-400" />
         </Link>
         <Link
-          href={`/map?field=${encodeURIComponent(fieldId)}`}
+          href="/map"
           className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
         >
           <IconPinFill className="h-4 w-4" />
-          マップで確認
+          マップを開く
         </Link>
       </div>
 
@@ -216,7 +216,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
         <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
           <p className="text-lg font-bold text-amber-600">
-            {points.filter((p) => p.type === "caution" || p.type === "levee_damage").length}
+            {points.filter((p) => p.status === "needs_check" || p.status === "issue").length}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">要注意</p>
         </div>
