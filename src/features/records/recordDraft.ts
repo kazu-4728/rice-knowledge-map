@@ -15,6 +15,7 @@ export type RecordDraft = {
   previewUrl: string | null;
   fieldId: string | null;
   fieldName: string | null;
+  pointId: string | null;
   pointType: FieldPointType | null;
   memo: string;
   location: { lng: number; lat: number } | null;

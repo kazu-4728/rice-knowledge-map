@@ -52,6 +52,7 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
       .insert({
         group_id: groupId,
         field_id: draft.fieldId,
+        point_id: draft.pointId ?? null,
         record_type: recordType,
         title: buildTitle(draft),
         note: draft.memo.trim() || null,

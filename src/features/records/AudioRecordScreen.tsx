@@ -50,6 +50,7 @@ export default function AudioRecordScreen() {
   const { fields, selectedFieldId, setSelectedFieldId, location, setLocation, needLogin, farmError } =
     useRecordFields();
   const [pointType, setPointType] = useState<FieldPointType | null>(null);
+  const [pointId, setPointId] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -76,12 +77,15 @@ export default function AudioRecordScreen() {
       }
       setSelectedFieldId(draft.fieldId);
       setPointType(draft.pointType);
+      setPointId(draft.pointId ?? null);
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
     } else {
       const fieldParam = searchParams.get("field");
+      const pointParam = searchParams.get("point");
       if (fieldParam) setSelectedFieldId(fieldParam);
+      if (pointParam) setPointId(pointParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);
@@ -214,6 +218,7 @@ export default function AudioRecordScreen() {
       previewUrl: audio.previewUrl,
       fieldId: selected?.id ?? restored?.fieldId ?? null,
       fieldName: selected?.name ?? restored?.fieldName ?? null,
+      pointId,
       pointType,
       memo,
       location,

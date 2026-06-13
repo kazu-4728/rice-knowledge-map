@@ -11,6 +11,7 @@ import { compressImage } from "../../lib/utils/imageCompress";
 
 type FieldItem = {
   id: string;
+  groupId: string;
   name: string;
   color: string;
   areaSqm: number | null;
@@ -30,16 +31,15 @@ async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): P
 export default function FieldsPage() {
   const [fields, setFields] = useState<FieldItem[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [groupId, setGroupId] = useState<string | null>(null);
   const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     loadFarmData().then(async (data) => {
       setMode(data.mode);
-      setGroupId(data.groupId ?? null);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
+        groupId: String(f.properties?.group_id ?? data.groupId ?? ""),
         name: String(f.properties?.name ?? ""),
         color: String(f.properties?.color ?? "#22C55E"),
         areaSqm: typeof f.properties?.area_sqm === "number" ? f.properties.area_sqm : null,
@@ -64,8 +64,8 @@ export default function FieldsPage() {
   }, []);
 
   const handlePhotoSelect = async (field: FieldItem, file: File) => {
-    if (!groupId) return;
-    const path = await uploadFieldPhoto(groupId, field.id, file);
+    if (!field.groupId) return;
+    const path = await uploadFieldPhoto(field.groupId, field.id, file);
     if (!path) return;
     const saved = await updateFieldPhoto(field.id, path);
     if (!saved) return;
@@ -161,7 +161,7 @@ export default function FieldsPage() {
                   </div>
                   <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
                 </Link>
-                {groupId && (
+                {field.groupId && (
                   <>
                     <button
                       onClick={() => fileInputRefs.current[field.id]?.click()}
