@@ -32,6 +32,8 @@
 | — | PR #25 post-merge 修正（fields/page.tsx の groupId 参照修正） | PR #26（main マージ済み） |
 | UX リデザイン | スプラッシュページ（/）・/home 田んぼ一覧主役化・/fields/[id] 詳細ページ新設・緑グラデ背景・戻るボタン・折りたたみ（使い方/最近の記録）・ヒーロー画像を田んぼ写真に変更 | PR #27（main マージ済み） |
 | — | Codex/Copilot レビュー対応（pointType URL 連携・groupId undefined 修正・pointId クリア修正） | PR #28（main マージ済み） |
+| UX 強化 | スプラッシュ・FAB・トースト・天気ヘッダー・カレンダー・異常バナー・エクスポート | PR #29（main マージ済み） |
+| アニメ刷新 | ヒーロー クロスフェード再設計・Ken Burns を全田んぼ写真に適用・田んぼ詳細クイック統計 | PR #30（main マージ済み） |
 
 ---
 
@@ -50,7 +52,8 @@
 | PR-G | DONE | ヘッダー天気予報（現在地GPS→気象庁API・1週間ドロワー・SVG天気アイコン） | PR #29（mainマージ済み） |
 | PR-H | DONE | カレンダー家族共有（migration 0005適用・月表示・予定CRUD・BottomNavに「予定」タブ） | PR #29（mainマージ済み） |
 | PR-I | DONE | 未対応異常バナー・記録エクスポート（年次/田んぼ別PDF）・メニューリンク追加 | PR #29（mainマージ済み） |
-| T-048 | TODO | 記録の AI 整理・要約（任意機能） |
+| T-050 | TODO | MapCanvas に `?field=` 絞り込み/フォーカス機能を実装（PR #30 Codex 指摘の残課題）。実装後、FieldDetailScreen のマップボタンを `/map?field=` に戻し「マップで確認」ラベルへ |
+| T-048 | TODO | 記録の AI 整理・要約（ユーザー指示で当面なし） |
 
 ---
 
@@ -66,6 +69,26 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-13（続き3） — ヒーロー アニメ刷新・田んぼ詳細導線（PR #30）
+
+**背景:** ユーザー指摘「ヒーローはたいして変わっていない。ユーザー画像でも同じモーションで動かないといけない。詳細ページからの導線は変わっていない。全体のUIも変わっていない」を受けた強化。
+
+**実施内容:**
+
+- **`src/app/page.tsx`（スプラッシュ クロスフェード根本修正）**: 旧実装は遷移中に前後レイヤー両方が `opacity-0` になり一瞬黒画面になるバグがあった。2レイヤーモデルに再設計 — ベース層（新スライド、常時表示）＋オーバーレイ層（旧スライド、inline style の opacity transition でフェードアウト）。`requestAnimationFrame` 二重呼び出しでブラウザに opacity:1 を登録させてから 0 へ遷移。`<img>` 直書き＋`key` prop で Ken Burns を毎スライド確実にリスタート。デフォルト Unsplash 画像でもユーザー画像でも同一モーション。
+
+- **`src/features/fields/FieldDetailScreen.tsx`（詳細ページ導線強化）**: カバー写真に `animate-ken-burns-up`＋`key={photoUrl}`（写真変更時もリスタート）。クイック統計行（記録数 / ポイント数 / 要注意数）。記録一覧＋マップへの2ボタン。全カードに `active:scale-95`。
+
+- **`src/features/home/HomeScreen.tsx`**: 田んぼカードに `shadow-md`＋`active:scale-95`、サムネに Ken Burns。
+
+**Codex P2 レビュー対応（3件、全対応）:**
+1. **ヒーロー画像フォールバック**: `<img>` が onError で消えると黒画面になる指摘。PaddyPhoto SVG を背景レイヤーに敷き、画像失敗時も田園風景 SVG が見える構成に。
+2. **マップリンクの誤解**: `/map?field=` は MapCanvas が未対応で絞り込まれない指摘。リンクを `/map` に、ラベルを「マップを開く」に変更。**残課題: MapCanvas に field 絞り込み/フォーカス機能を実装すれば `?field=` 連携を復活できる。**
+3. **要注意カウント**: `type`（caution/levee_damage）判定では poor_drainage 等の警告状態を取りこぼす指摘。`status === 'needs_check' | 'issue'` ベースに変更。
+
+- Copilot はクォータ制限でレビュー不可。Codex 指摘のみ対応。
+- **PR #30** squashマージ → main 本番反映済み（2026-06-13）。
 
 ### 2026-06-13（続き2） — UX大幅強化 PR-E〜I（PR #29）
 

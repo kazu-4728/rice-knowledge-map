@@ -4,15 +4,16 @@ Claude Code向けの引き継ぎ文書です。
 
 ---
 
-## 1. 現在の状態（2026-06-12 更新）
+## 1. 現在の状態（2026-06-13 更新）
 
 - **本番公開済み**: https://rice-knowledge-map.vercel.app （Vercel接続済み。mainへのマージで自動デプロイ）
 - 参照モック準拠のUI刷新・PWA対応はmainにマージ済み（PR #10）。UI確認は `npm run build && npm run start` + Playwright（デモモード）
-- Supabaseスキーマは **適用済み**（0001〜0003、PR #11）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）
+- Supabaseスキーマは **適用済み**（0001〜0005、migration 0004=田んぼ写真/サイト設定、0005=家族共有カレンダー）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）
 - 認証・マップのSupabase接続・田んぼ保存（なぞり描き/編集/削除）・招待は実装済み（PR #12〜#14）。**メールリンクログインは実機確認済み**
-- UI/UX改善プラン進行中: Phase A（/loginページ・導線整理・検索/絞り込み、PR #15）と Phase B（写真記録の保存→一覧実写真表示、PR #16）はmainマージ済み。**Phase B2（音声メモ録音・保存）はPR #17でレビュー中** — Copilot/Codexのレビュー全対応→squashマージから再開すること。その後 Phase C（記録詳細）→ D（ピン）→ E（仕上げ）
+- **コア機能はすべてmainマージ済み・本番反映済み**: 写真記録/音声メモ/記録詳細・コメント・対応済み/ピン登録編集削除/田んぼ実写カバー/ヒーロースライド/音声入力/天気予報ヘッダー/家族共有カレンダー/未対応異常バナー/記録PDFエクスポート（PR #15〜#30）
+- **直近セッション（〜PR #30）**: ヒーロー クロスフェード演出を根本再設計（2レイヤーモデル＋Ken Burns＋PaddyPhoto フォールバック）、Ken Burns を全田んぼ写真へ、田んぼ詳細にクイック統計と導線追加。Codex P2 指摘3件対応済み。**残課題 T-050: MapCanvas に `?field=` 絞り込み未実装**（暫定でマップボタンは `/map` へ）
 - **Googleログインは設定完了・実機ログイン成功済み（2026-06-12）**。PWAのログイン維持問題は解決
-- 前セッションの注意: GitHub MCP接続が認証切れで失効した（OAuth再認証フローがAnthropic側不具合で完了不可）。新セッションでは通常復旧する。git push自体は常に動く。PRレビューコメントが読めない場合はWebFetchでGitHubのHTML/公開APIを参照する手もある
+- レビュー運用: Copilot はクォータ制限で失敗することがある（その場合は Codex 指摘のみ対応）。PRマージはユーザー承認後。GitHub MCP（mcp__github__*）は正常稼働、PRレビューコメント読み取り可。
 - 環境変数は `.env.example` 参照。**実値（キー・URL）はリポジトリに一切書かない**（Vercel環境変数 / `.env.local` で設定。例示ファイルにも書かない。publishableキーは2026-06-11にローテーション済み）
 - 進捗・残タスクの一覧は `tasks/TASKS.md` が最新（4区分: 動作中/反映待ち/残り/ユーザー作業）
 
@@ -58,12 +59,11 @@ Claude Code向けの引き継ぎ文書です。
 
 ## 5. 次にやること（順番）
 
-詳細は `tasks/TASKS.md` を参照。要約:
+詳細は `tasks/TASKS.md` を参照。コア機能は一通り完成・本番反映済み。残りは:
 
-1. **PR #17（Phase B2 音声メモ）のレビュー対応→mainへsquashマージ**（ブランチ: `claude/compassionate-sagan-offyhs`。マージ後はブランチをmainと同期）
-2. **ユーザー**: 本番でPhase B/B2を実機確認（写真記録の保存→一覧に実写真サムネ / 音声メモの録音→保存）
-3. 記録詳細の実データ化・コメント・「対応済みにする」（Phase C / T-034b/T-045）: recordDetail.ts（loadRecordDetail/addComment/resolveRecord、status update 0件=denied）、/records/[id]実データ化、MapBottomSheet「詳細」を`/records?point={id}`に
-4. ピンの登録・編集（Phase D / T-043）: farm.tsにsaveFieldPoint/updateFieldPoint/deleteFieldPoint、ピンMarkerレジストリ化、AddModeSheet/PointEditDialog、メニューの準備中解除
-5. 田んぼ一覧・ホーム最近の記録・メニュー件数の実データ化（Phase E）/（任意・ユーザー）レガシーanonキーの無効化
+1. **ユーザー**: 本番で実機確認（U-002）— 写真記録/音声メモの保存→一覧表示・田んぼカバー写真アップロード・ヒーロースライドショー・音声入力ボタン・天気ヘッダー・カレンダー・PDFエクスポート
+2. **T-050（残課題）**: MapCanvas に `?field=` 絞り込み/フォーカス機能を実装。完了後、`FieldDetailScreen` のマップボタンを `/map?field=` に戻し「マップで確認」ラベルへ（PR #30 Codex 指摘の積み残し）
+3. （任意・ユーザー）Supabase レガシー anon キーの無効化（U-004）
+4. （当面なし）記録の AI 整理・要約（T-048、ユーザー指示で保留）
 
-各フェーズ共通の進め方: 実装→build/lint/Playwright（デモモード）検証→PR→Copilot/Codexレビュー全対応→squashマージ（=本番反映）→ユーザー実機確認。squashマージ後は次PRの前に`git merge origin/main`で同期（競合は常にブランチ側を採用）。
+共通の進め方: 実装→build/lint/Playwright（デモモード）検証→draft PR→Copilot/Codexレビュー全対応→squashマージ（=本番反映、ユーザー承認後）→ユーザー実機確認。squashマージ後は次PRの前に`git merge origin/main`で同期（競合は常にブランチ側を採用）。
