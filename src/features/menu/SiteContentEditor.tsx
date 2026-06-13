@@ -5,14 +5,14 @@ import { loadSiteContent, saveSiteContent, DEFAULT_SLIDES, type HeroSlide } from
 import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { IconCamera, IconCheck, IconPlus } from "../../components/ui/icons";
+import { compressImage } from "../../lib/utils/imageCompress";
 
 async function uploadSiteImage(groupId: string, file: File): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
 
-  const { blob } = await compressImage(file);
-  const ext = "jpg";
-  const path = `groups/${groupId}/site/${crypto.randomUUID()}.${ext}`;
+  const blob = await compressImage(file);
+  const path = `groups/${groupId}/site/${crypto.randomUUID()}.jpg`;
 
   const { error } = await sb.storage.from("images").upload(path, blob, { contentType: "image/jpeg" });
   if (error) {
@@ -20,26 +20,7 @@ async function uploadSiteImage(groupId: string, file: File): Promise<string | nu
     return null;
   }
 
-  // image_path として保存するのはStorageパス（署名URLではない）
   return path;
-}
-
-async function compressImage(file: File): Promise<{ blob: Blob }> {
-  const bitmap = await createImageBitmap(file);
-  const longSide = Math.max(bitmap.width, bitmap.height);
-  const scale = longSide > 1600 ? 1600 / longSide : 1;
-  const w = Math.round(bitmap.width * scale);
-  const h = Math.round(bitmap.height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas 2d context unavailable");
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  const blob = await new Promise<Blob>((res, rej) =>
-    canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", 0.8)
-  );
-  return { blob };
 }
 
 export default function SiteContentEditor() {
@@ -65,7 +46,7 @@ export default function SiteContentEditor() {
     const path = await uploadSiteImage(groupId, file);
     if (path) {
       // ローカルプレビュー用にURLも保持する
-      updateSlide(index, { image_path: path, image_url: URL.createObjectURL(await compressImage(file).then(r => r.blob)) });
+      updateSlide(index, { image_path: path, image_url: URL.createObjectURL(await compressImage(file)) });
     }
   };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import type { FieldPointType } from "../../types";
@@ -43,6 +43,7 @@ type RecState = "idle" | "recording" | "done";
 
 export default function AudioRecordScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [recState, setRecState] = useState<RecState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [audio, setAudio] = useState<{ blob: Blob; previewUrl: string } | null>(null);
@@ -78,6 +79,9 @@ export default function AudioRecordScreen() {
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
+    } else {
+      const fieldParam = searchParams.get("field");
+      if (fieldParam) setSelectedFieldId(fieldParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);

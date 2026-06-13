@@ -15,6 +15,7 @@ export type FarmFieldRow = {
   boundary_geojson: GeoJSON.Polygon | null;
   area_sqm: Numeric | null;
   display_order: number;
+  photo_path: string | null;
 };
 
 export type FieldPointRow = {

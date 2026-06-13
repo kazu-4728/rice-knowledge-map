@@ -65,6 +65,7 @@ const thumbVariant = (record: RecordItem) =>
 export default function RecordsScreen() {
   const searchParams = useSearchParams();
   const pointFilter = searchParams.get("point");
+  const fieldFilter = searchParams.get("field");
 
   // 初期表示は空にして、loadRecords の結果だけを表示する（デモのサンプルもloadRecordsが返す）
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -90,9 +91,10 @@ export default function RecordsScreen() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // フィルタチップ + キーワード（タイトル・圃場名の部分一致）+ ピン絞り込みで絞り込む
+  // フィルタチップ + キーワード（タイトル・圃場名の部分一致）+ ピン/田んぼ絞り込みで絞り込む
   const visibleRecords = records.filter((record) => {
     if (pointFilter && record.pointId !== pointFilter) return false;
+    if (fieldFilter && record.fieldId !== fieldFilter) return false;
     if (!matchesFilter(record, filter)) return false;
     const q = query.trim();
     if (!q) return true;
@@ -109,10 +111,12 @@ export default function RecordsScreen() {
 
   return (
     <div className="px-3 pb-6 pt-3">
-      {/* ピン絞り込みバナー */}
-      {pointFilter && (
+      {/* ピン/田んぼ絞り込みバナー */}
+      {(pointFilter || fieldFilter) && (
         <div className="mb-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5">
-          <p className="text-sm font-semibold text-green-800">このピンの記録を表示中</p>
+          <p className="text-sm font-semibold text-green-800">
+            {fieldFilter ? "この田んぼの記録を表示中" : "このピンの記録を表示中"}
+          </p>
           <Link href="/records" className="text-xs font-bold text-green-700 underline">
             解除
           </Link>

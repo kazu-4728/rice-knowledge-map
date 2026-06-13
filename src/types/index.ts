@@ -55,6 +55,7 @@ export type RecordItem = {
   photoCount?: number;
   audioDuration?: string;
   pointId?: string;
+  fieldId?: string;
 };
 
 export type Member = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import type { FieldPointType } from "../../types";
@@ -44,6 +44,7 @@ async function compressImage(file: File): Promise<{ blob: Blob; previewUrl: stri
 
 export default function PhotoRecordScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [photo, setPhoto] = useState<{ blob: Blob; previewUrl: string } | null>(null);
@@ -56,7 +57,7 @@ export default function PhotoRecordScreen() {
   // 「修正する」で戻ってきたとき、撮影日時を引き継ぐ（写真を撮り直したらリセット）
   const recordedAtRef = useRef<string | null>(null);
 
-  // 「修正する」で戻ってきたときは下書きを復元する
+  // 「修正する」で戻ってきたときは下書きを復元、なければURLクエリで初期選択
   useEffect(() => {
     const draft = getRecordDraft();
     if (draft?.kind === "photo") {
@@ -66,6 +67,9 @@ export default function PhotoRecordScreen() {
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
+    } else {
+      const fieldParam = searchParams.get("field");
+      if (fieldParam) setSelectedFieldId(fieldParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);

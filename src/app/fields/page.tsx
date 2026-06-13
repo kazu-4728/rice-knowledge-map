@@ -1,35 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
-import { loadFarmData } from "../../lib/data/farm";
-import { PaddyPhoto } from "../../components/ui/PaddyPhoto";
-import { IconChevronRight, IconFieldGrid, IconPlus } from "../../components/ui/icons";
+import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
+import { getSupabase } from "../../lib/supabase/client";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus } from "../../components/ui/icons";
+import { compressImage } from "../../lib/utils/imageCompress";
 
 type FieldItem = {
   id: string;
   name: string;
   color: string;
   areaSqm: number | null;
+  photoPath: string | null;
 };
+
+async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const blob = await compressImage(file);
+  const path = `groups/${groupId}/fields/${fieldId}/${crypto.randomUUID()}.jpg`;
+  const { error } = await sb.storage.from("images").upload(path, blob, { contentType: "image/jpeg" });
+  if (error) { console.warn("[fields] upload failed", error); return null; }
+  return path;
+}
 
 export default function FieldsPage() {
   const [fields, setFields] = useState<FieldItem[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [groupId, setGroupId] = useState<string | null>(null);
   const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    loadFarmData().then((data) => {
+    loadFarmData().then(async (data) => {
       setMode(data.mode);
+      setGroupId(data.groupId ?? null);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
         color: String(f.properties?.color ?? "#22C55E"),
         areaSqm: typeof f.properties?.area_sqm === "number" ? f.properties.area_sqm : null,
+        photoPath: f.properties?.photo_path ?? null,
       }));
       setFields(items);
+
+      // batch signed URLs for fields with photos
+      const paths = items.flatMap((f) => f.photoPath ? [f.photoPath] : []);
+      if (paths.length > 0) {
+        const sb = getSupabase();
+        if (sb) {
+          const { data: signed } = await sb.storage.from("images").createSignedUrls(paths, 3600);
+          const map: Record<string, string> = {};
+          signed?.forEach((s, i) => { if (s.signedUrl && !s.error) map[paths[i]] = s.signedUrl; });
+          const urlMap: Record<string, string> = {};
+          items.forEach((f) => { if (f.photoPath && map[f.photoPath]) urlMap[f.id] = map[f.photoPath]; });
+          setPhotoUrls(urlMap);
+        }
+      }
     });
   }, []);
+
+  const handlePhotoSelect = async (field: FieldItem, file: File) => {
+    if (!groupId) return;
+    const path = await uploadFieldPhoto(groupId, field.id, file);
+    if (!path) return;
+    await updateFieldPhoto(field.id, path);
+    const url = URL.createObjectURL(await compressImage(file));
+    setPhotoUrls((prev) => ({ ...prev, [field.id]: url }));
+    setFields((prev) => prev.map((f) => f.id === field.id ? { ...f, photoPath: path } : f));
+  };
 
   const formatArea = (sqm: number | null) => {
     if (sqm === null) return null;
@@ -85,28 +127,55 @@ export default function FieldsPage() {
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
           <div className="space-y-2.5">
             {fields.map((field) => (
-              <Link
-                key={field.id}
-                href="/map"
-                className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm transition-colors hover:bg-gray-50"
-              >
-                <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
-                  <PaddyPhoto variant="field" className="h-full w-full" />
-                  <span
-                    className="absolute inset-0 opacity-45"
-                    style={{ background: field.color }}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-gray-900">
-                    {field.name}
-                    {formatArea(field.areaSqm) && (
-                      <span className="ml-2 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
+              <div key={field.id} className="relative rounded-2xl bg-white shadow-sm overflow-hidden">
+                <Link
+                  href={`/records?field=${encodeURIComponent(field.id)}`}
+                  className="flex items-center gap-3 p-3 transition-colors hover:bg-gray-50"
+                >
+                  <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
+                    <RemotePhoto
+                      src={photoUrls[field.id]}
+                      alt={field.name}
+                      className="h-full w-full object-cover"
+                      fallbackVariant="field"
+                    />
+                    {!photoUrls[field.id] && (
+                      <span
+                        className="absolute inset-0 opacity-45"
+                        style={{ background: field.color }}
+                      />
                     )}
-                  </p>
-                </div>
-                <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-              </Link>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-gray-900">
+                      {field.name}
+                      {formatArea(field.areaSqm) && (
+                        <span className="ml-2 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">記録を見る</p>
+                  </div>
+                  <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+                </Link>
+                {groupId && (
+                  <>
+                    <button
+                      onClick={() => fileInputRefs.current[field.id]?.click()}
+                      className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs font-semibold text-white"
+                      aria-label="写真を変更"
+                    >
+                      <IconCamera className="h-3.5 w-3.5" />
+                    </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={(el) => { fileInputRefs.current[field.id] = el; }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(field, f); }}
+                    />
+                  </>
+                )}
+              </div>
             ))}
           </div>
         )}
