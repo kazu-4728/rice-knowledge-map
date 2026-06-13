@@ -6,20 +6,23 @@ export type { HeroSlide };
 
 export const DEFAULT_SLIDES: HeroSlide[] = [
   {
+    // 青々とした水田・稲穂
     image_url:
-      "https://images.unsplash.com/photo-1536184071535-78906f7172c2?w=1200&q=70",
+      "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=1200&q=70",
     title: "家族の田んぼを、みんなで守る",
     body: "水、土、稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。",
   },
   {
+    // 水鏡の田んぼ・稲作風景
     image_url:
-      "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&q=70",
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=70",
     title: "記録が、次の一手になる",
     body: "入水口・異常箇所をピンで管理。家族でコメントを付けて対応を共有できます。",
   },
   {
+    // 黄金色の稲穂・収穫前
     image_url:
-      "https://images.unsplash.com/photo-1602513288943-d70ee5d29186?w=1200&q=70",
+      "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=70",
     title: "稲を育てるストーリーを残す",
     body: "今年の記録が、来年の判断を助けます。農家の知恵をデジタルで引き継ぐ。",
   },

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { IconHome, IconMap, IconPencil, IconMenu } from "../ui/icons";
 
 const tabs = [
-  { key: "home", label: "ホーム", href: "/", Icon: IconHome },
+  { key: "home", label: "ホーム", href: "/home", Icon: IconHome },
   { key: "map", label: "マップ", href: "/map", Icon: IconMap },
   { key: "records", label: "記録", href: "/records", Icon: IconPencil },
   { key: "menu", label: "メニュー", href: "/menu", Icon: IconMenu },
@@ -18,7 +18,9 @@ export default function BottomNav() {
     <nav className="shrink-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
       <div className="flex h-16">
         {tabs.map(({ key, label, href, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = href === "/home"
+            ? pathname === "/home" || pathname.startsWith("/fields")
+            : pathname.startsWith(href);
           return (
             <Link
               key={key}
