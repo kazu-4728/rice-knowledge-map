@@ -131,11 +131,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   return (
     <div className="space-y-3 px-3 pb-6 pt-3">
       {/* カバー写真 */}
-      <div className="relative overflow-hidden rounded-2xl shadow-sm" style={{ height: "52vw", maxHeight: 260, minHeight: 160 }}>
+      <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
+          key={photoUrl ?? "fallback"}
           src={photoUrl ?? undefined}
           alt={fieldName}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover animate-ken-burns-up"
           fallbackVariant="field"
         />
         {!photoUrl && (
@@ -185,13 +186,41 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </Link>
       </div>
 
-      <Link
-        href={`/records?field=${encodeURIComponent(fieldId)}`}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
-      >
-        この田んぼの記録一覧を見る
-        <IconChevronRight className="h-4.5 w-4.5 text-gray-400" />
-      </Link>
+      {/* 導線ボタン */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href={`/records?field=${encodeURIComponent(fieldId)}`}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 active:scale-95 transition-transform shadow-sm"
+        >
+          記録一覧
+          <IconChevronRight className="h-4 w-4 text-gray-400" />
+        </Link>
+        <Link
+          href={`/map?field=${encodeURIComponent(fieldId)}`}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
+        >
+          <IconPinFill className="h-4 w-4" />
+          マップで確認
+        </Link>
+      </div>
+
+      {/* クイック統計 */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+          <p className="text-xl font-bold text-green-700">{records.length}</p>
+          <p className="text-xs text-gray-500 mt-0.5">記録数</p>
+        </div>
+        <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+          <p className="text-xl font-bold text-sky-600">{points.length}</p>
+          <p className="text-xs text-gray-500 mt-0.5">ポイント</p>
+        </div>
+        <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+          <p className="text-lg font-bold text-amber-600">
+            {points.filter((p) => p.type === "caution" || p.type === "levee_damage").length}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">要注意</p>
+        </div>
+      </div>
 
       {/* ピン一覧 */}
       {points.length > 0 && (
@@ -208,7 +237,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 <li key={point.id}>
                   <Link
                     href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}&pointType=${encodeURIComponent(point.type)}`}
-                    className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-colors hover:bg-gray-50"
+                    className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-all hover:bg-gray-50 active:scale-95"
                   >
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
                       {meta.icon}
@@ -240,7 +269,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <li key={record.id}>
                 <Link
                   href={`/records/${record.id}`}
-                  className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
+                  className={`flex items-center gap-3 py-2.5 active:scale-95 transition-transform ${i > 0 ? "border-t border-gray-100" : ""}`}
                 >
                   <RecordThumb
                     media={record.media}
