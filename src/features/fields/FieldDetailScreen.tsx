@@ -68,7 +68,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       }
       setFieldName(String(feature.properties?.name ?? ""));
       setFieldColor(String(feature.properties?.color ?? "#22C55E"));
-      setFieldGroupId(String(feature.properties?.group_id ?? farm.groupId ?? ""));
+      setFieldGroupId(feature.properties?.group_id ?? farm.groupId ?? "");
       setAreaSqm(typeof feature.properties?.area_sqm === "number" ? feature.properties.area_sqm : null);
       const pPath: string | null = feature.properties?.photo_path ?? null;
 

@@ -50,7 +50,7 @@ export default function HomeScreen() {
       setFieldsMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
-        groupId: String(f.properties?.group_id ?? data.groupId ?? ""),
+        groupId: f.properties?.group_id ?? data.groupId ?? "",
         name: String(f.properties?.name ?? ""),
         color: String(f.properties?.color ?? "#22C55E"),
         areaSqm: typeof f.properties?.area_sqm === "number" ? f.properties.area_sqm : null,

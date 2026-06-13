@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
+import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPointType } from "../../types";
+
+const VALID_POINT_TYPES = new Set<string>(["inlet","outlet","canal","weed","caution","levee_damage","poor_drainage","other"]);
 import {
   IconCamera,
   IconChevronRight,
@@ -72,10 +75,21 @@ export default function PhotoRecordScreen() {
     } else {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
-      const pointTypeParam = searchParams.get("pointType") as FieldPointType | null;
+      const rawPointType = searchParams.get("pointType");
+      const pointTypeParam: FieldPointType | null = rawPointType && VALID_POINT_TYPES.has(rawPointType) ? rawPointType as FieldPointType : null;
       if (fieldParam) setSelectedFieldId(fieldParam);
-      if (pointParam) setPointId(pointParam);
-      if (pointTypeParam) setPointType(pointTypeParam);
+      if (pointParam) {
+        setPointId(pointParam);
+        if (pointTypeParam) {
+          setPointType(pointTypeParam);
+        } else {
+          // pointType が URL にない場合（例: MapBottomSheet の古いリンク）は farm data から推論
+          loadFarmData().then((farm) => {
+            const pt = farm.points.find((p) => p.id === pointParam);
+            if (pt) setPointType(pt.type);
+          });
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);
@@ -183,7 +197,7 @@ export default function PhotoRecordScreen() {
               <button
                 key={f.id}
                 onClick={() => {
-                  if (f.id !== selectedFieldId) setPointId(null);
+                  setPointId(null);
                   setSelectedFieldId(f.id === selectedFieldId ? null : f.id);
                 }}
                 className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
