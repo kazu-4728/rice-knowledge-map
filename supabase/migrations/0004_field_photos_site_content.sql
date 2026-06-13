@@ -6,11 +6,17 @@ alter table public.farm_fields add column if not exists photo_path text;
 create table public.group_site_content (
   group_id    uuid primary key references public.farm_groups(id) on delete cascade,
   hero_slides jsonb not null default '[]'::jsonb,
-  updated_by  uuid references auth.users(id),
+  -- ユーザー参照は既存スキーマに合わせて profiles 経由に統一する
+  updated_by  uuid references public.profiles(id) on delete set null,
   updated_at  timestamptz not null default now()
 );
 
 alter table public.group_site_content enable row level security;
+
+-- 他テーブルと同様に UPDATE 時の updated_at 自動更新トリガーを付ける
+create trigger trg_group_site_content_updated_at
+  before update on public.group_site_content
+  for each row execute function public.set_updated_at();
 
 -- グループメンバー全員が読める
 create policy "site_content_select" on public.group_site_content
