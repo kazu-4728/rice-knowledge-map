@@ -131,7 +131,7 @@ export async function getMyRole(groupId: string): Promise<"owner" | "editor" | "
     .from("farm_group_members")
     .select("role")
     .eq("group_id", groupId)
-    .limit(1)
+    .eq("user_id", session.session.user.id)
     .maybeSingle();
   return (data?.role as "owner" | "editor" | "viewer") ?? null;
 }
