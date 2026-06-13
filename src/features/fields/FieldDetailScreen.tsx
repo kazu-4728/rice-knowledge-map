@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
 import { loadRecords } from "../../lib/data/records";
@@ -20,7 +20,7 @@ import {
   IconWaves,
 } from "../../components/ui/icons";
 
-const POINT_TYPE_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+const POINT_TYPE_LABELS: Record<string, { label: string; icon: ReactNode; color: string }> = {
   inlet: { label: "入水口", icon: <IconDropFill className="h-4 w-4 text-sky-500" />, color: "bg-sky-50" },
   outlet: { label: "出水口", icon: <IconWaves className="h-4 w-4 text-blue-500" />, color: "bg-blue-50" },
   weed: { label: "雑草", icon: <IconSprout className="h-4 w-4 text-green-600" />, color: "bg-green-50" },
@@ -50,25 +50,29 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     Promise.all([loadFarmData(), loadRecords()]).then(async ([farm, rec]) => {
       const feature = farm.fieldsGeoJSON.features.find(
         (f) => String(f.id ?? f.properties?.id ?? "") === fieldId
       );
-      if (feature) {
-        setFieldName(String(feature.properties?.name ?? ""));
-        setFieldColor(String(feature.properties?.color ?? "#22C55E"));
-        setFieldGroupId(String(feature.properties?.group_id ?? farm.groupId ?? ""));
-        setAreaSqm(typeof feature.properties?.area_sqm === "number" ? feature.properties.area_sqm : null);
-        const pPath: string | null = feature.properties?.photo_path ?? null;
+      if (!feature) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      setFieldName(String(feature.properties?.name ?? ""));
+      setFieldColor(String(feature.properties?.color ?? "#22C55E"));
+      setFieldGroupId(String(feature.properties?.group_id ?? farm.groupId ?? ""));
+      setAreaSqm(typeof feature.properties?.area_sqm === "number" ? feature.properties.area_sqm : null);
+      const pPath: string | null = feature.properties?.photo_path ?? null;
 
-        if (pPath) {
-          const sb = getSupabase();
-          if (sb) {
-            const { data } = await sb.storage.from("images").createSignedUrls([pPath], 3600);
-            if (data?.[0]?.signedUrl && !data[0].error) setPhotoUrl(data[0].signedUrl);
-          }
+      if (pPath) {
+        const sb = getSupabase();
+        if (sb) {
+          const { data } = await sb.storage.from("images").createSignedUrls([pPath], 3600);
+          if (data?.[0]?.signedUrl && !data[0].error) setPhotoUrl(data[0].signedUrl);
         }
       }
 
@@ -104,6 +108,18 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         <div className="h-48 animate-pulse rounded-2xl bg-gray-200" />
         <div className="h-24 animate-pulse rounded-2xl bg-gray-200" />
         <div className="h-24 animate-pulse rounded-2xl bg-gray-200" />
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 px-6 pt-20 text-center">
+        <p className="text-base font-bold text-gray-900">田んぼが見つかりません</p>
+        <p className="text-sm text-gray-500">削除されたか、アクセス権限がない可能性があります。</p>
+        <Link href="/home" className="rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white">
+          田んぼ一覧に戻る
+        </Link>
       </div>
     );
   }

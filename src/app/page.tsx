@@ -15,7 +15,7 @@ function SplashHero({ slides }: { slides: HeroSlide[] }) {
 
   useEffect(() => {
     if (total <= 1) return;
-    let t: ReturnType<typeof setTimeout>;
+    let t: ReturnType<typeof setTimeout> | undefined;
     const timer = setInterval(() => {
       setTransitioning(true);
       t = setTimeout(() => { setCurrent((c) => (c + 1) % total); setTransitioning(false); }, 600);
