@@ -84,8 +84,10 @@ export default function AudioRecordScreen() {
     } else {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
+      const pointTypeParam = searchParams.get("pointType") as FieldPointType | null;
       if (fieldParam) setSelectedFieldId(fieldParam);
       if (pointParam) setPointId(pointParam);
+      if (pointTypeParam) setPointType(pointTypeParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時に1回だけ復元する
   }, []);
@@ -305,7 +307,10 @@ export default function AudioRecordScreen() {
                 {fields.map((f) => (
                   <button
                     key={f.id}
-                    onClick={() => setSelectedFieldId(f.id === selectedFieldId ? null : f.id)}
+                    onClick={() => {
+                      if (f.id !== selectedFieldId) setPointId(null);
+                      setSelectedFieldId(f.id === selectedFieldId ? null : f.id);
+                    }}
                     className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
                       f.id === selectedFieldId
                         ? "bg-green-700 text-white"
