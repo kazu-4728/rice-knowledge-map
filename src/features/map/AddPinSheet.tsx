@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FieldPointType } from "../../types";
 import { TYPE_LABELS } from "./mapPins";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const ADD_TYPES: FieldPointType[] = [
   "inlet",
@@ -59,7 +60,10 @@ export default function AddPinSheet({ fields, onConfirm, onCancel }: Props) {
 
           {/* 名前（任意） */}
           <div>
-            <label className="text-xs font-semibold text-gray-600">名前（省略時は種別名）</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">名前（省略時は種別名）</label>
+              <VoiceInputButton onText={(t) => setName((prev) => prev ? prev + " " + t : t)} />
+            </div>
             <input
               type="text"
               value={name}

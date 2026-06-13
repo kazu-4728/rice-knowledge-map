@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FieldPoint, FieldPointType } from "../../types";
 import { TYPE_LABELS } from "./mapPins";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const ALL_TYPES: FieldPointType[] = [
   "inlet",
@@ -37,7 +38,10 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel }: P
         <div className="mt-3 space-y-3">
           {/* 名前 */}
           <div>
-            <label className="text-xs font-semibold text-gray-600">名前</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">名前</label>
+              <VoiceInputButton onText={(t) => setName((prev) => prev ? prev + " " + t : t)} />
+            </div>
             <input
               type="text"
               value={name}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 type Props = {
   value: string;
@@ -18,6 +19,8 @@ export default function FieldNameDialog({
   title = "田んぼの名前を入力",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     // ダイアログ表示時にフォーカス
@@ -33,7 +36,10 @@ export default function FieldNameDialog({
     /* 背景オーバーレイ */
     <div className="absolute inset-0 z-30 flex items-end justify-center pb-20 bg-black/40">
       <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl p-5">
-        <h2 className="text-base font-bold text-gray-800 mb-1">{title}</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-bold text-gray-800">{title}</h2>
+          <VoiceInputButton onText={(t) => { const v = valueRef.current; onChange(v ? v + " " + t : t); }} />
+        </div>
         <p className="text-xs text-gray-500 mb-3">後から変更できます</p>
 
         <input
