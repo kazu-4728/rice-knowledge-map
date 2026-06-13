@@ -3,6 +3,7 @@ import Link from "next/link";
 import AccountSection from "../../features/auth/AccountSection";
 import InviteButton from "../../features/auth/InviteButton";
 import {
+  IconCalendar,
   IconChevronRight,
   IconFieldGrid,
   IconPinFill,
@@ -77,6 +78,19 @@ export default function MenuPage() {
           <div className="min-w-0 flex-1">
             <p className="text-base font-bold text-gray-900">田んぼ一覧</p>
             <p className="mt-0.5 text-xs text-gray-500">登録した田んぼの一覧と記録を確認できます</p>
+          </div>
+          <IconChevronRight className="h-4.5 w-4.5 text-gray-400" />
+        </Link>
+
+        {/* 記録エクスポート */}
+        <Link
+          href="/export"
+          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+        >
+          <IconCalendar className="h-6 w-6 shrink-0 text-green-700" />
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-gray-900">記録エクスポート</p>
+            <p className="mt-0.5 text-xs text-gray-500">年次・田んぼ別の記録をPDFに出力できます</p>
           </div>
           <IconChevronRight className="h-4.5 w-4.5 text-gray-400" />
         </Link>

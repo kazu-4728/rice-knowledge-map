@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconMap, IconPencil, IconMenu } from "../ui/icons";
+import { IconHome, IconMap, IconPencil, IconMenu, IconCalendar } from "../ui/icons";
 
 const tabs = [
-  { key: "home", label: "ホーム", href: "/home", Icon: IconHome },
-  { key: "map", label: "マップ", href: "/map", Icon: IconMap },
-  { key: "records", label: "記録", href: "/records", Icon: IconPencil },
-  { key: "menu", label: "メニュー", href: "/menu", Icon: IconMenu },
+  { key: "home",     label: "ホーム",   href: "/home",     Icon: IconHome     },
+  { key: "map",      label: "マップ",   href: "/map",      Icon: IconMap      },
+  { key: "records",  label: "記録",     href: "/records",  Icon: IconPencil   },
+  { key: "calendar", label: "予定",     href: "/calendar", Icon: IconCalendar },
+  { key: "menu",     label: "メニュー", href: "/menu",     Icon: IconMenu     },
 ];
 
 export default function BottomNav() {
@@ -20,7 +21,7 @@ export default function BottomNav() {
         {tabs.map(({ key, label, href, Icon }) => {
           const active = href === "/home"
             ? pathname === "/home" || pathname.startsWith("/fields")
-            : pathname.startsWith(href);
+            : pathname === href || (href !== "/home" && pathname.startsWith(href));
           return (
             <Link
               key={key}

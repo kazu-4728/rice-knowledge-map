@@ -10,13 +10,45 @@ body {
 
 /* ヒーローセクション・フェードイン用アニメーション */
 @keyframes hero-fade { from { opacity: 0 } to { opacity: 1 } }
-@keyframes hero-zoom { from { transform: scale(1.08) } to { transform: scale(1) } }
-@keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
 
-.animate-hero-fade { animation: hero-fade 1.2s ease-out both; }
-.animate-hero-zoom { animation: hero-zoom 8s ease-in-out both; }
-.animate-rise { animation: rise 0.7s ease-out both; }
+/* Ken Burns: ズーム＋パン (3方向) */
+@keyframes ken-burns-right {
+  from { transform: scale(1.12) translateX(-3%); }
+  to   { transform: scale(1)    translateX(0); }
+}
+@keyframes ken-burns-left {
+  from { transform: scale(1.12) translateX(3%); }
+  to   { transform: scale(1)    translateX(0); }
+}
+@keyframes ken-burns-up {
+  from { transform: scale(1.12) translateY(2%); }
+  to   { transform: scale(1)    translateY(0); }
+}
+
+/* テキスト浮上 */
+@keyframes rise { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+/* テキスト消去 */
+@keyframes sink { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(-8px) } }
+
+/* FABボタン展開 */
+@keyframes fab-pop { from { opacity: 0; transform: scale(0.6) translateY(8px) } to { opacity: 1; transform: scale(1) translateY(0) } }
+
+/* トースト */
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes toast-out { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(8px) } }
+
+.animate-hero-fade  { animation: hero-fade 1.2s ease-out both; }
+.animate-ken-burns-right { animation: ken-burns-right 10s ease-in-out both; }
+.animate-ken-burns-left  { animation: ken-burns-left  10s ease-in-out both; }
+.animate-ken-burns-up    { animation: ken-burns-up    10s ease-in-out both; }
+.animate-rise  { animation: rise  0.65s ease-out both; }
+.animate-sink  { animation: sink  0.4s  ease-in  both; }
+.animate-fab-pop   { animation: fab-pop   0.25s ease-out both; }
+.animate-toast-in  { animation: toast-in  0.3s  ease-out both; }
+.animate-toast-out { animation: toast-out 0.25s ease-in  both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-hero-fade, .animate-hero-zoom, .animate-rise { animation: none; }
+  .animate-hero-fade, .animate-ken-burns-right, .animate-ken-burns-left,
+  .animate-ken-burns-up, .animate-rise, .animate-sink,
+  .animate-fab-pop, .animate-toast-in, .animate-toast-out { animation: none; }
 }

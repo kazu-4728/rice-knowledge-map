@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "../../../components/layout/AppShell";
-import Link from "next/link";
-import { IconChevronLeft } from "../../../components/ui/icons";
 import SiteContentEditor from "../../../features/menu/SiteContentEditor";
 import { getMyRole, ensureGroupId } from "../../../lib/data/farm";
 
@@ -45,14 +43,9 @@ export default function SiteSettingsPage() {
   }
 
   return (
-    <AppShell>
+    <AppShell backHref="/menu" backLabel="メニュー">
       <div className="px-3 pb-8 pt-3">
-        <div className="mb-3 flex items-center gap-2">
-          <Link href="/menu" className="p-1.5 text-gray-600" aria-label="メニューに戻る">
-            <IconChevronLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-lg font-bold text-gray-900">サイト設定</h1>
-        </div>
+        <h1 className="mb-1 text-lg font-bold text-gray-900">サイト設定</h1>
         <p className="mb-4 text-xs text-gray-500">
           ホーム画面のヒーロースライドを編集できます。写真を差し替えたり文章を変更して家族に合わせたトップページを作れます。
         </p>

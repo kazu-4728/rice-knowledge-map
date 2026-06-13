@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "../components/pwa/PwaRegister";
+import { ToastProvider } from "../components/ui/Toast";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body className="bg-gray-200 text-gray-900 antialiased">
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
         <PwaRegister />
       </body>
     </html>
