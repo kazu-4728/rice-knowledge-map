@@ -21,8 +21,8 @@ type Props = {
 /** モック共通のヘッダー（中央ロゴ＋右ログイン状態）と下部ナビを持つ画面シェル */
 export default function AppShell({ children, fullBleed = false, backHref, backLabel = "戻る", backDynamic }: Props) {
   return (
-    <div className="flex flex-col h-dvh max-w-md mx-auto bg-gradient-to-b from-green-50 to-gray-100 relative overflow-hidden">
-      <header className="relative flex items-center justify-center h-14 bg-white shrink-0 border-b border-gray-100">
+    <div className="flex flex-col h-dvh max-w-md mx-auto bg-gradient-to-b from-green-50 to-gray-100 relative overflow-hidden print:block print:h-auto print:overflow-visible">
+      <header className="relative flex items-center justify-center h-14 bg-white shrink-0 border-b border-gray-100 print:hidden">
         {backDynamic && <BackButton label={backLabel} />}
         {!backDynamic && backHref && (
           <Link
@@ -39,15 +39,19 @@ export default function AppShell({ children, fullBleed = false, backHref, backLa
         </div>
         <HeaderAccountChip />
       </header>
-      <WeatherHeader />
+      <div className="print:hidden">
+        <WeatherHeader />
+      </div>
 
       <main
-        className={`flex-1 min-h-0 ${fullBleed ? "overflow-hidden relative" : "overflow-y-auto"}`}
+        className={`flex-1 min-h-0 ${fullBleed ? "overflow-hidden relative" : "overflow-y-auto"} print:overflow-visible print:min-h-0`}
       >
         {children}
       </main>
 
-      <BottomNav />
+      <div className="print:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }

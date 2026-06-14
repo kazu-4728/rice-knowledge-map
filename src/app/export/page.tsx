@@ -6,7 +6,6 @@ import { loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
-import { IconChevronRight } from "../../components/ui/icons";
 
 type FieldOption = { id: string; name: string };
 
@@ -20,7 +19,8 @@ export default function ExportPage() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([loadFarmData(), loadRecords()]).then(([farm, rec]) => {
+    // エクスポートは年次/田んぼ別の全件が対象のため、一覧の100件上限を外して取得する
+    Promise.all([loadFarmData(), loadRecords({ limit: 100000 })]).then(([farm, rec]) => {
       setFields(farm.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -32,7 +32,7 @@ export default function ExportPage() {
 
   const filtered = records.filter((r) => {
     const matchField = selectedFieldId === "all" || r.fieldId === selectedFieldId;
-    const matchYear = r.date?.startsWith(String(year));
+    const matchYear = r.recordedAt.startsWith(String(year));
     return matchField && matchYear;
   });
 
@@ -41,12 +41,17 @@ export default function ExportPage() {
     setTimeout(() => { window.print(); setPrinting(false); }, 100);
   };
 
+  // ISO日時（recordedAt）から "YYYY-MM" キーで月別にまとめる（表示文字列由来の破損を避ける）
   const grouped: Record<string, RecordItem[]> = {};
   filtered.forEach((r) => {
-    const month = r.date?.slice(0, 7) ?? "不明";
+    const month = r.recordedAt.slice(0, 7) || "不明";
     if (!grouped[month]) grouped[month] = [];
     grouped[month].push(r);
   });
+  const formatMonth = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return y && m ? `${y}年${Number(m)}月` : ym;
+  };
 
   const fieldName = selectedFieldId === "all"
     ? "全田んぼ"
@@ -99,7 +104,7 @@ export default function ExportPage() {
             {Object.entries(grouped).sort().map(([month, items]) => (
               <div key={month} className="mb-4">
                 <p className="text-xs font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">
-                  {month.replace("-", "年")}月
+                  {formatMonth(month)}
                 </p>
                 <ul className="space-y-2">
                   {items.map((r) => (
@@ -130,7 +135,7 @@ export default function ExportPage() {
         {Object.entries(grouped).sort().map(([month, items]) => (
           <div key={month} className="mb-6 break-inside-avoid">
             <h2 className="text-base font-bold border-b pb-1 mb-3">
-              {month.replace("-", "年")}月
+              {formatMonth(month)}
             </h2>
             {items.map((r) => (
               <div key={r.id} className="flex gap-3 mb-3">

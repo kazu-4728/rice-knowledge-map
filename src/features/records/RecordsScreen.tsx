@@ -66,6 +66,8 @@ export default function RecordsScreen() {
   const searchParams = useSearchParams();
   const pointFilter = searchParams.get("point");
   const fieldFilter = searchParams.get("field");
+  // status=open は「未対応（open / needs_check）」をまとめて表示する
+  const statusFilter = searchParams.get("status");
 
   // 初期表示は空にして、loadRecords の結果だけを表示する（デモのサンプルもloadRecordsが返す）
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -95,6 +97,7 @@ export default function RecordsScreen() {
   const visibleRecords = records.filter((record) => {
     if (pointFilter && record.pointId !== pointFilter) return false;
     if (fieldFilter && record.fieldId !== fieldFilter) return false;
+    if (statusFilter === "open" && record.status !== "open" && record.status !== "needs_check") return false;
     if (!matchesFilter(record, filter)) return false;
     const q = query.trim();
     if (!q) return true;
@@ -111,11 +114,15 @@ export default function RecordsScreen() {
 
   return (
     <div className="px-3 pb-6 pt-3">
-      {/* ピン/田んぼ絞り込みバナー */}
-      {(pointFilter || fieldFilter) && (
+      {/* ピン/田んぼ/未対応 絞り込みバナー */}
+      {(pointFilter || fieldFilter || statusFilter === "open") && (
         <div className="mb-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5">
           <p className="text-sm font-semibold text-green-800">
-            {fieldFilter ? "この田んぼの記録を表示中" : "このピンの記録を表示中"}
+            {statusFilter === "open"
+              ? "未対応の記録を表示中"
+              : fieldFilter
+                ? "この田んぼの記録を表示中"
+                : "このピンの記録を表示中"}
           </p>
           <Link href="/records" className="text-xs font-bold text-green-700 underline">
             解除

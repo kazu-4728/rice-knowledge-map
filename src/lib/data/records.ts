@@ -1,4 +1,4 @@
-import type { RecordItem } from "../../types";
+import type { FieldPointType, RecordItem } from "../../types";
 import type { Numeric, RecordRow } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { recentRecords } from "../../data/dummy";
@@ -39,11 +39,13 @@ type RecordListRow = RecordRow & {
 };
 
 /** 保存時にai_categoryへ保持したポイント種別を読み戻す（不正値はrecord_typeから推定） */
-const POINT_TYPES: readonly RecordItem["pointType"][] = ["inlet", "outlet", "weed", "caution"];
+const POINT_TYPES: readonly FieldPointType[] = [
+  "inlet", "outlet", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
+];
 
-function toPointType(r: RecordListRow): RecordItem["pointType"] {
+function toPointType(r: RecordListRow): FieldPointType {
   if (r.ai_category && (POINT_TYPES as readonly string[]).includes(r.ai_category)) {
-    return r.ai_category as RecordItem["pointType"];
+    return r.ai_category as FieldPointType;
   }
   return r.record_type === "issue" ? "caution" : "inlet";
 }
@@ -61,7 +63,9 @@ function formatDate(iso: string): { date: string; time: string } {
  * 記録一覧を読み込む。サンプルを出すのはSupabase未設定のデモ環境のみ。
  * ログイン済みで0件のときは空の実データを返す（呼び出し側が空状態UIを出す）。
  */
-export async function loadRecords(): Promise<RecordsData> {
+export async function loadRecords(opts?: { limit?: number }): Promise<RecordsData> {
+  // 一覧は最新100件で十分だが、エクスポート等は全件が必要なため上限を可変にする
+  const limit = opts?.limit ?? 100;
   const sb = getSupabase();
   if (!sb) return DEMO;
 
@@ -77,7 +81,7 @@ export async function loadRecords(): Promise<RecordsData> {
         "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
       )
       .order("recorded_at", { ascending: false })
-      .limit(100);
+      .limit(limit);
     if (error) {
       console.warn("[records] fetch failed", error);
       return ERROR;
@@ -116,10 +120,12 @@ export async function loadRecords(): Promise<RecordsData> {
           id: r.id,
           date,
           time,
+          recordedAt: r.recorded_at,
           title: r.title || "（無題の記録）",
           fieldName: r.farm_fields?.name ?? "田んぼ未選択",
           fieldArea: "",
           category: TYPE_TO_CATEGORY[r.record_type] ?? "作業",
+          status: r.status,
           pointType: toPointType(r),
           media: isVoice ? "audio" : "photo",
           photoCount: isVoice ? undefined : imageCount,

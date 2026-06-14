@@ -58,7 +58,7 @@ export default function HomeScreen() {
       ensureGroupId().then(async (groupId) => {
         if (!groupId) return;
         const { count } = await sb
-          .from("field_records")
+          .from("records")
           .select("id", { count: "exact", head: true })
           .eq("group_id", groupId)
           .in("status", ["open", "needs_check"]);

@@ -155,14 +155,14 @@ export const scheduleItems: ScheduleItem[] = [
 
 // 最近の記録
 export const recentRecords: RecordItem[] = [
-  { id: "record-1", time: "17:15", date: "2025年5月24日（土）", title: "A田 取水口の確認", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", media: "photo", photoCount: 3 },
-  { id: "record-2", time: "13:30", date: "2025年5月24日（土）", title: "C田 畦畔草刈り", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", media: "photo", photoCount: 5 },
-  { id: "record-3", time: "10:15", date: "2025年5月24日（土）", title: "B田 異常箇所の記録", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", media: "photo", photoCount: 2 },
-  { id: "record-4", time: "08:00", date: "2025年5月24日（土）", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", media: "audio", audioDuration: "0:32" },
-  { id: "record-5", time: "16:20", date: "2025年5月23日（金）", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", media: "photo", photoCount: 1 },
-  { id: "record-6", time: "11:40", date: "2025年5月23日（金）", title: "A田 畦畔草刈り", fieldName: "A田", fieldArea: "1.2ha", category: "作業", pointType: "weed", media: "photo", photoCount: 4 },
-  { id: "record-7", time: "09:05", date: "2025年5月23日（金）", title: "C田 入水口の確認", fieldName: "C田", fieldArea: "1.5ha", category: "水管理", pointType: "inlet", media: "photo", photoCount: 2 },
-  { id: "record-8", time: "15:10", date: "2025年5月22日（木）", title: "C田 異常箇所の記録", fieldName: "C田", fieldArea: "1.5ha", category: "異常", pointType: "caution", media: "photo", photoCount: 3 },
+  { id: "record-1", time: "17:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T17:15:00", title: "A田 取水口の確認", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 3 },
+  { id: "record-2", time: "13:30", date: "2025年5月24日（土）", recordedAt: "2025-05-24T13:30:00", title: "C田 畦畔草刈り", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 5 },
+  { id: "record-3", time: "10:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T10:15:00", title: "B田 異常箇所の記録", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", status: "open", media: "photo", photoCount: 2 },
+  { id: "record-4", time: "08:00", date: "2025年5月24日（土）", recordedAt: "2025-05-24T08:00:00", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", status: "resolved", media: "audio", audioDuration: "0:32" },
+  { id: "record-5", time: "16:20", date: "2025年5月23日（金）", recordedAt: "2025-05-23T16:20:00", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", status: "resolved", media: "photo", photoCount: 1 },
+  { id: "record-6", time: "11:40", date: "2025年5月23日（金）", recordedAt: "2025-05-23T11:40:00", title: "A田 畦畔草刈り", fieldName: "A田", fieldArea: "1.2ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 4 },
+  { id: "record-7", time: "09:05", date: "2025年5月23日（金）", recordedAt: "2025-05-23T09:05:00", title: "C田 入水口の確認", fieldName: "C田", fieldArea: "1.5ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 2 },
+  { id: "record-8", time: "15:10", date: "2025年5月22日（木）", recordedAt: "2025-05-22T15:10:00", title: "C田 異常箇所の記録", fieldName: "C田", fieldArea: "1.5ha", category: "異常", pointType: "caution", status: "needs_check", media: "photo", photoCount: 3 },
 ];
 
 // メンバー
