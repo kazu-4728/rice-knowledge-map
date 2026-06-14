@@ -4,7 +4,7 @@ import RecordsScreen from "../../features/records/RecordsScreen";
 
 export default function RecordsPage() {
   return (
-    <AppShell>
+    <AppShell backDynamic backLabel="戻る">
       <Suspense fallback={null}>
         <RecordsScreen />
       </Suspense>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { loadRecords, type RecordsData } from "../../lib/data/records";
+import { loadRecords, isUnresolvedIssue, type RecordsData } from "../../lib/data/records";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -14,7 +14,6 @@ import {
   IconDropFill,
   IconMic,
   IconPin,
-  IconPinFill,
   IconSearch,
   IconSprout,
   IconWarningFill,
@@ -66,6 +65,8 @@ export default function RecordsScreen() {
   const searchParams = useSearchParams();
   const pointFilter = searchParams.get("point");
   const fieldFilter = searchParams.get("field");
+  // status=open は「未対応（open / needs_check）」をまとめて表示する
+  const statusFilter = searchParams.get("status");
 
   // 初期表示は空にして、loadRecords の結果だけを表示する（デモのサンプルもloadRecordsが返す）
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -76,14 +77,16 @@ export default function RecordsScreen() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRecords().then((data) => {
+    // 未対応（status=open）導線では古い未対応が最新100件の外に出ることがあるため全件取得する
+    // （ホームのバナーは全件をサーバ集計しており、件数と一覧を一致させる）
+    loadRecords(statusFilter === "open" ? { all: true } : undefined).then((data) => {
       setRecords(data.records);
       setMode(data.mode);
       setThumbUrls(data.thumbUrls);
     });
     // 保存直後の遷移ならトーストを出す
     if (consumeJustSaved()) setToast("記録を保存しました");
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (!toast) return;
@@ -95,6 +98,7 @@ export default function RecordsScreen() {
   const visibleRecords = records.filter((record) => {
     if (pointFilter && record.pointId !== pointFilter) return false;
     if (fieldFilter && record.fieldId !== fieldFilter) return false;
+    if (statusFilter === "open" && !isUnresolvedIssue(record)) return false;
     if (!matchesFilter(record, filter)) return false;
     const q = query.trim();
     if (!q) return true;
@@ -111,11 +115,15 @@ export default function RecordsScreen() {
 
   return (
     <div className="px-3 pb-6 pt-3">
-      {/* ピン/田んぼ絞り込みバナー */}
-      {(pointFilter || fieldFilter) && (
+      {/* ピン/田んぼ/未対応 絞り込みバナー */}
+      {(pointFilter || fieldFilter || statusFilter === "open") && (
         <div className="mb-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5">
           <p className="text-sm font-semibold text-green-800">
-            {fieldFilter ? "この田んぼの記録を表示中" : "このピンの記録を表示中"}
+            {statusFilter === "open"
+              ? "未対応の記録を表示中"
+              : fieldFilter
+                ? "この田んぼの記録を表示中"
+                : "このピンの記録を表示中"}
           </p>
           <Link href="/records" className="text-xs font-bold text-green-700 underline">
             解除
@@ -231,14 +239,14 @@ export default function RecordsScreen() {
                     {record.fieldArea && `（${record.fieldArea}）`}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${categoryChip[record.category]}`}>
                     {record.category}
                   </span>
-                  <span className="flex items-center text-gray-400">
-                    <IconPinFill className="h-5 w-5 text-green-700" />
-                    <IconChevronRight className="h-4 w-4" />
-                  </span>
+                  {isUnresolvedIssue(record) && (
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">未対応</span>
+                  )}
+                  <IconChevronRight className="h-4 w-4 text-gray-400" />
                 </div>
               </Link>
             ))}

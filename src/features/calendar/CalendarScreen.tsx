@@ -6,12 +6,12 @@ import {
   loadSchedules, createSchedule, toggleScheduleDone, deleteSchedule,
   CATEGORY_LABELS, type ScheduleCategory, type ScheduleItem,
 } from "../../lib/data/schedule";
-import { loadFarmData } from "../../lib/data/farm";
+import { loadFarmData, getMyRole, ensureGroupId } from "../../lib/data/farm";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconTrash } from "../../components/ui/icons";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-const MONTHS = ["1月","2月","3月","4月","5月","6���","7月","8月","9月","10月","11月","12月"];
+const MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -28,6 +28,8 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [fields, setFields] = useState<FieldOption[]>([]);
+  // viewer は予定の追加/完了/削除が RLS で拒否されるため、書き込み操作を隠す（デモ/未ログインは操作可）
+  const [canEdit, setCanEdit] = useState(true);
 
   // 入力フォーム状態
   const [formTitle, setFormTitle] = useState("");
@@ -44,13 +46,26 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     loadSchedules(from, to).then(setSchedules);
-    loadFarmData().then((f) =>
-      setFields(f.fieldsGeoJSON.features.map((ft) => ({
-        id: String(ft.id ?? ft.properties?.id ?? ""),
-        name: String(ft.properties?.name ?? ""),
-      })))
-    );
   }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 田んぼ選択とロール判定をアクティブグループ（最初の所属）に限定する（単一グループ運用）。
+  // これで予定作成/読込/権限がすべて同一グループに揃い、別グループ選択での保存失敗や
+  // 再読込での消失、権限の取り違えを防ぐ
+  useEffect(() => {
+    (async () => {
+      const gid = await ensureGroupId();
+      const f = await loadFarmData();
+      setFields(
+        f.fieldsGeoJSON.features
+          .filter((ft) => !gid || (ft.properties?.group_id ?? f.groupId) === gid)
+          .map((ft) => ({ id: String(ft.id ?? ft.properties?.id ?? ""), name: String(ft.properties?.name ?? "") }))
+      );
+      if (gid) {
+        const role = await getMyRole(gid);
+        setCanEdit(role === null || role === "owner" || role === "editor");
+      }
+    })();
+  }, []);
 
   const schedulesByDate: Record<string, ScheduleItem[]> = {};
   schedules.forEach((s) => {
@@ -171,13 +186,15 @@ export default function CalendarScreen() {
             <p className="text-sm font-bold text-gray-900">
               {selectedDate.replace(/(\d+)-(\d+)-(\d+)/, "$2/$3")} の予定
             </p>
-            <button
-              onClick={() => { setFormDate(selectedDate); setShowForm(true); }}
-              className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white active:scale-95 transition-transform"
-            >
-              <IconPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
-              追加
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => { setFormDate(selectedDate); setShowForm(true); }}
+                className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white active:scale-95 transition-transform"
+              >
+                <IconPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                追加
+              </button>
+            )}
           </div>
           {selectedItems.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-2">この日の予定はありません</p>
@@ -188,9 +205,10 @@ export default function CalendarScreen() {
                 return (
                   <li key={item.id} className="flex items-start gap-3">
                     <button
-                      onClick={() => handleToggle(item)}
+                      onClick={canEdit ? () => handleToggle(item) : undefined}
+                      disabled={!canEdit}
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors
-                        ${item.done ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"}`}
+                        ${item.done ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"} ${canEdit ? "" : "cursor-default"}`}
                     >
                       {item.done && <IconCheck className="h-3 w-3 text-white" />}
                     </button>
@@ -208,12 +226,14 @@ export default function CalendarScreen() {
                       </div>
                       {item.memo && <p className="text-xs text-gray-400 mt-0.5">{item.memo}</p>}
                     </div>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="p-1 text-gray-300 hover:text-red-400 transition-colors active:scale-90"
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-1 text-gray-300 hover:text-red-400 transition-colors active:scale-90"
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -237,9 +257,10 @@ export default function CalendarScreen() {
                     <p className="text-xs text-gray-300">{WEEKDAYS[d.getDay()]}</p>
                   </div>
                   <button
-                    onClick={() => handleToggle(item)}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors active:scale-95
-                      ${item.done ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"}`}
+                    onClick={canEdit ? () => handleToggle(item) : undefined}
+                    disabled={!canEdit}
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors
+                      ${item.done ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"} ${canEdit ? "active:scale-95" : "cursor-default"}`}
                   >
                     {item.done && <IconCheck className="h-3 w-3 text-white" />}
                   </button>
@@ -257,18 +278,24 @@ export default function CalendarScreen() {
       {!selectedDate && schedules.length === 0 && (
         <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-gray-500">今月の予定はありません</p>
-          <p className="mt-1 text-xs text-gray-400">＋ボタンから作業予定を追加できます</p>
+          {canEdit ? (
+            <p className="mt-1 text-xs text-gray-400">＋ボタンから作業予定を追加できます</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-400">閲覧のみのメンバーのため、予定の追加はできません</p>
+          )}
         </div>
       )}
 
-      {/* FAB風の追加ボタン */}
-      <button
-        onClick={() => { setFormDate(selectedDate ?? toYMD(today)); setShowForm(true); }}
-        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 shadow-xl active:scale-90 transition-transform"
-        aria-label="予定を追加"
-      >
-        <IconPlus className="h-7 w-7 text-white" strokeWidth={2.5} />
-      </button>
+      {/* FAB風の追加ボタン（編集権限のあるメンバーのみ） */}
+      {canEdit && (
+        <button
+          onClick={() => { setFormDate(selectedDate ?? toYMD(today)); setShowForm(true); }}
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 shadow-xl active:scale-90 transition-transform"
+          aria-label="予定を追加"
+        >
+          <IconPlus className="h-7 w-7 text-white" strokeWidth={2.5} />
+        </button>
+      )}
 
       {/* 追加フォーム（モーダル風ボトムシート） */}
       {showForm && (

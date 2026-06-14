@@ -84,7 +84,7 @@ export default function FieldsPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell backDynamic backLabel="戻る">
       <div className="space-y-3 px-3 pb-6 pt-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export default function FieldsPage() {
             {fields.map((field) => (
               <div key={field.id} className="relative rounded-2xl bg-white shadow-sm overflow-hidden">
                 <Link
-                  href={`/records?field=${encodeURIComponent(field.id)}`}
+                  href={`/fields/${encodeURIComponent(field.id)}`}
                   className="flex items-center gap-3 p-3 transition-colors hover:bg-gray-50"
                 >
                   <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
@@ -157,7 +157,7 @@ export default function FieldsPage() {
                         <span className="ml-2 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
                       )}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-400">記録を見る</p>
+                    <p className="mt-0.5 text-xs text-gray-400">タップして詳細を見る</p>
                   </div>
                   <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
                 </Link>

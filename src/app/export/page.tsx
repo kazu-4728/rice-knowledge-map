@@ -6,7 +6,6 @@ import { loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
-import { IconChevronRight } from "../../components/ui/icons";
 
 type FieldOption = { id: string; name: string };
 
@@ -20,7 +19,8 @@ export default function ExportPage() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([loadFarmData(), loadRecords()]).then(([farm, rec]) => {
+    // エクスポートは年次/田んぼ別の全件が対象のため、ページングで全件取得する
+    Promise.all([loadFarmData(), loadRecords({ all: true })]).then(([farm, rec]) => {
       setFields(farm.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -30,9 +30,18 @@ export default function ExportPage() {
     });
   }, []);
 
+  // 表示日（r.date）と同じローカル時刻基準で年/月を判定する（UTC文字列の前方一致だと
+  // 年末年始に表示上の年とズレる）
+  const localYm = (iso: string | undefined): { year: number; month: string } | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return { year: d.getFullYear(), month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
+  };
+
   const filtered = records.filter((r) => {
     const matchField = selectedFieldId === "all" || r.fieldId === selectedFieldId;
-    const matchYear = r.date?.startsWith(String(year));
+    const matchYear = localYm(r.recordedAt)?.year === year;
     return matchField && matchYear;
   });
 
@@ -41,12 +50,17 @@ export default function ExportPage() {
     setTimeout(() => { window.print(); setPrinting(false); }, 100);
   };
 
+  // ローカル日付由来の "YYYY-MM" キーで月別にまとめる（表示日と基準を揃える）
   const grouped: Record<string, RecordItem[]> = {};
   filtered.forEach((r) => {
-    const month = r.date?.slice(0, 7) ?? "不明";
+    const month = localYm(r.recordedAt)?.month ?? "不明";
     if (!grouped[month]) grouped[month] = [];
     grouped[month].push(r);
   });
+  const formatMonth = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return y && m ? `${y}年${Number(m)}月` : ym;
+  };
 
   const fieldName = selectedFieldId === "all"
     ? "全田んぼ"
@@ -99,7 +113,7 @@ export default function ExportPage() {
             {Object.entries(grouped).sort().map(([month, items]) => (
               <div key={month} className="mb-4">
                 <p className="text-xs font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">
-                  {month.replace("-", "年")}月
+                  {formatMonth(month)}
                 </p>
                 <ul className="space-y-2">
                   {items.map((r) => (
@@ -130,7 +144,7 @@ export default function ExportPage() {
         {Object.entries(grouped).sort().map(([month, items]) => (
           <div key={month} className="mb-6 break-inside-avoid">
             <h2 className="text-base font-bold border-b pb-1 mb-3">
-              {month.replace("-", "年")}月
+              {formatMonth(month)}
             </h2>
             {items.map((r) => (
               <div key={r.id} className="flex gap-3 mb-3">

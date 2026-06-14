@@ -1,221 +1,231 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { loadSiteContent, type HeroSlide } from "../lib/data/siteContent";
 import { PaddyPhoto } from "../components/ui/PaddyPhoto";
-import { IconChevronRight, LogoRice } from "../components/ui/icons";
+import {
+  IconCamera,
+  IconChevronRight,
+  IconCommentFill,
+  IconMap,
+  IconMic,
+  IconPinFill,
+  LogoRice,
+} from "../components/ui/icons";
 
-const SLIDE_INTERVAL_MS = 6000;
-const TRANSITION_MS = 800;
+const KB_CLASSES = ["animate-splash-kb-a", "animate-splash-kb-b", "animate-splash-kb-c"] as const;
 
-/** Ken Burnsアニメーション — 毎スライドで方向を変える */
-const KB_CLASSES = [
-  "animate-ken-burns-right",
-  "animate-ken-burns-left",
-  "animate-ken-burns-up",
-] as const;
+const FEATURES = [
+  {
+    icon: <IconCamera className="h-5 w-5 text-green-700" />,
+    title: "写真・音声でその場で記録",
+    desc: "田んぼの様子をカメラと声でかんたんに記録。両手がふさがっていても残せます。",
+  },
+  {
+    icon: <IconMap className="h-5 w-5 text-green-700" />,
+    title: "国土地理院の空中写真マップ",
+    desc: "実際の空中写真の上に自分の田んぼをなぞって登録。入水口や異常箇所をピンで管理。",
+  },
+  {
+    icon: <IconCommentFill className="h-5 w-5 text-green-700" />,
+    title: "家族みんなで共有・継承",
+    desc: "記録にコメントを付けて対応を共有。今年の記録が来年の判断を助け、知恵を次世代へ。",
+  },
+];
 
-function SplashHero({ slides }: { slides: HeroSlide[] }) {
-  const [current, setCurrent] = useState(0);         // 表示中のスライド
-  const [leaving, setLeaving] = useState<number | null>(null);  // フェードアウト中のスライド
-  const [leavingVisible, setLeavingVisible] = useState(false);  // overlayの透明度
-  const [progress, setProgress] = useState(0);
-  const rafRef = useRef<number>(0);
-  const startRef = useRef(Date.now());
+/** ヒーロー背景: 実写真を大きくズーム＋パンし、スクロールで奥へ流れるパララックス */
+function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
+  const [current, setCurrent] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const total = slides.length;
 
-  /** プログレスバーをRAFでアニメーション */
-  const startProgress = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    setProgress(0);
-    startRef.current = Date.now();
-    const tick = () => {
-      const p = Math.min((Date.now() - startRef.current) / SLIDE_INTERVAL_MS, 1);
-      setProgress(p);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
-
-  useEffect(() => {
-    startProgress();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [current, startProgress]);
-
-  /** スライドを nextIdx に進める */
-  const advanceTo = useCallback((nextIdx: number) => {
-    setCurrent((prev) => {
-      setLeaving(prev);        // 古いスライドをoverlay へ
-      setLeavingVisible(true); // overlay は最初 opacity-100
-      // 1フレーム後に opacity-0 を適用してフェードアウト開始
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => setLeavingVisible(false))
-      );
-      // フェード完了後にoverlayを消す
-      setTimeout(() => setLeaving(null), TRANSITION_MS + 50);
-      return nextIdx;
-    });
-  }, []);
-
-  /** 自動送り */
   useEffect(() => {
     if (total <= 1) return;
-    const t = setTimeout(() => advanceTo((current + 1) % total), SLIDE_INTERVAL_MS);
+    const t = setTimeout(() => setCurrent((c) => (c + 1) % total), 5000);
     return () => clearTimeout(t);
-  }, [current, total, advanceTo]);
+  }, [current, total]);
 
-  const slide = slides[current];
-  const leaveSlide = leaving !== null ? slides[leaving] : null;
-  if (!slide) return null;
+  // スクロール連動パララックス（背景は遅れて動き、奥行きが出る）
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setScrollY(window.scrollY));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {/* ベースレイヤー: 新しいスライド（常に表示、Kenバーンズで動く） */}
-      <div className="absolute inset-0">
-        <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
-        {slide.image_url && (
-          <img
-            key={`base-${current}`}
-            src={slide.image_url}
-            alt={slide.title}
-            className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[current % 3]}`}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
-      </div>
-
-      {/* オーバーレイ: 古いスライド（フェードアウト） */}
-      {leaveSlide && (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{
+        transform: `translateY(${scrollY * 0.4}px) scale(1.05)`,
+        opacity: Math.max(0, 1 - scrollY / 700),
+        willChange: "transform",
+      }}
+    >
+      {slides.map((s, i) => (
         <div
-          className="absolute inset-0 z-10"
-          style={{
-            opacity: leavingVisible ? 1 : 0,
-            transition: `opacity ${TRANSITION_MS}ms ease-in-out`,
-          }}
+          key={i}
+          className="absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
+          style={{ opacity: i === current ? 1 : 0 }}
+          aria-hidden={i !== current}
         >
-          <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
-          {leaveSlide.image_url && (
-            <img
-              key={`leave-${leaving}`}
-              src={leaveSlide.image_url}
-              alt={leaveSlide.title}
-              className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[leaving! % 3]}`}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
-        </div>
-      )}
-
-      {/* テキスト（スライドと独立してフェードイン） */}
-      <div
-        key={`text-${current}`}
-        className="absolute bottom-44 left-0 right-0 z-20 px-8"
-      >
-        <h2
-          className="text-center text-2xl font-bold leading-snug text-white drop-shadow-lg animate-rise"
-          style={{ animationDelay: "0.1s", animationFillMode: "both" }}
-        >
-          {slide.title}
-        </h2>
-        <p
-          className="mt-3 text-center text-sm leading-relaxed text-white/85 drop-shadow animate-rise"
-          style={{ animationDelay: "0.3s", animationFillMode: "both" }}
-        >
-          {slide.body}
-        </p>
-      </div>
-
-      {/* インジケーター + プログレスバー */}
-      {total > 1 && (
-        <div className="absolute bottom-32 left-0 right-0 z-20 flex flex-col items-center gap-3">
-          <div className="flex gap-2.5">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => advanceTo(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === current ? "w-7 bg-white" : "w-1.5 bg-white/40"
-                }`}
-                aria-label={`スライド ${i + 1}`}
+          <div className={`absolute inset-0 ${i === current ? KB_CLASSES[i % 3] : ""}`}>
+            <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
+            {s.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element -- ヒーロー画像（外部/署名URL）はnext/imageを使わない
+              <img
+                src={s.image_url}
+                alt=""
+                decoding="async"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                className="absolute inset-0 h-full w-full object-cover"
               />
-            ))}
-          </div>
-          <div className="w-32 h-0.5 rounded-full overflow-hidden bg-white/20">
-            <div
-              className="h-full bg-white/70 rounded-full"
-              style={{
-                width: `${progress * 100}%`,
-                transition: progress === 0 ? "none" : "width 80ms linear",
-              }}
-            />
+            )}
           </div>
         </div>
-      )}
+      ))}
+      {/* スクリム */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/35" />
     </div>
   );
 }
 
-export default function SplashPage() {
+export default function LandingPage() {
   const router = useRouter();
-  const [slides, setSlides] = useState<HeroSlide[] | null>(null);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem("app_entered") === "1") {
-      router.replace("/home");
-      return;
-    }
+    // ヒーローの各スライドは下で <img> として描画され即時読み込みされるため、別途の手動プリロードは不要
     loadSiteContent().then((r) => {
       setSlides(r.slides);
-      setTimeout(() => setReady(true), 80);
+      requestAnimationFrame(() => setReady(true));
     });
-  }, [router]);
+  }, []);
 
   const enter = () => {
-    sessionStorage.setItem("app_entered", "1");
     router.push("/home");
   };
 
+  const hero = slides[0];
+
   return (
-    <div className="relative flex h-dvh max-w-md mx-auto flex-col items-center justify-end overflow-hidden bg-black">
-      {slides && <SplashHero slides={slides} />}
+    <main className="mx-auto min-h-dvh max-w-md bg-white">
+      {/* ===== ヒーローセクション ===== */}
+      <section className="relative flex h-[100svh] min-h-[560px] flex-col overflow-hidden">
+        <HeroBackdrop slides={slides} />
 
-      {/* ロゴ */}
-      <div
-        className="absolute top-12 left-0 right-0 z-20 flex flex-col items-center gap-2"
-        style={{
-          opacity: ready ? 1 : 0,
-          transform: ready ? "translateY(0)" : "translateY(12px)",
-          transition: "opacity 0.7s ease-out, transform 0.7s ease-out",
-          transitionDelay: "0.05s",
-        }}
-      >
-        <LogoRice className="w-14 h-14 text-white drop-shadow-lg" />
-        <span className="text-white font-bold text-xl tracking-tight drop-shadow-lg">みらい稲作管理</span>
-      </div>
+        {/* 上部: ロゴ */}
+        <header className="relative z-10 flex items-center gap-2 px-6 pt-6">
+          <LogoRice className="h-7 w-7 text-white drop-shadow" />
+          <span className="text-sm font-bold tracking-wide text-white drop-shadow">みらい稲作管理</span>
+        </header>
 
-      {/* 入るボタン */}
-      <div
-        className="relative z-20 w-full px-8 pb-16"
-        style={{
-          opacity: ready ? 1 : 0,
-          transform: ready ? "translateY(0)" : "translateY(16px)",
-          transition: "opacity 0.7s ease-out, transform 0.7s ease-out",
-          transitionDelay: "0.5s",
-        }}
-      >
-        <button
-          onClick={enter}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-green-600/90 backdrop-blur-sm py-5 text-base font-bold text-white shadow-2xl transition-all hover:bg-green-500/95 active:scale-95"
+        {/* 中央〜下: 見出し・CTA */}
+        <div
+          className="relative z-10 mt-auto px-6 pb-14"
+          style={{
+            opacity: ready ? 1 : 0,
+            transform: ready ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.8s ease-out, transform 0.9s cubic-bezier(0.16,1,0.3,1)",
+          }}
         >
-          アプリへ入る
-          <IconChevronRight className="h-5 w-5" />
-        </button>
-        <p className="mt-3 text-center text-xs text-white/50">田んぼの記録と知恵を、次の世代へ</p>
-      </div>
-    </div>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="h-px w-8 bg-green-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-green-300">
+              農業 × テクノロジー
+            </span>
+          </div>
+          <h1 className="text-[2.2rem] font-bold leading-[1.18] tracking-tight text-white drop-shadow-xl">
+            {hero?.title ?? "家族の田んぼを、みんなで守る"}
+          </h1>
+          <p className="mt-4 max-w-[21rem] text-[15px] leading-relaxed text-white/85 drop-shadow">
+            {hero?.body ?? "水・土・稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。"}
+          </p>
+
+          <div className="mt-7 flex flex-col gap-3">
+            <button
+              onClick={enter}
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-green-500 py-4 text-base font-bold text-white shadow-[0_10px_40px_-8px_rgba(34,197,94,0.7)] transition-all hover:bg-green-400 active:scale-[0.98]"
+            >
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              アプリをはじめる
+              <IconChevronRight className="h-5 w-5" />
+            </button>
+            <Link
+              href="/guide"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/10 py-4 text-base font-bold text-white backdrop-blur-md transition-colors hover:bg-white/20"
+            >
+              使い方を見る
+            </Link>
+          </div>
+
+          {/* スクロール誘導 */}
+          <div className="mt-8 flex flex-col items-center gap-1 text-white/55">
+            <span className="text-[11px] tracking-wide">できることを見る</span>
+            <IconChevronRight className="h-4 w-4 rotate-90 animate-bounce" />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== 機能セクション ===== */}
+      <section className="px-6 py-14">
+        <div className="mb-2 flex items-center gap-3">
+          <span className="h-px w-8 bg-green-600" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-green-700">Features</span>
+        </div>
+        <h2 className="text-2xl font-bold leading-snug tracking-tight text-gray-900">
+          稲作の知恵を、デジタルで次の世代へ
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-gray-500">
+          家族みんなで田んぼの記録を共有し、毎日の判断と世代を超えた継承を支えるアプリです。
+        </p>
+
+        <div className="mt-8 space-y-4">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">{f.icon}</span>
+              <h3 className="mt-4 text-base font-bold text-gray-900">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-500">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== フッターCTA ===== */}
+      <section className="px-6 pb-16">
+        <div className="relative overflow-hidden rounded-3xl bg-green-700 px-6 py-10 text-center">
+          <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-green-500/30 blur-2xl" />
+          <span className="pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full bg-emerald-400/20 blur-2xl" />
+          <div className="relative">
+            <div className="mb-4 flex justify-center gap-2 text-white/90">
+              <IconCamera className="h-5 w-5" />
+              <IconMic className="h-5 w-5" />
+              <IconPinFill className="h-5 w-5" />
+            </div>
+            <h2 className="text-xl font-bold text-white">今日の田んぼを、記録してみませんか</h2>
+            <p className="mx-auto mt-2 max-w-[18rem] text-sm leading-relaxed text-green-100">
+              はじめるのはかんたん。まずは一枚の写真から。
+            </p>
+            <button
+              onClick={enter}
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-3.5 text-base font-bold text-green-800 shadow-lg transition-transform active:scale-95"
+            >
+              アプリをはじめる
+              <IconChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <p className="mt-8 text-center text-xs text-gray-400">みらい稲作管理 — 未来へつなぐ、農の記録</p>
+      </section>
+    </main>
   );
 }

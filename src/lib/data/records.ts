@@ -1,4 +1,4 @@
-import type { RecordItem } from "../../types";
+import type { FieldPointType, RecordItem } from "../../types";
 import type { Numeric, RecordRow } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { recentRecords } from "../../data/dummy";
@@ -39,13 +39,29 @@ type RecordListRow = RecordRow & {
 };
 
 /** 保存時にai_categoryへ保持したポイント種別を読み戻す（不正値はrecord_typeから推定） */
-const POINT_TYPES: readonly RecordItem["pointType"][] = ["inlet", "outlet", "weed", "caution"];
+const POINT_TYPES: readonly FieldPointType[] = [
+  "inlet", "outlet", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
+];
 
-function toPointType(r: RecordListRow): RecordItem["pointType"] {
+function toPointType(r: RecordListRow): FieldPointType {
   if (r.ai_category && (POINT_TYPES as readonly string[]).includes(r.ai_category)) {
-    return r.ai_category as RecordItem["pointType"];
+    return r.ai_category as FieldPointType;
   }
   return r.record_type === "issue" ? "caution" : "inlet";
+}
+
+/** 異常系のポイント種別。record_type だけだと旧データ（拡張前は levee_damage/poor_drainage が
+ * record_type='photo' で保存され category='作業' になる）を取りこぼすため、種別で判定する */
+export const ISSUE_POINT_TYPES: readonly FieldPointType[] = ["caution", "levee_damage", "poor_drainage"];
+
+/**
+ * 「未対応」= 未解決の異常記録。records.status の既定値は 'open' のため、
+ * 通常の写真/水管理/作業/音声記録も open になる。異常系のポイント種別のものだけを
+ * 対象にしないと、全記録が「未対応」と誤判定される。pointType は ai_category 由来で
+ * 旧データの異常記録（record_type='photo'）も正しく拾える。
+ */
+export function isUnresolvedIssue(r: RecordItem): boolean {
+  return ISSUE_POINT_TYPES.includes(r.pointType) && (r.status === "open" || r.status === "needs_check");
 }
 
 function formatDate(iso: string): { date: string; time: string } {
@@ -61,7 +77,12 @@ function formatDate(iso: string): { date: string; time: string } {
  * 記録一覧を読み込む。サンプルを出すのはSupabase未設定のデモ環境のみ。
  * ログイン済みで0件のときは空の実データを返す（呼び出し側が空状態UIを出す）。
  */
-export async function loadRecords(): Promise<RecordsData> {
+const RECORD_SELECT =
+  "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)";
+
+export async function loadRecords(opts?: { limit?: number; fieldId?: string; all?: boolean }): Promise<RecordsData> {
+  // 一覧は最新100件で十分だが、エクスポート等は全件が必要なため上限を可変にする
+  const limit = opts?.limit ?? 100;
   const sb = getSupabase();
   if (!sb) return DEMO;
 
@@ -71,19 +92,36 @@ export async function loadRecords(): Promise<RecordsData> {
     if (!sessionData.session) return ANON;
     authed = true;
 
-    const { data, error } = await sb
-      .from("records")
-      .select(
-        "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
-      )
-      .order("recorded_at", { ascending: false })
-      .limit(100);
-    if (error) {
-      console.warn("[records] fetch failed", error);
-      return ERROR;
+    // 特定の田んぼに絞る場合はサーバ側で絞り込む（100件上限で別田んぼに押し出されて
+    // 集計が過少になるのを防ぐ）。fieldId は任意の追加フィルタとして適用する。
+    let rows: RecordListRow[];
+    if (opts?.all) {
+      // エクスポート等の全件取得。PostgREST の最大行数（既定1000）を超えても取りこぼさないよう
+      // range でページングして、満たないページが返るまで読み続ける
+      const PAGE = 1000;
+      rows = [];
+      for (let from = 0; ; from += PAGE) {
+        let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).range(from, from + PAGE - 1);
+        if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+        const { data, error } = await q;
+        if (error) {
+          console.warn("[records] fetch failed", error);
+          return ERROR;
+        }
+        const page = (data ?? []) as unknown as RecordListRow[];
+        rows.push(...page);
+        if (page.length < PAGE) break;
+      }
+    } else {
+      let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).limit(limit);
+      if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+      const { data, error } = await q;
+      if (error) {
+        console.warn("[records] fetch failed", error);
+        return ERROR;
+      }
+      rows = (data ?? []) as unknown as RecordListRow[];
     }
-
-    const rows = (data ?? []) as unknown as RecordListRow[];
 
     // 各記録の先頭の写真に署名URLを一括発行する
     const thumbPaths: { recordId: string; path: string }[] = [];
@@ -116,10 +154,12 @@ export async function loadRecords(): Promise<RecordsData> {
           id: r.id,
           date,
           time,
+          recordedAt: r.recorded_at,
           title: r.title || "（無題の記録）",
           fieldName: r.farm_fields?.name ?? "田んぼ未選択",
           fieldArea: "",
           category: TYPE_TO_CATEGORY[r.record_type] ?? "作業",
+          status: r.status,
           pointType: toPointType(r),
           media: isVoice ? "audio" : "photo",
           photoCount: isVoice ? undefined : imageCount,

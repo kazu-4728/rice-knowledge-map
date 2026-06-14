@@ -67,6 +67,32 @@
 
 ## 作業ログ
 
+### 2026-06-13（続き3） — UX作り込み・動作不良修正・レビュー解消（ブランチ claude/rice-pwa-ux-refinements-o8fxj4）
+
+**バグ/レビュー指摘の修正:**
+
+- **カレンダー**: 6月ラベルの文字化け `6␣␣␣` → `6月`（CalendarScreen.tsx）
+- **ホーム異常バナー**: 存在しない `field_records` を `records` に修正（件数取得が常に失敗→0で非表示だった）。`/records?status=open` の絞り込みを RecordsScreen に実装（open/needs_check を「未対応」として表示・バナー文言追加）。`RecordItem` に `status`/`recordedAt` を追加
+- **エクスポート**: 月キーを ISO（recordedAt）由来の `YYYY-MM` に変更し `2026年6月月` 破損を修正。AppShell のヘッダー/天気/下ナビに `print:hidden` を付与し印刷時のアプリ枠混入を解消（外枠も `print:` で展開）。`loadRecords({limit})` を追加しエクスポートは全件取得（100件上限を解除）
+- **ピン種別の分類**: `saveRecord` の種別→record_type マップを全 FieldPointType に拡張（canal/levee_damage/poor_drainage/other）。`records.ts`/`recordDetail.ts` の読み戻し・ラベルも全種対応。`RecordItem.pointType` を `FieldPointType` に拡張
+- **カバー写真のグループ取り違え**: `loadFarmData` で feature.properties に `group_id` を載せ、複数グループ所属時に別グループのパスへ保存されるのを防止
+
+**ヒーロー/画像読み込み:**
+
+- スプラッシュを作り直し（page.tsx）: スライドを重ねた opacity クロスフェード（残留＝ゴーストレイヤー解消）、画像プリロード、Ken Burns を `onLoad` 後に開始（読み込み前に動き切る問題を解消）、PaddyPhoto フォールバックで黒画面回避、setState updater 内の副作用を撤去
+- 孤児コンポーネント `HeroSection.tsx` / `AppIntroSection.tsx` を削除（PR #23残骸・どこからも未参照）
+- `RemotePhoto`/`RecordThumb` に `loading="lazy"`・`decoding="async"`・フェードイン追加
+
+**導線・画面:**
+
+- F-03: `/calendar`・`/fields`・`/records` の AppShell に `backDynamic`（戻る導線統一）
+- F-06: 田んぼ詳細を再設計（状態サマリー帯／ピンを要対応優先＋状態バッジ／最近3件／カバー写真なし時の追加促し／装飾3数字を撤去）
+- F-UX: 保存後は田んぼ詳細に戻る（fieldId あり）＋保存トースト。`/fields` 一覧カードを詳細ページ起点に統一
+
+**DB:**
+
+- migration `0006_schedule_authz.sql`: 予定の書き込みを owner/editor 限定（P1・viewer書込禁止）＋ field_id 同グループ整合トリガー追加。**Supabase本番（rice-farm-app）へ MCP で適用済み**（get_advisors 新規警告なし）
+
 ### 2026-06-13（続き2） — UX大幅強化 PR-E〜I（PR #29）
 
 **実施内容:**

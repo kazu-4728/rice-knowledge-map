@@ -7,12 +7,16 @@ export type SaveRecordResult =
   | { status: "demo" }
   | { status: "error"; step: "group" | "insert" | "upload" | "media" };
 
-/** 撮影画面で選んだポイント種別から記録の分類を決める */
-const POINT_TYPE_TO_RECORD_TYPE: Record<string, "water" | "work" | "issue"> = {
+/** 撮影画面で選んだポイント種別から記録の分類を決める（全FieldPointTypeを網羅） */
+const POINT_TYPE_TO_RECORD_TYPE: Record<string, "water" | "work" | "issue" | "other"> = {
   inlet: "water",
   outlet: "water",
+  canal: "water",
   weed: "work",
   caution: "issue",
+  levee_damage: "issue",
+  poor_drainage: "issue",
+  other: "other",
 };
 
 function buildTitle(draft: RecordDraft): string {

@@ -46,11 +46,15 @@ export type RecordItem = {
   id: string;
   time: string;
   date: string;
+  /** 元の記録日時（ISO文字列）。月別グルーピングや並べ替えに使う */
+  recordedAt: string;
   title: string;
   fieldName: string;
   fieldArea: string;
   category: "水管理" | "作業" | "異常" | "音声";
-  pointType: "inlet" | "outlet" | "caution" | "weed";
+  pointType: FieldPointType;
+  /** 対応状況。未対応(open)/要確認(needs_check)の絞り込みに使う */
+  status: "open" | "needs_check" | "resolved" | "monitoring";
   media: "photo" | "audio";
   photoCount?: number;
   audioDuration?: string;

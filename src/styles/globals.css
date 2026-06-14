@@ -30,6 +30,23 @@ body {
 /* テキスト消去 */
 @keyframes sink { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(-8px) } }
 
+/* スプラッシュ: シネマティックなKen Burns（表示時間内にしっかり動く・大きめズーム＋パン） */
+@keyframes splash-kb-a {
+  from { transform: scale(1.08) translate3d(0, 0, 0); }
+  to   { transform: scale(1.32) translate3d(-7%, -5%, 0); }
+}
+@keyframes splash-kb-b {
+  from { transform: scale(1.32) translate3d(7%, -4%, 0); }
+  to   { transform: scale(1.08) translate3d(0, 0, 0); }
+}
+@keyframes splash-kb-c {
+  from { transform: scale(1.10) translate3d(-6%, 4%, 0); }
+  to   { transform: scale(1.30) translate3d(6%, -4%, 0); }
+}
+.animate-splash-kb-a { animation: splash-kb-a 8s ease-in-out infinite alternate both; }
+.animate-splash-kb-b { animation: splash-kb-b 8s ease-in-out infinite alternate both; }
+.animate-splash-kb-c { animation: splash-kb-c 8s ease-in-out infinite alternate both; }
+
 /* FABボタン展開 */
 @keyframes fab-pop { from { opacity: 0; transform: scale(0.6) translateY(8px) } to { opacity: 1; transform: scale(1) translateY(0) } }
 
@@ -50,5 +67,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-fade, .animate-ken-burns-right, .animate-ken-burns-left,
   .animate-ken-burns-up, .animate-rise, .animate-sink,
-  .animate-fab-pop, .animate-toast-in, .animate-toast-out { animation: none; }
+  .animate-fab-pop, .animate-toast-in, .animate-toast-out,
+  .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c { animation: none; }
 }

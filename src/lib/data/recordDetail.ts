@@ -57,8 +57,12 @@ const DEMO_MEDIA: MediaUrls = { photos: [], audio: null };
 const POINT_TYPE_LABELS: Record<string, string> = {
   inlet: "入水口",
   outlet: "出水口",
+  canal: "水路",
   weed: "雑草",
   caution: "異常",
+  levee_damage: "畦崩れ",
+  poor_drainage: "水抜け不良",
+  other: "その他",
 };
 
 const STATUS_LABELS: Record<string, string> = {
