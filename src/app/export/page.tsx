@@ -19,8 +19,8 @@ export default function ExportPage() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // エクスポートは年次/田んぼ別の全件が対象のため、一覧の100件上限を外して取得する
-    Promise.all([loadFarmData(), loadRecords({ limit: 100000 })]).then(([farm, rec]) => {
+    // エクスポートは年次/田んぼ別の全件が対象のため、ページングで全件取得する
+    Promise.all([loadFarmData(), loadRecords({ all: true })]).then(([farm, rec]) => {
       setFields(farm.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -30,9 +30,18 @@ export default function ExportPage() {
     });
   }, []);
 
+  // 表示日（r.date）と同じローカル時刻基準で年/月を判定する（UTC文字列の前方一致だと
+  // 年末年始に表示上の年とズレる）
+  const localYm = (iso: string | undefined): { year: number; month: string } | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return { year: d.getFullYear(), month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
+  };
+
   const filtered = records.filter((r) => {
     const matchField = selectedFieldId === "all" || r.fieldId === selectedFieldId;
-    const matchYear = r.recordedAt.startsWith(String(year));
+    const matchYear = localYm(r.recordedAt)?.year === year;
     return matchField && matchYear;
   });
 
@@ -41,10 +50,10 @@ export default function ExportPage() {
     setTimeout(() => { window.print(); setPrinting(false); }, 100);
   };
 
-  // ISO日時（recordedAt）から "YYYY-MM" キーで月別にまとめる（表示文字列由来の破損を避ける）
+  // ローカル日付由来の "YYYY-MM" キーで月別にまとめる（表示日と基準を揃える）
   const grouped: Record<string, RecordItem[]> = {};
   filtered.forEach((r) => {
-    const month = r.recordedAt.slice(0, 7) || "不明";
+    const month = localYm(r.recordedAt)?.month ?? "不明";
     if (!grouped[month]) grouped[month] = [];
     grouped[month].push(r);
   });

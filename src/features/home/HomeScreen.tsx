@@ -57,10 +57,13 @@ export default function HomeScreen() {
     if (sb) {
       ensureGroupId().then(async (groupId) => {
         if (!groupId) return;
+        // record.status の既定値は 'open' のため、種別を issue（異常）に限定しないと
+        // 通常記録まで「未対応の異常」に数えてしまう
         const { count } = await sb
           .from("records")
           .select("id", { count: "exact", head: true })
           .eq("group_id", groupId)
+          .eq("record_type", "issue")
           .in("status", ["open", "needs_check"]);
         setOpenIssueCount(count ?? 0);
       });

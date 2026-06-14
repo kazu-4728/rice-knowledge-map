@@ -47,24 +47,6 @@ body {
 .animate-splash-kb-b { animation: splash-kb-b 8s ease-in-out infinite alternate both; }
 .animate-splash-kb-c { animation: splash-kb-c 8s ease-in-out infinite alternate both; }
 
-/* スプラッシュ: マスク・リビール（行の下から文字がせり上がる＝モダンなWeb演出） */
-@keyframes mask-rise {
-  from { transform: translateY(115%); }
-  to   { transform: translateY(0); }
-}
-.animate-mask-rise { animation: mask-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-/* スプラッシュ: フェード＋ブラー解除（補助テキスト用） */
-@keyframes splash-sub {
-  0%   { opacity: 0; transform: translateY(18px); filter: blur(6px); }
-  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-.animate-splash-sub { animation: splash-sub 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-/* スプラッシュ: アクセント線が横に伸びる */
-@keyframes line-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.animate-line-grow { animation: line-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: left; }
-
 /* FABボタン展開 */
 @keyframes fab-pop { from { opacity: 0; transform: scale(0.6) translateY(8px) } to { opacity: 1; transform: scale(1) translateY(0) } }
 
@@ -86,6 +68,5 @@ body {
   .animate-hero-fade, .animate-ken-burns-right, .animate-ken-burns-left,
   .animate-ken-burns-up, .animate-rise, .animate-sink,
   .animate-fab-pop, .animate-toast-in, .animate-toast-out,
-  .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c,
-  .animate-mask-rise, .animate-splash-sub, .animate-line-grow { animation: none; }
+  .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c { animation: none; }
 }

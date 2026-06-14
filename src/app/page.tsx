@@ -104,20 +104,14 @@ export default function LandingPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // ヒーローの各スライドは下で <img> として描画され即時読み込みされるため、別途の手動プリロードは不要
     loadSiteContent().then((r) => {
       setSlides(r.slides);
-      r.slides.forEach((s) => {
-        if (s.image_url) {
-          const img = new Image();
-          img.src = s.image_url;
-        }
-      });
       requestAnimationFrame(() => setReady(true));
     });
   }, []);
 
   const enter = () => {
-    sessionStorage.setItem("app_entered", "1");
     router.push("/home");
   };
 

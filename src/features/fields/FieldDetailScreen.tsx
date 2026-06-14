@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
-import { loadRecords } from "../../lib/data/records";
+import { loadRecords, isUnresolvedIssue } from "../../lib/data/records";
 import { consumeJustSaved } from "../records/recordDraft";
 import { getSupabase } from "../../lib/supabase/client";
 import { compressImage } from "../../lib/utils/imageCompress";
@@ -80,7 +80,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   }, [showToast]);
 
   useEffect(() => {
-    Promise.all([loadFarmData(), loadRecords()]).then(async ([farm, rec]) => {
+    // この田んぼの記録だけをサーバ側で取得する（デモ時は全件返るため下でクライアント絞り込み）
+    Promise.all([loadFarmData(), loadRecords({ fieldId })]).then(async ([farm, rec]) => {
       const feature = farm.fieldsGeoJSON.features.find(
         (f) => String(f.id ?? f.properties?.id ?? "") === fieldId
       );
@@ -157,8 +158,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     (a, b) => POINT_STATUS_META[a.status].order - POINT_STATUS_META[b.status].order
   );
 
-  // この田んぼの概要（実データから集計）
-  const openRecords = records.filter((r) => r.status === "open" || r.status === "needs_check");
+  // この田んぼの概要（実データから集計）。「未対応」= 未解決の異常記録のみ
+  const openRecords = records.filter(isUnresolvedIssue);
   const photoRecords = records.filter((r) => r.media === "photo");
   const lastRecord = records[0]; // loadRecords は新しい順に返す
   const lastRecordLabel = lastRecord
@@ -223,15 +224,20 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* 状態サマリー — 今この田んぼがどういう状態か */}
-      {attention.length > 0 ? (
+      {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
+      {attention.length > 0 || openRecords.length > 0 ? (
         <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-amber-800">要対応のポイントが{attention.length}件あります</p>
-            <p className="mt-0.5 text-xs text-amber-600">下の「ポイントの状態」で確認してください</p>
+            <p className="text-sm font-bold text-amber-800">
+              {[
+                attention.length > 0 ? `要対応のポイント${attention.length}件` : null,
+                openRecords.length > 0 ? `未対応の異常記録${openRecords.length}件` : null,
+              ].filter(Boolean).join(" ・ ")}があります
+            </p>
+            <p className="mt-0.5 text-xs text-amber-600">下の「ポイントの状態」や記録で確認してください</p>
           </div>
         </div>
       ) : points.length > 0 ? (

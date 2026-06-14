@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { loadRecords, type RecordsData } from "../../lib/data/records";
+import { loadRecords, isUnresolvedIssue, type RecordsData } from "../../lib/data/records";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -96,7 +96,7 @@ export default function RecordsScreen() {
   const visibleRecords = records.filter((record) => {
     if (pointFilter && record.pointId !== pointFilter) return false;
     if (fieldFilter && record.fieldId !== fieldFilter) return false;
-    if (statusFilter === "open" && record.status !== "open" && record.status !== "needs_check") return false;
+    if (statusFilter === "open" && !isUnresolvedIssue(record)) return false;
     if (!matchesFilter(record, filter)) return false;
     const q = query.trim();
     if (!q) return true;
@@ -241,7 +241,7 @@ export default function RecordsScreen() {
                   <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${categoryChip[record.category]}`}>
                     {record.category}
                   </span>
-                  {(record.status === "open" || record.status === "needs_check") && (
+                  {isUnresolvedIssue(record) && (
                     <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">未対応</span>
                   )}
                   <IconChevronRight className="h-4 w-4 text-gray-400" />

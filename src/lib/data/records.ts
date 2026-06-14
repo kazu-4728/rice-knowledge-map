@@ -50,6 +50,15 @@ function toPointType(r: RecordListRow): FieldPointType {
   return r.record_type === "issue" ? "caution" : "inlet";
 }
 
+/**
+ * 「未対応」= 未解決の異常記録。records.status の既定値は 'open' のため、
+ * 通常の写真/水管理/作業/音声記録も open になる。種別が異常（issue→category 異常）の
+ * ものだけを対象にしないと、全記録が「未対応」と誤判定される。
+ */
+export function isUnresolvedIssue(r: RecordItem): boolean {
+  return r.category === "異常" && (r.status === "open" || r.status === "needs_check");
+}
+
 function formatDate(iso: string): { date: string; time: string } {
   const d = new Date(iso);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
@@ -63,7 +72,10 @@ function formatDate(iso: string): { date: string; time: string } {
  * 記録一覧を読み込む。サンプルを出すのはSupabase未設定のデモ環境のみ。
  * ログイン済みで0件のときは空の実データを返す（呼び出し側が空状態UIを出す）。
  */
-export async function loadRecords(opts?: { limit?: number }): Promise<RecordsData> {
+const RECORD_SELECT =
+  "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)";
+
+export async function loadRecords(opts?: { limit?: number; fieldId?: string; all?: boolean }): Promise<RecordsData> {
   // 一覧は最新100件で十分だが、エクスポート等は全件が必要なため上限を可変にする
   const limit = opts?.limit ?? 100;
   const sb = getSupabase();
@@ -75,19 +87,36 @@ export async function loadRecords(opts?: { limit?: number }): Promise<RecordsDat
     if (!sessionData.session) return ANON;
     authed = true;
 
-    const { data, error } = await sb
-      .from("records")
-      .select(
-        "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
-      )
-      .order("recorded_at", { ascending: false })
-      .limit(limit);
-    if (error) {
-      console.warn("[records] fetch failed", error);
-      return ERROR;
+    // 特定の田んぼに絞る場合はサーバ側で絞り込む（100件上限で別田んぼに押し出されて
+    // 集計が過少になるのを防ぐ）。fieldId は任意の追加フィルタとして適用する。
+    let rows: RecordListRow[];
+    if (opts?.all) {
+      // エクスポート等の全件取得。PostgREST の最大行数（既定1000）を超えても取りこぼさないよう
+      // range でページングして、満たないページが返るまで読み続ける
+      const PAGE = 1000;
+      rows = [];
+      for (let from = 0; ; from += PAGE) {
+        let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).range(from, from + PAGE - 1);
+        if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+        const { data, error } = await q;
+        if (error) {
+          console.warn("[records] fetch failed", error);
+          return ERROR;
+        }
+        const page = (data ?? []) as unknown as RecordListRow[];
+        rows.push(...page);
+        if (page.length < PAGE) break;
+      }
+    } else {
+      let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).limit(limit);
+      if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+      const { data, error } = await q;
+      if (error) {
+        console.warn("[records] fetch failed", error);
+        return ERROR;
+      }
+      rows = (data ?? []) as unknown as RecordListRow[];
     }
-
-    const rows = (data ?? []) as unknown as RecordListRow[];
 
     // 各記録の先頭の写真に署名URLを一括発行する
     const thumbPaths: { recordId: string; path: string }[] = [];

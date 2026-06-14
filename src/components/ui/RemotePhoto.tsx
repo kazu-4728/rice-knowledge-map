@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PaddyPhoto } from "./PaddyPhoto";
 
 type Variant = "field" | "water" | "grass" | "sprout";
@@ -16,6 +16,14 @@ type Props = {
 export function RemotePhoto({ src, alt = "", className = "", fallbackVariant = "field" }: Props) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // srcが変わるたびにフェードをやり直す。キャッシュ済みで onLoad が発火しない場合は
+  // complete を見て即表示する（透明のまま固まるのを防ぐ）
+  useEffect(() => {
+    setLoaded(false);
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
+  }, [src]);
 
   if (!src || failedSrc === src) {
     return <PaddyPhoto variant={fallbackVariant} className={className} />;
@@ -24,6 +32,7 @@ export function RemotePhoto({ src, alt = "", className = "", fallbackVariant = "
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={imgRef}
       src={src}
       alt={alt}
       loading="lazy"
