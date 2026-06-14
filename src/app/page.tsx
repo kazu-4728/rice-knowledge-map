@@ -29,7 +29,6 @@ function SplashHero({
   onEnter: () => void;
 }) {
   const [current, setCurrent] = useState(0);
-  const [progress, setProgress] = useState(0);
   const total = slides.length;
 
   // 自動送り
@@ -38,20 +37,6 @@ function SplashHero({
     const t = setTimeout(() => setCurrent((c) => (c + 1) % total), SLIDE_INTERVAL_MS);
     return () => clearTimeout(t);
   }, [current, total]);
-
-  // プログレスバー
-  useEffect(() => {
-    let raf = 0;
-    const start = Date.now();
-    setProgress(0);
-    const tick = () => {
-      const p = Math.min((Date.now() - start) / SLIDE_INTERVAL_MS, 1);
-      setProgress(p);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [current]);
 
   const slide = slides[current];
   if (!slide) return null;
