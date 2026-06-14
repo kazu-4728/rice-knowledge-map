@@ -80,8 +80,9 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   }, [showToast]);
 
   useEffect(() => {
-    // この田んぼの記録だけをサーバ側で取得する（デモ時は全件返るため下でクライアント絞り込み）
-    Promise.all([loadFarmData(), loadRecords({ fieldId })]).then(async ([farm, rec]) => {
+    // この田んぼの記録を全件取得する（状態サマリーの未対応集計が最新100件外の古い異常を
+    // 取りこぼして「異常なし」と誤表示しないよう all:true。デモ時は全件返るため下でクライアント絞り込み）
+    Promise.all([loadFarmData(), loadRecords({ fieldId, all: true })]).then(async ([farm, rec]) => {
       const feature = farm.fieldsGeoJSON.features.find(
         (f) => String(f.id ?? f.properties?.id ?? "") === fieldId
       );
