@@ -32,6 +32,7 @@
 | — | PR #25 post-merge 修正（fields/page.tsx の groupId 参照修正） | PR #26（main マージ済み） |
 | UX リデザイン | スプラッシュページ（/）・/home 田んぼ一覧主役化・/fields/[id] 詳細ページ新設・緑グラデ背景・戻るボタン・折りたたみ（使い方/最近の記録）・ヒーロー画像を田んぼ写真に変更 | PR #27（main マージ済み） |
 | — | Codex/Copilot レビュー対応（pointType URL 連携・groupId undefined 修正・pointId クリア修正） | PR #28（main マージ済み） |
+| UX作り込み/レビュー解消 | トップを王道Webランディング化（ヒーロー＋機能＋CTA・大胆Ken Burns＋スクロールパララックス）／「未対応」判定をpointTypeベースに統一／export・田んぼ詳細・未対応導線を全件ページング取得／カレンダーを単一グループに統一＋viewer書込抑止／RemotePhotoキャッシュ透明化修正 ほかCodex指摘14点 | PR #31（8bde66d・squashマージ済み 2026-06-14） |
 
 ---
 
@@ -59,7 +60,8 @@
 | ID | 状態 | 内容 |
 |---|---|---|
 | U-001 | DONE | Migration 0004 を Supabase 本番に apply（farm_fields.photo_path + group_site_content）。2026-06-13 MCP apply_migration で適用確認済み |
-| U-002 | TODO | 本番で実機確認: 写真記録・音声メモの保存→一覧表示 / 田んぼカバー写真のアップロード / ヒーロースライドショー / 音声入力ボタン |
+| U-002 | TODO | 本番で実機確認: 写真記録・音声メモの保存→一覧表示 / 田んぼカバー写真のアップロード / 音声入力ボタン |
+| U-005 | TODO | 本番で実機確認（PR #31）: トップ`/`のヒーロー（実写真背景＋ズーム/パン＋スクロールパララックス）／ホーム「未対応の異常」バナーが正しい件数（通常記録で誤表示しない）／記録一覧の「未対応」バッジが異常記録のみ／田んぼ詳細の状態サマリー／exportの年フィルタ・月見出し／カレンダー（viewer 家族には追加/完了/削除が出ないこと） |
 | U-003 | DONE | Google ログイン設定（OAuth + Supabase + Vercel 環境変数）。2026-06-12 実機ログイン成功確認 |
 | U-004 | TODO | （任意）Supabase レガシー anon キーの無効化（API Keys ページ） |
 
@@ -67,7 +69,58 @@
 
 ## 作業ログ
 
+### 2026-06-14 — トップのWebランディング刷新・Codex/セルフレビュー全対応・PR #31 マージ（ブランチ claude/rice-pwa-ux-refinements-o8fxj4 → squashマージ 8bde66d）
+
+PR #31 を **squashマージで本番反映**（コミット17本を1本に集約）。理由: 同一機能に対する review 修正の往復コミットが多く、main の履歴を1機能=1コミットで読みやすく保つため。下記はこのセッション分（上記「続き3」と同じブランチに積み増し→まとめてマージ）。
+
+**トップページ（`/`）を王道のWebランディングに作り替え（src/app/page.tsx）:**
+
+- アプリ内スプラッシュ（自動で /home へリダイレクト）をやめ、常時表示の**ランディング**に: ヒーロー（実写真背景＋アイブロウ＋見出し＋本文＋CTA2種「アプリをはじめる/使い方を見る」＋スクロール誘導）→ 機能セクション3カード → フッターCTA。
+- **背景モーションを大幅強化**: Ken Burns を 8s・拡大1.08→1.32＋大きめパンに（globals.css の `splash-kb-a/b/c`）、さらに**スクロール連動パララックス**（背景が遅れて流れ＋フェード）。`HeroBackdrop` がスライドを opacity クロスフェード。
+- 背景デフォルトはフリー写真（siteContent の Unsplash 3枚）。ユーザーは画像/テキストを差し替え可能（既存機能）。
+- 当環境は外部画像が遮断されスクショは SVG フォールバック表示。**実写真はプレビュー/本番でのみ**確認できる。
+- 重要な教訓: **ユーザーは文章/ASCIIモックではデザインを判断できない**。実機/プレビューで「見せて」確認する。
+
+**「未対応」判定の構造バグ是正（Codex指摘の核心）:**
+
+- `records.status` のDB既定値は `'open'` → 通常の写真/作業/水管理/音声記録もすべて open になり「未対応」を誤判定していた。
+- `src/lib/data/records.ts` に `isUnresolvedIssue()` と `ISSUE_POINT_TYPES = [caution, levee_damage, poor_drainage]` を新設。判定は **pointType ベース**（`ai_category` 由来）にして、拡張前に `record_type='photo'` で保存された**旧データの異常記録も拾う**。
+- 適用: RecordsScreen の「未対応」バッジ/`status=open` 絞り込み、FieldDetailScreen の openRecords・全クリア判定、HomeScreen のバナー件数（サーバクエリを `.or(record_type.eq.issue, ai_category.in.(...))` に。group_id 絞りは外し記録一覧と同じ RLS可視の全グループ横断に）。
+
+**100件上限の取りこぼし対策:**
+
+- `loadRecords({ all: true })` を追加（`range()` ページングで PostgREST 最大行数を超えても全件取得）。export・`/records?status=open`・FieldDetailScreen（`{ fieldId, all: true }`）で使用。`loadRecords({ fieldId })` にサーバ側の田んぼ絞り込みも追加。
+
+**エクスポート（src/app/export/page.tsx）:**
+
+- 年フィルタ/月グルーピングを表示と同じ**ローカル日付基準**（`new Date()`）に（年末年始のズレ防止）。`recordedAt` 欠落時の `startsWith/slice` クラッシュをガード。
+
+**カレンダー/複数グループ — 設計判断「単一アクティブグループに統一」（ユーザー承認済み）:**
+
+- 背景: viewer 書込みを RLS で禁止する migration 0006 と field 整合トリガーにより、複数グループ時の不整合が露呈。
+- 決定: カレンダーは **`ensureGroupId()`（最初の所属＝アクティブグループ）に統一**。`createSchedule` は ensureGroupId、`CalendarScreen` は田んぼ選択をアクティブグループ内に限定＋`getMyRole()` で **viewer には追加/完了/削除を非表示**。`toggleScheduleDone/deleteSchedule` は `.select('id')` で **0行（RLS拒否）を検出**して false。
+- **ホーム/記録一覧は従来どおり RLS可視の全グループ横断**（records.ts は元々グループ非絞り込み）。複数グループの本格対応（loadSchedules 横断・田んぼ/予定ごとのロール）は**将来タスク**として保留。
+
+**その他のレビュー対応:**
+
+- `RemotePhoto`: キャッシュ画像で `onLoad` が発火せず opacity:0 のまま固まる問題を `img.complete` 判定で解消、src変更でフェード再実行。
+- FieldDetail 全クリア表示: 全ポイントが normal の時だけ「すべて正常」、対応済み含む場合は「要対応はありません（対応済みを含む）」。
+- 未使用CSS（mask-rise/splash-sub/line-grow）削除、ヒーロー画像の二重プリロード・未使用の `app_entered` 書込みを撤去。
+
+**進め方の記録:**
+
+- セルフレビュー（/code-review 高強度・7観点）→ Codex 自動レビューを複数ラウンド。Codex指摘は **計14点すべて対応**。
+- 途中で **GitHub MCP が認証切れ**（OAuth が Google Drive にリダイレクトする不調）。git push は常時可。最終的に MCP 復帰後に **squashマージ**。今後 PR でCodex対応を自動化するには MCP 再認証 or 各PRで `@codex review`。
+- このPRの監視購読（subscribe_pr_activity）はマージで自動終了。
+
+**残（次セッション）:**
+
+- **ユーザー実機確認（最優先）**: トップのヒーロー＆モーション／ホーム未対応バナーの件数／記録一覧の未対応バッジ／田んぼ詳細／export／カレンダー（viewer がいれば書込み非表示）。→ U-002 に反映。
+- 複数グループの本格対応（保留）。記録の AI 整理（T-048・任意）。
+
 ### 2026-06-13（続き3） — UX作り込み・動作不良修正・レビュー解消（ブランチ claude/rice-pwa-ux-refinements-o8fxj4）
+
+> 注: この「続き3」分は上の 2026-06-14 分と同じブランチに積まれ、まとめて **PR #31（8bde66d）でマージ済み**。
 
 **バグ/レビュー指摘の修正:**
 
