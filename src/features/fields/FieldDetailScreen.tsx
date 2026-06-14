@@ -247,8 +247,14 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             <IconPinFill className="h-4.5 w-4.5 text-green-700" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-green-800">異常なし・順調です</p>
-            <p className="mt-0.5 text-xs text-green-600">登録ポイント{points.length}件はすべて正常です</p>
+            <p className="text-sm font-bold text-green-800">
+              {points.every((p) => p.status === "normal") ? "異常なし・順調です" : "要対応はありません"}
+            </p>
+            <p className="mt-0.5 text-xs text-green-600">
+              {points.every((p) => p.status === "normal")
+                ? `登録ポイント${points.length}件はすべて正常です`
+                : "要対応のポイントはありません（対応済みを含む）"}
+            </p>
           </div>
         </div>
       ) : (

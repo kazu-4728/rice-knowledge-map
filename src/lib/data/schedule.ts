@@ -114,18 +114,23 @@ export async function toggleScheduleDone(id: string, done: boolean): Promise<boo
   const sb = getSupabase();
   if (!sb) return false;
   const { data: { user } } = await sb.auth.getUser();
-  const { error } = await sb
+  // viewer は RLS で弾かれると error ではなく「0行更新」になるため、更新行を select して
+  // 0件なら拒否として扱う（UIが楽観的に状態を変えてしまうのを防ぐ）
+  const { data, error } = await sb
     .from("farm_schedules")
     .update({ done, done_at: done ? new Date().toISOString() : null, done_by: done ? (user?.id ?? null) : null })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) { console.warn("[schedule] toggle failed", error); return false; }
+  if (!data || data.length === 0) { console.warn("[schedule] toggle denied (0 rows)"); return false; }
   return true;
 }
 
 export async function deleteSchedule(id: string): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
-  const { error } = await sb.from("farm_schedules").delete().eq("id", id);
+  const { data, error } = await sb.from("farm_schedules").delete().eq("id", id).select("id");
   if (error) { console.warn("[schedule] delete failed", error); return false; }
+  if (!data || data.length === 0) { console.warn("[schedule] delete denied (0 rows)"); return false; }
   return true;
 }
