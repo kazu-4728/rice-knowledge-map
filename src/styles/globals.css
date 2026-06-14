@@ -30,22 +30,22 @@ body {
 /* テキスト消去 */
 @keyframes sink { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(-8px) } }
 
-/* スプラッシュ: シネマティックなKen Burns（滑らかにズーム＋パン・ループ） */
+/* スプラッシュ: シネマティックなKen Burns（表示時間内にしっかり動く・大きめズーム＋パン） */
 @keyframes splash-kb-a {
-  from { transform: scale(1.02) translate3d(0, 0, 0); }
-  to   { transform: scale(1.16) translate3d(-3%, -2%, 0); }
+  from { transform: scale(1.08) translate3d(0, 0, 0); }
+  to   { transform: scale(1.32) translate3d(-7%, -5%, 0); }
 }
 @keyframes splash-kb-b {
-  from { transform: scale(1.16) translate3d(3%, -1%, 0); }
-  to   { transform: scale(1.02) translate3d(0, 0, 0); }
+  from { transform: scale(1.32) translate3d(7%, -4%, 0); }
+  to   { transform: scale(1.08) translate3d(0, 0, 0); }
 }
 @keyframes splash-kb-c {
-  from { transform: scale(1.04) translate3d(-2%, 1%, 0); }
-  to   { transform: scale(1.16) translate3d(2%, -1%, 0); }
+  from { transform: scale(1.10) translate3d(-6%, 4%, 0); }
+  to   { transform: scale(1.30) translate3d(6%, -4%, 0); }
 }
-.animate-splash-kb-a { animation: splash-kb-a 14s ease-in-out infinite alternate both; }
-.animate-splash-kb-b { animation: splash-kb-b 14s ease-in-out infinite alternate both; }
-.animate-splash-kb-c { animation: splash-kb-c 14s ease-in-out infinite alternate both; }
+.animate-splash-kb-a { animation: splash-kb-a 8s ease-in-out infinite alternate both; }
+.animate-splash-kb-b { animation: splash-kb-b 8s ease-in-out infinite alternate both; }
+.animate-splash-kb-c { animation: splash-kb-c 8s ease-in-out infinite alternate both; }
 
 /* スプラッシュ: マスク・リビール（行の下から文字がせり上がる＝モダンなWeb演出） */
 @keyframes mask-rise {

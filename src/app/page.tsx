@@ -35,23 +35,45 @@ const FEATURES = [
   },
 ];
 
-/** ヒーロー背景: 実写真をゆっくりクロスフェードしながらシネマティックにズーム */
+/** ヒーロー背景: 実写真を大きくズーム＋パンし、スクロールで奥へ流れるパララックス */
 function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
   const [current, setCurrent] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const total = slides.length;
 
   useEffect(() => {
     if (total <= 1) return;
-    const t = setTimeout(() => setCurrent((c) => (c + 1) % total), 6000);
+    const t = setTimeout(() => setCurrent((c) => (c + 1) % total), 5000);
     return () => clearTimeout(t);
   }, [current, total]);
 
+  // スクロール連動パララックス（背景は遅れて動き、奥行きが出る）
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setScrollY(window.scrollY));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{
+        transform: `translateY(${scrollY * 0.4}px) scale(1.05)`,
+        opacity: Math.max(0, 1 - scrollY / 700),
+        willChange: "transform",
+      }}
+    >
       {slides.map((s, i) => (
         <div
           key={i}
-          className="absolute inset-0 transition-opacity duration-[1100ms] ease-in-out"
+          className="absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
           style={{ opacity: i === current ? 1 : 0 }}
           aria-hidden={i !== current}
         >
