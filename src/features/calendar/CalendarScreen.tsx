@@ -6,7 +6,7 @@ import {
   loadSchedules, createSchedule, toggleScheduleDone, deleteSchedule,
   CATEGORY_LABELS, type ScheduleCategory, type ScheduleItem,
 } from "../../lib/data/schedule";
-import { loadFarmData, getMyRole } from "../../lib/data/farm";
+import { loadFarmData, getMyRole, ensureGroupId } from "../../lib/data/farm";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconTrash } from "../../components/ui/icons";
 
@@ -46,21 +46,25 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     loadSchedules(from, to).then(setSchedules);
-    loadFarmData().then((f) =>
-      setFields(f.fieldsGeoJSON.features.map((ft) => ({
-        id: String(ft.id ?? ft.properties?.id ?? ""),
-        name: String(ft.properties?.name ?? ""),
-      })))
-    );
   }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 自分のロールを一度だけ確認し、viewer なら書き込み操作を隠す
+  // 田んぼ選択とロール判定をアクティブグループ（最初の所属）に限定する（単一グループ運用）。
+  // これで予定作成/読込/権限がすべて同一グループに揃い、別グループ選択での保存失敗や
+  // 再読込での消失、権限の取り違えを防ぐ
   useEffect(() => {
-    loadFarmData().then(async (f) => {
-      if (!f.groupId) return; // デモ/未所属は編集可のまま
-      const role = await getMyRole(f.groupId);
-      setCanEdit(role === null || role === "owner" || role === "editor");
-    });
+    (async () => {
+      const gid = await ensureGroupId();
+      const f = await loadFarmData();
+      setFields(
+        f.fieldsGeoJSON.features
+          .filter((ft) => !gid || (ft.properties?.group_id ?? f.groupId) === gid)
+          .map((ft) => ({ id: String(ft.id ?? ft.properties?.id ?? ""), name: String(ft.properties?.name ?? "") }))
+      );
+      if (gid) {
+        const role = await getMyRole(gid);
+        setCanEdit(role === null || role === "owner" || role === "editor");
+      }
+    })();
   }, []);
 
   const schedulesByDate: Record<string, ScheduleItem[]> = {};
