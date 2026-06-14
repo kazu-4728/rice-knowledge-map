@@ -41,6 +41,13 @@ const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: stri
   resolved: { label: "対応済み", cls: "bg-blue-50 text-blue-600", order: 3 },
 };
 
+const CATEGORY_CHIP: Record<RecordItem["category"], string> = {
+  水管理: "bg-blue-50 text-blue-600",
+  作業: "bg-green-50 text-green-700",
+  異常: "bg-orange-50 text-orange-600",
+  音声: "bg-teal-50 text-teal-600",
+};
+
 async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -150,6 +157,18 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     (a, b) => POINT_STATUS_META[a.status].order - POINT_STATUS_META[b.status].order
   );
 
+  // この田んぼの概要（実データから集計）
+  const openRecords = records.filter((r) => r.status === "open" || r.status === "needs_check");
+  const photoRecords = records.filter((r) => r.media === "photo");
+  const lastRecord = records[0]; // loadRecords は新しい順に返す
+  const lastRecordLabel = lastRecord
+    ? `${new Date(lastRecord.recordedAt).getMonth() + 1}/${new Date(lastRecord.recordedAt).getDate()}`
+    : "—";
+  const categoryOrder: RecordItem["category"][] = ["水管理", "作業", "異常", "音声"];
+  const categoryCounts = categoryOrder
+    .map((cat) => ({ cat, count: records.filter((r) => r.category === cat).length }))
+    .filter((c) => c.count > 0);
+
   return (
     <div className="space-y-3 px-3 pb-6 pt-3">
       {/* カバー写真 */}
@@ -238,6 +257,42 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </Link>
       )}
 
+      {/* この田んぼの概要 — 実データの集計 */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-4 divide-x divide-gray-100">
+          <div className="px-1 text-center">
+            <p className="text-lg font-bold text-gray-900">{formatArea(areaSqm) ?? "—"}</p>
+            <p className="mt-0.5 text-[11px] text-gray-500">面積</p>
+          </div>
+          <div className="px-1 text-center">
+            <p className="text-lg font-bold text-gray-900">{points.length}</p>
+            <p className="mt-0.5 text-[11px] text-gray-500">ポイント</p>
+          </div>
+          <div className="px-1 text-center">
+            <p className="text-lg font-bold text-gray-900">{records.length}</p>
+            <p className="mt-0.5 text-[11px] text-gray-500">記録</p>
+          </div>
+          <div className="px-1 text-center">
+            <p className={`text-lg font-bold ${openRecords.length > 0 ? "text-amber-600" : "text-gray-900"}`}>
+              {openRecords.length}
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-500">未対応</p>
+          </div>
+        </div>
+        {(categoryCounts.length > 0 || lastRecord) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-3">
+            {categoryCounts.map(({ cat, count }) => (
+              <span key={cat} className={`rounded-md px-2 py-0.5 text-xs font-semibold ${CATEGORY_CHIP[cat]}`}>
+                {cat} {count}
+              </span>
+            ))}
+            {lastRecord && (
+              <span className="ml-auto text-xs text-gray-400">最終記録 {lastRecordLabel}</span>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* この田んぼを記録する — 次にすべきこと */}
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <p className="text-sm font-bold text-gray-900">この田んぼを記録する</p>
@@ -293,6 +348,36 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               );
             })}
           </ul>
+        </section>
+      )}
+
+      {/* 写真の記録（ギャラリー） */}
+      {photoRecords.length > 0 && (
+        <section className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <IconCamera className="h-5 w-5 text-green-700" />
+            <h2 className="text-sm font-bold text-gray-900">写真の記録</h2>
+            <span className="ml-auto text-xs text-gray-400">{photoRecords.length}件</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {photoRecords.slice(0, 6).map((record) => (
+              <Link
+                key={record.id}
+                href={`/records/${record.id}`}
+                className="group relative aspect-square overflow-hidden rounded-xl active:scale-95 transition-transform"
+              >
+                <RecordThumb
+                  media="photo"
+                  variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+                  thumbUrl={thumbUrls[record.id]}
+                  className="h-full w-full"
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1">
+                  <span className="block truncate text-[10px] font-semibold text-white">{record.time}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 

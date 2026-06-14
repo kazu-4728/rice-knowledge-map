@@ -16,7 +16,7 @@ export const fieldGeoJSON: GeoJSON.FeatureCollection = {
     {
       type: "Feature",
       id: "field-a",
-      properties: { id: "field-a", name: "A田", color: "#3B82F6" },
+      properties: { id: "field-a", name: "A田", color: "#3B82F6", area_sqm: 12000 },
       geometry: {
         type: "Polygon",
         coordinates: [[[138.825, 37.432], [138.830, 37.432], [138.830, 37.428], [138.825, 37.428], [138.825, 37.432]]],
@@ -25,7 +25,7 @@ export const fieldGeoJSON: GeoJSON.FeatureCollection = {
     {
       type: "Feature",
       id: "field-b",
-      properties: { id: "field-b", name: "B田", color: "#EAB308" },
+      properties: { id: "field-b", name: "B田", color: "#EAB308", area_sqm: 8000 },
       geometry: {
         type: "Polygon",
         coordinates: [[[138.830, 37.432], [138.836, 37.432], [138.836, 37.428], [138.830, 37.428], [138.830, 37.432]]],
@@ -34,7 +34,7 @@ export const fieldGeoJSON: GeoJSON.FeatureCollection = {
     {
       type: "Feature",
       id: "field-c",
-      properties: { id: "field-c", name: "C田", color: "#22C55E" },
+      properties: { id: "field-c", name: "C田", color: "#22C55E", area_sqm: 15000 },
       geometry: {
         type: "Polygon",
         coordinates: [[[138.830, 37.428], [138.836, 37.428], [138.836, 37.424], [138.830, 37.424], [138.830, 37.428]]],
@@ -43,7 +43,7 @@ export const fieldGeoJSON: GeoJSON.FeatureCollection = {
     {
       type: "Feature",
       id: "field-d",
-      properties: { id: "field-d", name: "D田", color: "#A855F7" },
+      properties: { id: "field-d", name: "D田", color: "#A855F7", area_sqm: 9000 },
       geometry: {
         type: "Polygon",
         coordinates: [[[138.825, 37.428], [138.830, 37.428], [138.830, 37.424], [138.825, 37.424], [138.825, 37.428]]],
@@ -155,14 +155,14 @@ export const scheduleItems: ScheduleItem[] = [
 
 // 最近の記録
 export const recentRecords: RecordItem[] = [
-  { id: "record-1", time: "17:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T17:15:00", title: "A田 取水口の確認", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 3 },
-  { id: "record-2", time: "13:30", date: "2025年5月24日（土）", recordedAt: "2025-05-24T13:30:00", title: "C田 畦畔草刈り", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 5 },
-  { id: "record-3", time: "10:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T10:15:00", title: "B田 異常箇所の記録", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", status: "open", media: "photo", photoCount: 2 },
-  { id: "record-4", time: "08:00", date: "2025年5月24日（土）", recordedAt: "2025-05-24T08:00:00", title: "A田 圃場の状況メモ", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", status: "resolved", media: "audio", audioDuration: "0:32" },
-  { id: "record-5", time: "16:20", date: "2025年5月23日（金）", recordedAt: "2025-05-23T16:20:00", title: "B田 落水口の確認", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", status: "resolved", media: "photo", photoCount: 1 },
-  { id: "record-6", time: "11:40", date: "2025年5月23日（金）", recordedAt: "2025-05-23T11:40:00", title: "A田 畦畔草刈り", fieldName: "A田", fieldArea: "1.2ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 4 },
-  { id: "record-7", time: "09:05", date: "2025年5月23日（金）", recordedAt: "2025-05-23T09:05:00", title: "C田 入水口の確認", fieldName: "C田", fieldArea: "1.5ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 2 },
-  { id: "record-8", time: "15:10", date: "2025年5月22日（木）", recordedAt: "2025-05-22T15:10:00", title: "C田 異常箇所の記録", fieldName: "C田", fieldArea: "1.5ha", category: "異常", pointType: "caution", status: "needs_check", media: "photo", photoCount: 3 },
+  { id: "record-1", time: "17:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T17:15:00", title: "A田 取水口の確認", fieldId: "field-a", fieldName: "A田", fieldArea: "1.2ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 3 },
+  { id: "record-2", time: "13:30", date: "2025年5月24日（土）", recordedAt: "2025-05-24T13:30:00", title: "C田 畦畔草刈り", fieldId: "field-c", fieldName: "C田", fieldArea: "1.5ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 5 },
+  { id: "record-3", time: "10:15", date: "2025年5月24日（土）", recordedAt: "2025-05-24T10:15:00", title: "B田 異常箇所の記録", fieldId: "field-b", fieldName: "B田", fieldArea: "0.8ha", category: "異常", pointType: "caution", status: "open", media: "photo", photoCount: 2 },
+  { id: "record-4", time: "08:00", date: "2025年5月24日（土）", recordedAt: "2025-05-24T08:00:00", title: "A田 圃場の状況メモ", fieldId: "field-a", fieldName: "A田", fieldArea: "1.2ha", category: "音声", pointType: "inlet", status: "resolved", media: "audio", audioDuration: "0:32" },
+  { id: "record-5", time: "16:20", date: "2025年5月23日（金）", recordedAt: "2025-05-23T16:20:00", title: "B田 落水口の確認", fieldId: "field-b", fieldName: "B田", fieldArea: "0.8ha", category: "水管理", pointType: "outlet", status: "resolved", media: "photo", photoCount: 1 },
+  { id: "record-6", time: "11:40", date: "2025年5月23日（金）", recordedAt: "2025-05-23T11:40:00", title: "A田 畦畔草刈り", fieldId: "field-a", fieldName: "A田", fieldArea: "1.2ha", category: "作業", pointType: "weed", status: "resolved", media: "photo", photoCount: 4 },
+  { id: "record-7", time: "09:05", date: "2025年5月23日（金）", recordedAt: "2025-05-23T09:05:00", title: "C田 入水口の確認", fieldId: "field-c", fieldName: "C田", fieldArea: "1.5ha", category: "水管理", pointType: "inlet", status: "resolved", media: "photo", photoCount: 2 },
+  { id: "record-8", time: "15:10", date: "2025年5月22日（木）", recordedAt: "2025-05-22T15:10:00", title: "C田 異常箇所の記録", fieldId: "field-c", fieldName: "C田", fieldArea: "1.5ha", category: "異常", pointType: "caution", status: "needs_check", media: "photo", photoCount: 3 },
 ];
 
 // メンバー
