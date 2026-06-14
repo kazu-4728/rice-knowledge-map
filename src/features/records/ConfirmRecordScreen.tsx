@@ -41,11 +41,13 @@ export default function ConfirmRecordScreen() {
     if (busy) return;
     setBusy(true);
     setMessage(null);
+    const fieldId = draft.fieldId;
     const result = await saveRecord(draft);
     if (result.status === "saved") {
       clearRecordDraft();
       markJustSaved();
-      router.replace("/records");
+      // 田んぼを選んでいれば、その田んぼの詳細に戻る（最近の記録に反映＋トースト）
+      router.replace(fieldId ? `/fields/${encodeURIComponent(fieldId)}` : "/records");
       return;
     }
     setBusy(false);
