@@ -30,35 +30,40 @@ body {
 /* テキスト消去 */
 @keyframes sink { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(-8px) } }
 
-/* スプラッシュ: 大胆なKen Burns（ズームイン＋大きめパン・ループで常に動く） */
+/* スプラッシュ: シネマティックなKen Burns（滑らかにズーム＋パン・ループ） */
 @keyframes splash-kb-a {
-  from { transform: scale(1.05) translate3d(0, 0, 0); }
-  to   { transform: scale(1.26) translate3d(-5%, -3%, 0); }
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to   { transform: scale(1.16) translate3d(-3%, -2%, 0); }
 }
 @keyframes splash-kb-b {
-  from { transform: scale(1.26) translate3d(5%, -2%, 0); }
-  to   { transform: scale(1.05) translate3d(0, 0, 0); }
+  from { transform: scale(1.16) translate3d(3%, -1%, 0); }
+  to   { transform: scale(1.02) translate3d(0, 0, 0); }
 }
 @keyframes splash-kb-c {
-  from { transform: scale(1.08) translate3d(-4%, 2%, 0); }
-  to   { transform: scale(1.24) translate3d(4%, -2%, 0); }
+  from { transform: scale(1.04) translate3d(-2%, 1%, 0); }
+  to   { transform: scale(1.16) translate3d(2%, -1%, 0); }
 }
-.animate-splash-kb-a { animation: splash-kb-a 8s ease-in-out infinite alternate both; }
-.animate-splash-kb-b { animation: splash-kb-b 8s ease-in-out infinite alternate both; }
-.animate-splash-kb-c { animation: splash-kb-c 8s ease-in-out infinite alternate both; }
+.animate-splash-kb-a { animation: splash-kb-a 14s ease-in-out infinite alternate both; }
+.animate-splash-kb-b { animation: splash-kb-b 14s ease-in-out infinite alternate both; }
+.animate-splash-kb-c { animation: splash-kb-c 14s ease-in-out infinite alternate both; }
 
-/* スプラッシュ: 大胆なテキスト登場（下から・拡大・ブラー解除） */
-@keyframes splash-title {
-  0%   { opacity: 0; transform: translateY(48px) scale(0.9); filter: blur(12px); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+/* スプラッシュ: マスク・リビール（行の下から文字がせり上がる＝モダンなWeb演出） */
+@keyframes mask-rise {
+  from { transform: translateY(115%); }
+  to   { transform: translateY(0); }
 }
+.animate-mask-rise { animation: mask-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* スプラッシュ: フェード＋ブラー解除（補助テキスト用） */
 @keyframes splash-sub {
-  0%   { opacity: 0; transform: translateY(30px); filter: blur(7px); }
+  0%   { opacity: 0; transform: translateY(18px); filter: blur(6px); }
   100% { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
-.animate-splash-title { animation: splash-title 0.95s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-splash-sub   { animation: splash-sub   0.85s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-splash-sub { animation: splash-sub 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* スプラッシュ: アクセント線が横に伸びる */
+@keyframes line-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.animate-line-grow { animation: line-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: left; }
 
 /* FABボタン展開 */
 @keyframes fab-pop { from { opacity: 0; transform: scale(0.6) translateY(8px) } to { opacity: 1; transform: scale(1) translateY(0) } }
@@ -82,5 +87,5 @@ body {
   .animate-ken-burns-up, .animate-rise, .animate-sink,
   .animate-fab-pop, .animate-toast-in, .animate-toast-out,
   .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c,
-  .animate-splash-title, .animate-splash-sub { animation: none; }
+  .animate-mask-rise, .animate-splash-sub, .animate-line-grow { animation: none; }
 }
