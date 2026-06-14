@@ -76,7 +76,14 @@ export async function createSchedule(input: {
 }): Promise<ScheduleItem | null> {
   const sb = getSupabase();
   if (!sb) return null;
-  const groupId = await ensureGroupId();
+  // 田んぼを選んだ場合はその田んぼのグループに合わせる（複数グループ所属時に
+  // ensureGroupId()=最初の所属 を入れると field_id とグループ不一致で整合トリガーに弾かれる）
+  let groupId: string | null = null;
+  if (input.fieldId) {
+    const { data: field } = await sb.from("farm_fields").select("group_id").eq("id", input.fieldId).maybeSingle();
+    groupId = (field?.group_id as string | undefined) ?? null;
+  }
+  if (!groupId) groupId = await ensureGroupId();
   if (!groupId) return null;
 
   const { data: { user } } = await sb.auth.getUser();
