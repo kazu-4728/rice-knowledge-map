@@ -50,13 +50,18 @@ function toPointType(r: RecordListRow): FieldPointType {
   return r.record_type === "issue" ? "caution" : "inlet";
 }
 
+/** 異常系のポイント種別。record_type だけだと旧データ（拡張前は levee_damage/poor_drainage が
+ * record_type='photo' で保存され category='作業' になる）を取りこぼすため、種別で判定する */
+export const ISSUE_POINT_TYPES: readonly FieldPointType[] = ["caution", "levee_damage", "poor_drainage"];
+
 /**
  * 「未対応」= 未解決の異常記録。records.status の既定値は 'open' のため、
- * 通常の写真/水管理/作業/音声記録も open になる。種別が異常（issue→category 異常）の
- * ものだけを対象にしないと、全記録が「未対応」と誤判定される。
+ * 通常の写真/水管理/作業/音声記録も open になる。異常系のポイント種別のものだけを
+ * 対象にしないと、全記録が「未対応」と誤判定される。pointType は ai_category 由来で
+ * 旧データの異常記録（record_type='photo'）も正しく拾える。
  */
 export function isUnresolvedIssue(r: RecordItem): boolean {
-  return r.category === "異常" && (r.status === "open" || r.status === "needs_check");
+  return ISSUE_POINT_TYPES.includes(r.pointType) && (r.status === "open" || r.status === "needs_check");
 }
 
 function formatDate(iso: string): { date: string; time: string } {

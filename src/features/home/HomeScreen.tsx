@@ -57,14 +57,15 @@ export default function HomeScreen() {
     if (sb) {
       ensureGroupId().then(async (groupId) => {
         if (!groupId) return;
-        // record.status の既定値は 'open' のため、種別を issue（異常）に限定しないと
-        // 通常記録まで「未対応の異常」に数えてしまう
+        // record.status の既定値は 'open' のため、種別を異常に限定しないと通常記録まで数えてしまう。
+        // 旧データは levee_damage/poor_drainage が record_type='photo' で保存されているため、
+        // ai_category（ポイント種別）の異常種別も OR で拾う（isUnresolvedIssue と基準を揃える）
         const { count } = await sb
           .from("records")
           .select("id", { count: "exact", head: true })
           .eq("group_id", groupId)
-          .eq("record_type", "issue")
-          .in("status", ["open", "needs_check"]);
+          .in("status", ["open", "needs_check"])
+          .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
         setOpenIssueCount(count ?? 0);
       });
     }

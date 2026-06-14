@@ -77,14 +77,16 @@ export default function RecordsScreen() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRecords().then((data) => {
+    // 未対応（status=open）導線では古い未対応が最新100件の外に出ることがあるため全件取得する
+    // （ホームのバナーは全件をサーバ集計しており、件数と一覧を一致させる）
+    loadRecords(statusFilter === "open" ? { all: true } : undefined).then((data) => {
       setRecords(data.records);
       setMode(data.mode);
       setThumbUrls(data.thumbUrls);
     });
     // 保存直後の遷移ならトーストを出す
     if (consumeJustSaved()) setToast("記録を保存しました");
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (!toast) return;
