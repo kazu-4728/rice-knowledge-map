@@ -204,7 +204,7 @@ export function RecordThumb({
     return (
       <div className={`overflow-hidden bg-gray-200 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Supabase署名URL（有効期限つき）のため next/image を使わない */}
-        <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+        <img src={thumbUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
       </div>
     );
   }

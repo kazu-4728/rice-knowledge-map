@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadSiteContent, type HeroSlide } from "../lib/data/siteContent";
 import { PaddyPhoto } from "../components/ui/PaddyPhoto";
 import { IconChevronRight, LogoRice } from "../components/ui/icons";
 
 const SLIDE_INTERVAL_MS = 6000;
-const TRANSITION_MS = 800;
 
 /** Ken Burnsアニメーション — 毎スライドで方向を変える */
 const KB_CLASSES = [
@@ -17,103 +16,68 @@ const KB_CLASSES = [
 ] as const;
 
 function SplashHero({ slides }: { slides: HeroSlide[] }) {
-  const [current, setCurrent] = useState(0);         // 表示中のスライド
-  const [leaving, setLeaving] = useState<number | null>(null);  // フェードアウト中のスライド
-  const [leavingVisible, setLeavingVisible] = useState(false);  // overlayの透明度
+  const [current, setCurrent] = useState(0);
   const [progress, setProgress] = useState(0);
-  const rafRef = useRef<number>(0);
-  const startRef = useRef(Date.now());
+  // 読み込み完了したスライドのindex。Ken Burnsは画像ロード後に開始する（先に動き切るのを防ぐ）
+  const [loaded, setLoaded] = useState<Set<number>>(() => new Set());
   const total = slides.length;
 
-  /** プログレスバーをRAFでアニメーション */
-  const startProgress = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    setProgress(0);
-    startRef.current = Date.now();
-    const tick = () => {
-      const p = Math.min((Date.now() - startRef.current) / SLIDE_INTERVAL_MS, 1);
-      setProgress(p);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
-
-  useEffect(() => {
-    startProgress();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [current, startProgress]);
-
-  /** スライドを nextIdx に進める */
-  const advanceTo = useCallback((nextIdx: number) => {
-    setCurrent((prev) => {
-      setLeaving(prev);        // 古いスライドをoverlay へ
-      setLeavingVisible(true); // overlay は最初 opacity-100
-      // 1フレーム後に opacity-0 を適用してフェードアウト開始
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => setLeavingVisible(false))
-      );
-      // フェード完了後にoverlayを消す
-      setTimeout(() => setLeaving(null), TRANSITION_MS + 50);
-      return nextIdx;
-    });
-  }, []);
-
-  /** 自動送り */
+  // 自動送り（全スライドは常にDOMに載せてクロスフェードするので、indexだけ進める）
   useEffect(() => {
     if (total <= 1) return;
-    const t = setTimeout(() => advanceTo((current + 1) % total), SLIDE_INTERVAL_MS);
+    const t = setTimeout(() => setCurrent((c) => (c + 1) % total), SLIDE_INTERVAL_MS);
     return () => clearTimeout(t);
-  }, [current, total, advanceTo]);
+  }, [current, total]);
+
+  // プログレスバー（RAFで残り時間を表現）
+  useEffect(() => {
+    let raf = 0;
+    const start = Date.now();
+    setProgress(0);
+    const tick = () => {
+      const p = Math.min((Date.now() - start) / SLIDE_INTERVAL_MS, 1);
+      setProgress(p);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [current]);
 
   const slide = slides[current];
-  const leaveSlide = leaving !== null ? slides[leaving] : null;
   if (!slide) return null;
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* ベースレイヤー: 新しいスライド（常に表示、Kenバーンズで動く） */}
-      <div className="absolute inset-0">
-        <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
-        {slide.image_url && (
-          <img
-            key={`base-${current}`}
-            src={slide.image_url}
-            alt={slide.title}
-            className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[current % 3]}`}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
-      </div>
-
-      {/* オーバーレイ: 古いスライド（フェードアウト） */}
-      {leaveSlide && (
+      {/* スライドを重ねて opacity でクロスフェード（残留レイヤーが出ない） */}
+      {slides.map((s, i) => (
         <div
-          className="absolute inset-0 z-10"
-          style={{
-            opacity: leavingVisible ? 1 : 0,
-            transition: `opacity ${TRANSITION_MS}ms ease-in-out`,
-          }}
+          key={i}
+          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+          style={{ opacity: i === current ? 1 : 0 }}
+          aria-hidden={i !== current}
         >
+          {/* フォールバック（画像が遅延/失敗しても黒画面にしない） */}
           <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
-          {leaveSlide.image_url && (
+          {s.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element -- ヒーロー画像（外部/署名URL）はnext/imageを使わない
             <img
-              key={`leave-${leaving}`}
-              src={leaveSlide.image_url}
-              alt={leaveSlide.title}
-              className={`absolute inset-0 h-full w-full object-cover ${KB_CLASSES[leaving! % 3]}`}
+              src={s.image_url}
+              alt={s.title}
+              decoding="async"
+              onLoad={() => setLoaded((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))}
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+                i === current && loaded.has(i) ? KB_CLASSES[i % 3] : ""
+              }`}
+              style={{ opacity: loaded.has(i) ? 1 : 0 }}
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/80" />
         </div>
-      )}
+      ))}
 
       {/* テキスト（スライドと独立してフェードイン） */}
-      <div
-        key={`text-${current}`}
-        className="absolute bottom-44 left-0 right-0 z-20 px-8"
-      >
+      <div key={`text-${current}`} className="absolute bottom-44 left-0 right-0 z-20 px-8">
         <h2
           className="text-center text-2xl font-bold leading-snug text-white drop-shadow-lg animate-rise"
           style={{ animationDelay: "0.1s", animationFillMode: "both" }}
@@ -135,7 +99,7 @@ function SplashHero({ slides }: { slides: HeroSlide[] }) {
             {slides.map((_, i) => (
               <button
                 key={i}
-                onClick={() => advanceTo(i)}
+                onClick={() => setCurrent(i)}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
                   i === current ? "w-7 bg-white" : "w-1.5 bg-white/40"
                 }`}
@@ -170,6 +134,13 @@ export default function SplashPage() {
     }
     loadSiteContent().then((r) => {
       setSlides(r.slides);
+      // スライド画像を先読みして、表示時にアニメ・写真がすぐ出るようにする
+      r.slides.forEach((s) => {
+        if (s.image_url) {
+          const img = new Image();
+          img.src = s.image_url;
+        }
+      });
       setTimeout(() => setReady(true), 80);
     });
   }, [router]);
