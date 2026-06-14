@@ -14,7 +14,6 @@ import {
   IconDropFill,
   IconMic,
   IconPin,
-  IconPinFill,
   IconSearch,
   IconSprout,
   IconWarningFill,
@@ -238,14 +237,14 @@ export default function RecordsScreen() {
                     {record.fieldArea && `（${record.fieldArea}）`}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${categoryChip[record.category]}`}>
                     {record.category}
                   </span>
-                  <span className="flex items-center text-gray-400">
-                    <IconPinFill className="h-5 w-5 text-green-700" />
-                    <IconChevronRight className="h-4 w-4" />
-                  </span>
+                  {(record.status === "open" || record.status === "needs_check") && (
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">未対応</span>
+                  )}
+                  <IconChevronRight className="h-4 w-4 text-gray-400" />
                 </div>
               </Link>
             ))}
