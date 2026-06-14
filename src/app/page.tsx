@@ -4,28 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadSiteContent, type HeroSlide } from "../lib/data/siteContent";
 import { PaddyPhoto } from "../components/ui/PaddyPhoto";
-import {
-  IconCamera,
-  IconChevronRight,
-  IconCommentFill,
-  IconMap,
-  LogoRice,
-} from "../components/ui/icons";
+import { IconChevronRight, LogoRice } from "../components/ui/icons";
 
 const SLIDE_INTERVAL_MS = 6000;
 
-/** Ken Burnsアニメーション — 毎スライドで方向を変える */
+/** スプラッシュの大胆なKen Burns — 毎スライドで方向と緩急を変える */
 const KB_CLASSES = [
-  "animate-ken-burns-right",
-  "animate-ken-burns-left",
-  "animate-ken-burns-up",
-] as const;
-
-/** 入口で「このアプリで何ができるか」を一目で伝える機能ハイライト */
-const FEATURES = [
-  { icon: <IconCamera className="h-4.5 w-4.5 text-white" />, label: "写真・音声でその場ですぐ記録" },
-  { icon: <IconMap className="h-4.5 w-4.5 text-white" />, label: "国土地理院の空中写真マップ" },
-  { icon: <IconCommentFill className="h-4.5 w-4.5 text-white" />, label: "家族みんなで共有して次世代へ" },
+  "animate-splash-kb-a",
+  "animate-splash-kb-b",
+  "animate-splash-kb-c",
 ] as const;
 
 function SplashHero({
@@ -39,8 +26,6 @@ function SplashHero({
 }) {
   const [current, setCurrent] = useState(0);
   const [progress, setProgress] = useState(0);
-  // 読み込み完了したスライドのindex。Ken Burnsは画像ロード後に開始する（先に動き切るのを防ぐ）
-  const [loaded, setLoaded] = useState<Set<number>>(() => new Set());
   const total = slides.length;
 
   // 自動送り（全スライドは常にDOMに載せてクロスフェードするので、indexだけ進める）
@@ -69,35 +54,47 @@ function SplashHero({
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* 背景: スライドを重ねて opacity でクロスフェード（残留レイヤーが出ない） */}
+      {/* 背景: スライドを重ねて opacity でクロスフェード。各レイヤーは大胆にズーム＋パンし続ける */}
       {slides.map((s, i) => (
         <div
           key={i}
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+          className="absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
           style={{ opacity: i === current ? 1 : 0 }}
           aria-hidden={i !== current}
         >
-          {/* フォールバック（画像が遅延/失敗しても黒画面にしない） */}
-          <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
-          {s.image_url && (
-            // eslint-disable-next-line @next/next/no-img-element -- ヒーロー画像（外部/署名URL）はnext/imageを使わない
-            <img
-              src={s.image_url}
-              alt={s.title}
-              decoding="async"
-              onLoad={() => setLoaded((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-                i === current && loaded.has(i) ? KB_CLASSES[i % 3] : ""
-              }`}
-              style={{ opacity: loaded.has(i) ? 1 : 0 }}
-            />
-          )}
+          {/* 画像とフォールバックをまとめてKen Burns（実画像が無くても動きが出る） */}
+          <div className={`absolute inset-0 ${i === current ? KB_CLASSES[i % 3] : ""}`}>
+            <PaddyPhoto variant="field" className="absolute inset-0 h-full w-full object-cover" />
+            {s.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element -- ヒーロー画像（外部/署名URL）はnext/imageを使わない
+              <img
+                src={s.image_url}
+                alt={s.title}
+                decoding="async"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+              />
+            )}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/25" />
         </div>
       ))}
 
-      {/* 前景パネル: 下部にまとめて、見出し・機能・CTAを1つの構成にする */}
-      <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-4 bg-gradient-to-t from-black/90 via-black/65 to-transparent px-6 pb-10 pt-24">
+      {/* 前景: 見出し（大胆に登場）・インジケーター・CTA */}
+      <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-5 px-7 pb-12 pt-28">
+        {/* 見出し（スライドごとに再生。translateY＋scale＋blur解除で大胆に） */}
+        <div key={`text-${current}`}>
+          <h2 className="animate-splash-title text-center text-3xl font-bold leading-tight text-white drop-shadow-xl">
+            {slide.title}
+          </h2>
+          <p
+            className="animate-splash-sub mt-3 text-center text-sm leading-relaxed text-white/85 drop-shadow"
+            style={{ animationDelay: "0.18s" }}
+          >
+            {slide.body}
+          </p>
+        </div>
+
         {/* インジケーター + プログレスバー */}
         {total > 1 && (
           <div className="flex flex-col items-center gap-2">
@@ -107,13 +104,13 @@ function SplashHero({
                   key={i}
                   onClick={() => setCurrent(i)}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === current ? "w-6 bg-white" : "w-1.5 bg-white/40"
+                    i === current ? "w-7 bg-white" : "w-1.5 bg-white/40"
                   }`}
                   aria-label={`スライド ${i + 1}`}
                 />
               ))}
             </div>
-            <div className="h-0.5 w-24 overflow-hidden rounded-full bg-white/20">
+            <div className="h-0.5 w-28 overflow-hidden rounded-full bg-white/20">
               <div
                 className="h-full rounded-full bg-white/70"
                 style={{ width: `${progress * 100}%`, transition: progress === 0 ? "none" : "width 80ms linear" }}
@@ -122,49 +119,18 @@ function SplashHero({
           </div>
         )}
 
-        {/* 見出し（スライドごとにフェードイン） */}
-        <div key={`text-${current}`}>
-          <h2
-            className="animate-rise text-center text-2xl font-bold leading-snug text-white drop-shadow-lg"
-            style={{ animationDelay: "0.05s", animationFillMode: "both" }}
-          >
-            {slide.title}
-          </h2>
-          <p
-            className="animate-rise mt-2 text-center text-sm leading-relaxed text-white/85 drop-shadow"
-            style={{ animationDelay: "0.2s", animationFillMode: "both" }}
-          >
-            {slide.body}
-          </p>
-        </div>
-
-        {/* 機能ハイライト（フロスト化カード） */}
-        <ul
-          className="animate-rise space-y-2.5 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md"
-          style={{ animationDelay: "0.35s", animationFillMode: "both" }}
-        >
-          {FEATURES.map((f) => (
-            <li key={f.label} className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600/80">
-                {f.icon}
-              </span>
-              <span className="text-sm font-semibold text-white/95">{f.label}</span>
-            </li>
-          ))}
-        </ul>
-
         {/* CTA */}
         <div
           style={{
             opacity: ready ? 1 : 0,
-            transform: ready ? "translateY(0)" : "translateY(12px)",
-            transition: "opacity 0.6s ease-out, transform 0.6s ease-out",
-            transitionDelay: "0.45s",
+            transform: ready ? "translateY(0)" : "translateY(16px)",
+            transition: "opacity 0.7s ease-out, transform 0.7s ease-out",
+            transitionDelay: "0.5s",
           }}
         >
           <button
             onClick={onEnter}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-green-600 py-4 text-base font-bold text-white shadow-2xl transition-all hover:bg-green-500 active:scale-95"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-green-600 py-5 text-base font-bold text-white shadow-2xl transition-all hover:bg-green-500 active:scale-95"
           >
             アプリへ入る
             <IconChevronRight className="h-5 w-5" />
@@ -208,17 +174,17 @@ export default function SplashPage() {
     <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-black">
       {slides && <SplashHero slides={slides} ready={ready} onEnter={enter} />}
 
-      {/* ロゴ（上部） */}
+      {/* ロゴ（上部・大胆に登場） */}
       <div
-        className="absolute left-0 right-0 top-12 z-20 flex flex-col items-center gap-2"
+        className="absolute left-0 right-0 top-14 z-20 flex flex-col items-center gap-2"
         style={{
           opacity: ready ? 1 : 0,
-          transform: ready ? "translateY(0)" : "translateY(12px)",
-          transition: "opacity 0.7s ease-out, transform 0.7s ease-out",
+          transform: ready ? "translateY(0) scale(1)" : "translateY(16px) scale(0.92)",
+          transition: "opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.22,1,0.36,1)",
           transitionDelay: "0.05s",
         }}
       >
-        <LogoRice className="h-14 w-14 text-white drop-shadow-lg" />
+        <LogoRice className="h-16 w-16 text-white drop-shadow-lg" />
         <span className="text-xl font-bold tracking-tight text-white drop-shadow-lg">みらい稲作管理</span>
       </div>
     </div>
