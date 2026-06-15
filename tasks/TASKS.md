@@ -33,6 +33,7 @@
 | UX リデザイン | スプラッシュページ（/）・/home 田んぼ一覧主役化・/fields/[id] 詳細ページ新設・緑グラデ背景・戻るボタン・折りたたみ（使い方/最近の記録）・ヒーロー画像を田んぼ写真に変更 | PR #27（main マージ済み） |
 | — | Codex/Copilot レビュー対応（pointType URL 連携・groupId undefined 修正・pointId クリア修正） | PR #28（main マージ済み） |
 | UX作り込み/レビュー解消 | トップを王道Webランディング化（ヒーロー＋機能＋CTA・大胆Ken Burns＋スクロールパララックス）／「未対応」判定をpointTypeベースに統一／export・田んぼ詳細・未対応導線を全件ページング取得／カレンダーを単一グループに統一＋viewer書込抑止／RemotePhotoキャッシュ透明化修正 ほかCodex指摘14点 | PR #31（8bde66d・squashマージ済み 2026-06-14） |
+| Phase F | 記録詳細→「同じ田んぼ」追記導線（field/point/pointTypeをクエリ引き継ぎ）／田んぼ名・地点バッジLink化／戻るボタンrouter.back()化／マップ田んぼポリゴン→「詳細を見る」CTA／記録削除（deleteRecord+確認モーダル・記録者本人 OR owner のみ）| PR #33（5d74265・squashマージ済み 2026-06-15） |
 
 ---
 
@@ -52,6 +53,10 @@
 | PR-H | DONE | カレンダー家族共有（migration 0005適用・月表示・予定CRUD・BottomNavに「予定」タブ） | PR #29（mainマージ済み） |
 | PR-I | DONE | 未対応異常バナー・記録エクスポート（年次/田んぼ別PDF）・メニューリンク追加 | PR #29（mainマージ済み） |
 | T-048 | TODO | 記録の AI 整理・要約（任意機能） |
+| T-051 | TODO | 記録詳細に「マップで見る」リンク（lat/lng がある時のみ）。`/map?lng=&lat=&zoom=` を MapCanvas が flyTo するパラメータとして受ける |
+| T-052 | TODO | コメントの編集・削除（各コメントの `IconMore` ボタンが現状ダミー。RLSは `record_comments_update/delete = user_id = auth.uid()` で本人のみ許可済み）|
+| T-053 | TODO | 複数グループの本格対応（loadSchedules 横断・田んぼ/予定ごとのロール）。現状はアクティブグループに統一中 |
+| T-054 | TODO | 記録の soft-delete（`deleted_at` カラム＋RLS）。現状は hard-delete。家族3〜4人運用では復元ニーズが薄く保留 |
 
 ---
 
@@ -64,10 +69,56 @@
 | U-005 | TODO | 本番で実機確認（PR #31）: トップ`/`のヒーロー（実写真背景＋ズーム/パン＋スクロールパララックス）／ホーム「未対応の異常」バナーが正しい件数（通常記録で誤表示しない）／記録一覧の「未対応」バッジが異常記録のみ／田んぼ詳細の状態サマリー／exportの年フィルタ・月見出し／カレンダー（viewer 家族には追加/完了/削除が出ないこと） |
 | U-003 | DONE | Google ログイン設定（OAuth + Supabase + Vercel 環境変数）。2026-06-12 実機ログイン成功確認 |
 | U-004 | TODO | （任意）Supabase レガシー anon キーの無効化（API Keys ページ） |
+| U-006 | TODO | 本番で実機確認（PR #33・Phase F）: ①記録詳細「追記する」が同じ田んぼ・ピンに紐づく（隣接圃場の事故防止）／②田んぼ名バッジ→`/fields/[id]`、地点バッジ→`/records?point=...`／③戻るボタンが田んぼ詳細→記録詳細の流れで田んぼに戻る／④マップ田んぼポリゴンタップ→「この田んぼの詳細を見る」CTA／⑤自分の記録の⋮メニュー→削除→田んぼ詳細に戻り対象が消える／⑥他の家族（editor）の記録には⋮が出ない／⑦owner なら他人の記録も削除可 |
 
 ---
 
 ## 作業ログ
+
+### 2026-06-15 — Phase F（記録詳細・マップ・記録削除の導線改善）PR #33 マージ（ブランチ claude/ecstatic-brown-rnf9u0 → squashマージ 5d74265）
+
+ユーザーから「アプリの導線が良くない」（複数田んぼ管理で別の田んぼに記録してしまう事故・マップから田んぼ詳細に行けない・記録削除不可）の指摘 → 1 PR にまとめて対応。Copilotクォーター切れのためセルフレビュー必須で実施。
+
+**A. 記録詳細 → その田んぼ・地点への導線（`src/app/records/[id]/page.tsx`）:**
+
+- 「追記する」ボタンの URL に `field=`/`point=`/`pointType=` を引き継ぐクエリビルダー（`URLSearchParams`）を追加。受け取り側（AudioRecordScreen/PhotoRecordScreen）は既に対応済み。**未指定だと新規記録画面が GPS で田んぼを自動選択するため、隣接圃場で別の田んぼに保存される事故を防ぐ。**
+- 田んぼ名バッジを `Link` で `/fields/[id]` へ、地点バッジを `/records?point=...` へ（fieldId/pointId が null のときは従来通り `span`）。
+- ヘッダーの戻るボタンを `<button onClick={goBack}>` に変更し、`router.back()` + `window.history.length > 1` フォールバックで `/records` へ。田んぼ詳細→記録詳細→戻る で田んぼに戻れるようになる。
+
+**B. マップポリゴン → 田んぼ詳細（`src/features/map/MapCanvas.tsx`）:**
+
+- 田んぼ選択時の操作カード（名前変更/描き直す/削除）の上に「**この田んぼの詳細を見る**」緑CTAを追加。DB保存前のローカルid（`user-field-*` 接頭辞）は詳細ページが見つからないため CTA を隠す。
+- `IconChevronRight` を import に追加。
+
+**C. 記録の削除（`src/lib/data/recordDetail.ts` + 詳細ページ）:**
+
+- データ層に `deleteRecord(recordId)` を新設。順序: ①`record_media` の storage path を `select` → ②`records.delete()` で行削除（comments/media/status_events は `on delete cascade` で連動削除）→ ③Storage ファイルを `remove()`（best-effort）。
+- ②が失敗したら何も消さない。③の失敗は孤児ファイルが残るだけで実害軽微（warn のみ）。RLS拒否は `.select('id')` の0件成功で `denied` として検出。
+- `RecordDetail` 型に `fieldId`/`pointId`/`pointType` を追加（追記クエリ・バッジ Link 化に必要）。`RecordDetailData` の `live`/`demo` に `canDelete: boolean` を追加。
+- **権限**: DB側RLSは owner/editor 全員に DELETE 許可しているが、**家族間の誤削除を防ぐためUI上は「記録者本人 OR グループのowner」のみ⋮メニューを表示**。canDelete は `loadRecordDetail` 内で `farm_group_members` の role を `maybeSingle()` で確認して計算。
+- 詳細ヘッダの「⋮」を有効化（canDelete=true のときのみ）→ドロップダウンメニュー（role="menu"/menuitem・aria-haspopup/expanded）→確認モーダル（cascade警告付き）→削除実行→`router.replace(/fields/[id])`（fieldIdあり）または `/records`（履歴に404URLを残さない）。
+- モーダルは親の `overflow-hidden` を抜けるため `fixed inset-0` 採用。
+
+**セルフレビュー（Copilotクォーター切れ代替）:**
+
+- `npx tsc --noEmit` エラーなし／`npm run lint` 既存warningのみ（変更ファイルに新規warning無し）／`npm run build` 全19ページ成功。
+- 受け取り側（AudioRecordScreen/PhotoRecordScreen の `?field=`/`?point=`/`?pointType=` 処理）の存在確認済み。
+- `record_media` cascade は migration `0001_init.sql:334`（`on delete cascade`）で確認。
+- ピンの `user-field-*` ローカルid除外で詳細ページ404を防止。
+- 削除モーダル位置: 親の `flex h-dvh max-w-md` には `relative` が無く `absolute` が初期含有ブロックに falls through するため `fixed inset-0` に変更。
+- canDelete の `farm_group_members` 追加クエリは記録1件あたり最大1回・single record detail page・ホットパスでない。
+
+**進め方の記録:**
+
+- ユーザーは「まだ作業はしなくていい」段階で提案だけ → 「まとめていきましょう」で着手 → PR #33 を draft で作成 → 「ドラフトを解除するとcodexのレビューが来る」で `update_pull_request(draft=false)` → Codexレビュー無しのままユーザー判断でマージOK。
+- Copilot は今期クォーター切れのためレビューは Codex 頼み（次回以降も同じ前提で動く）。draft 解除時のみ自動レビューが来る。
+- このPRの監視購読（subscribe_pr_activity）はマージで自動終了。
+
+**残（次セッション）:**
+
+- **ユーザー実機確認 U-006（最優先）**: 上記7点（追記が同田んぼ／バッジLink／戻る／マップCTA／⋮削除／非表示／owner削除）。
+- 任意機能候補: T-051（記録詳細→マップで見る・lat/lng のとき）／T-052（コメント編集・削除・各IconMoreが現状ダミー）／T-053（複数グループ本格対応・保留中）／T-054（soft-delete・保留中）／T-048（AI整理・任意）。
+- **複数田んぼ運用の体感確認**を経て次の導線改善ポイントを見つける流れが自然。
 
 ### 2026-06-14 — トップのWebランディング刷新・Codex/セルフレビュー全対応・PR #31 マージ（ブランチ claude/rice-pwa-ux-refinements-o8fxj4 → squashマージ 8bde66d）
 
