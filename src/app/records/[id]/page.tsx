@@ -15,12 +15,14 @@ import {
   IconMoreVertical,
   IconPinFill,
   IconPlus,
+  IconTrash,
   IconUserFill,
 } from "../../../components/ui/icons";
 import {
   loadRecordDetail,
   addComment,
   resolveRecord,
+  deleteRecord,
   type RecordDetailData,
   type MediaUrls,
 } from "../../../lib/data/recordDetail";
@@ -36,6 +38,9 @@ export default function RecordDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -45,6 +50,15 @@ export default function RecordDetailPage() {
     });
     return () => { cancelled = true; };
   }, [id]);
+
+  const goBack = () => {
+    // 履歴があれば前画面に戻る。直接URLで開いた等で履歴が無いときは記録一覧へ
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/records");
+    }
+  };
 
   if (!data) {
     return (
@@ -120,6 +134,17 @@ export default function RecordDetailPage() {
   const record: RecordDetail = data.record;
   const mediaUrls: MediaUrls = data.mediaUrls;
   const isResolved = record.status === "resolved";
+  const canDelete = data.canDelete;
+
+  // 「追記する」のクエリ: 現在の記録と同じ田んぼ・ピンに紐づくよう field/point/pointType を引き継ぐ
+  // （未指定だと新規記録画面はGPSで田んぼを自動選択するため、隣接圃場で別の田んぼに保存される事故を防ぐ）
+  const followupQuery = (() => {
+    const params = new URLSearchParams({ type: "audio" });
+    if (record.fieldId) params.set("field", record.fieldId);
+    if (record.pointId) params.set("point", record.pointId);
+    if (record.pointType) params.set("pointType", record.pointType);
+    return params.toString();
+  })();
 
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
@@ -149,17 +174,74 @@ export default function RecordDetailPage() {
     setResolving(false);
   };
 
+  const handleDelete = async () => {
+    if (deleting) return;
+    setMessage(null);
+    setDeleting(true);
+    const result = await deleteRecord(id);
+    if (result.status === "deleted") {
+      // 削除後はこの記録の詳細URLが404になるため、戻る先を明示的に置き換える。
+      // 田んぼが分かっていれば田んぼ詳細へ（記録が消えた状態で再描画される）、なければ記録一覧へ
+      const dest = record.fieldId ? `/fields/${encodeURIComponent(record.fieldId)}` : "/records";
+      router.replace(dest);
+      return;
+    }
+    setDeleting(false);
+    setConfirmDelete(false);
+    if (result.status === "denied") {
+      setMessage("削除できませんでした（権限がありません）");
+    } else if (result.status === "demo") {
+      setMessage("デモモードでは削除できません");
+    } else if (result.status === "anon") {
+      setMessage("ログインが必要です");
+    } else {
+      setMessage(`削除に失敗しました: ${result.message}`);
+    }
+  };
+
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100">
       {/* ヘッダー */}
       <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-        <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <button onClick={goBack} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
           <IconChevronLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
-        <button aria-label="その他の操作" className="absolute right-1 p-2.5 text-gray-700">
-          <IconMoreVertical className="h-6 w-6" />
         </button>
+        <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+        {canDelete && (
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="その他の操作"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="absolute right-1 p-2.5 text-gray-700"
+          >
+            <IconMoreVertical className="h-6 w-6" />
+          </button>
+        )}
+        {menuOpen && (
+          <>
+            {/* 背景をタップしたらメニューを閉じる（aria-hiddenの装飾要素） */}
+            <button
+              aria-hidden="true"
+              tabIndex={-1}
+              onClick={() => setMenuOpen(false)}
+              className="fixed inset-0 z-30 cursor-default bg-transparent"
+            />
+            <div
+              role="menu"
+              className="absolute right-2 top-12 z-40 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+            >
+              <button
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
+                className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
+              >
+                <IconTrash className="h-4 w-4" />
+                記録を削除
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* コンテンツ */}
@@ -180,14 +262,32 @@ export default function RecordDetailPage() {
           <div className="mt-3">
             <div className="flex flex-wrap items-center gap-1.5">
               {record.fieldName && (
-                <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
-                  {record.fieldName}
-                </span>
+                record.fieldId ? (
+                  <Link
+                    href={`/fields/${encodeURIComponent(record.fieldId)}`}
+                    className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800 underline-offset-2 hover:bg-green-200 hover:underline"
+                  >
+                    {record.fieldName}
+                  </Link>
+                ) : (
+                  <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
+                    {record.fieldName}
+                  </span>
+                )
               )}
               {record.pointTypeLabel && (
-                <span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
-                  {record.pointTypeLabel}
-                </span>
+                record.pointId ? (
+                  <Link
+                    href={`/records?point=${encodeURIComponent(record.pointId)}`}
+                    className="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700 underline-offset-2 hover:bg-blue-200 hover:underline"
+                  >
+                    {record.pointTypeLabel}
+                  </Link>
+                ) : (
+                  <span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
+                    {record.pointTypeLabel}
+                  </span>
+                )
               )}
               <span
                 className={`rounded-md px-2 py-1 text-xs font-bold ${
@@ -338,13 +438,41 @@ export default function RecordDetailPage() {
           {isResolved ? "対応済み" : resolving ? "更新中…" : "対応済みにする"}
         </button>
         <button
-          onClick={() => router.push(`/records/new?type=audio`)}
+          onClick={() => router.push(`/records/new?${followupQuery}`)}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
         >
           <IconMic className="h-4.5 w-4.5" />
           追記する
         </button>
       </div>
+
+      {/* 削除確認モーダル（親の overflow-hidden を抜けるため fixed） */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-base font-bold text-gray-900">この記録を削除しますか？</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              写真・音声・コメントもまとめて削除されます。元には戻せません。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "削除中…" : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

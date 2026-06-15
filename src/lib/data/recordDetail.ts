@@ -1,4 +1,4 @@
-import type { RecordDetail, RecordComment } from "../../types";
+import type { FieldPointType, RecordDetail, RecordComment } from "../../types";
 import { getSupabase } from "../supabase/client";
 import { sampleRecordDetail } from "../../data/dummy";
 
@@ -20,6 +20,7 @@ type CommentRow = {
 
 type DetailRow = {
   id: string;
+  group_id: string;
   field_id: string | null;
   point_id: string | null;
   record_type: string;
@@ -39,8 +40,8 @@ type DetailRow = {
 };
 
 export type RecordDetailData =
-  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls }
-  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls }
+  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
+  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
   | { mode: "notfound" }
   | { mode: "error"; message: string }
   | { mode: "anon" };
@@ -65,6 +66,10 @@ const POINT_TYPE_LABELS: Record<string, string> = {
   other: "その他",
 };
 
+const VALID_POINT_TYPES: ReadonlySet<string> = new Set<FieldPointType>([
+  "inlet", "outlet", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
+]);
+
 const STATUS_LABELS: Record<string, string> = {
   open: "未対応",
   needs_check: "要確認",
@@ -85,7 +90,7 @@ function formatCommentTime(iso: string): string {
 
 export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const sb = getSupabase();
-  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA };
+  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false };
 
   const { data: sessionData } = await sb.auth.getSession();
   if (!sessionData.session) return { mode: "anon" };
@@ -95,7 +100,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const { data, error } = await sb
     .from("records")
     .select(
-      `id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
+      `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
        profiles(display_name),
        farm_fields(name),
        record_media(id, media_type, storage_bucket, storage_path, created_at),
@@ -172,10 +177,17 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const safeRecordType = (VALID_RECORD_TYPES as string[]).includes(row.record_type)
     ? (row.record_type as RecordDetail["recordType"])
     : "other";
+  const safePointType: FieldPointType | null =
+    row.ai_category && VALID_POINT_TYPES.has(row.ai_category)
+      ? (row.ai_category as FieldPointType)
+      : null;
 
   const record: RecordDetail = {
     id: row.id,
+    fieldId: row.field_id,
     fieldName: row.farm_fields?.name ?? "田んぼ未選択",
+    pointId: row.point_id,
+    pointType: safePointType,
     pointTypeLabel,
     statusLabel,
     status: safeStatus,
@@ -191,7 +203,20 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     longitude: (() => { const v = Number(row.longitude); return Number.isFinite(v) ? v : null; })(),
   };
 
-  return { mode: "live", record, mediaUrls: { photos, audio } };
+  // 削除権限: 記録者本人 OR グループのowner（DB側のRLSは owner/editor 全員に許可しているが、
+  // 家族間の誤削除を防ぐためUI上は本人 OR owner に限定する）
+  let canDelete = isSelf;
+  if (!canDelete) {
+    const { data: member } = await sb
+      .from("farm_group_members")
+      .select("role")
+      .eq("group_id", row.group_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    canDelete = member?.role === "owner";
+  }
+
+  return { mode: "live", record, mediaUrls: { photos, audio }, canDelete };
 }
 
 export async function addComment(recordId: string, text: string): Promise<{ error: string | null }> {
@@ -254,4 +279,57 @@ export async function resolveRecord(recordId: string): Promise<{ error: string |
   }
 
   return { error: null };
+}
+
+export type DeleteRecordResult =
+  | { status: "deleted" }
+  | { status: "denied" }
+  | { status: "demo" }
+  | { status: "anon" }
+  | { status: "error"; message: string };
+
+/**
+ * 記録を削除する。
+ * 順序: ①record_mediaのstorage pathを取得 → ②records行をdelete（comments/media/status_eventsはcascadeで連動削除）
+ *      → ③StorageからファイルをremoveしてゴミファイルをCleanup。
+ * ②が失敗したら何も消さない。③が失敗してもDB側はもう消えているので孤児ファイルが残るだけで実害は軽い（warnのみ）。
+ * RLS拒否は updateと同様に `.select('id')` で0件成功を検知する。
+ */
+export async function deleteRecord(recordId: string): Promise<DeleteRecordResult> {
+  const sb = getSupabase();
+  if (!sb) return { status: "demo" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { status: "anon" };
+
+  // 削除前にメディアのstorage pathを取得（cascadeで record_media 行は消えるが、Storage実体は残るため）
+  const { data: mediaRows } = await sb
+    .from("record_media")
+    .select("storage_bucket, storage_path")
+    .eq("record_id", recordId);
+
+  const { data: deleted, error: deleteError } = await sb
+    .from("records")
+    .delete()
+    .eq("id", recordId)
+    .select("id");
+
+  if (deleteError) return { status: "error", message: deleteError.message };
+  if (!deleted || deleted.length === 0) return { status: "denied" };
+
+  // バケットごとにまとめてremove（失敗してもDBはすでに削除済みのためwarnのみ）
+  const byBucket = new Map<string, string[]>();
+  for (const m of mediaRows ?? []) {
+    if (!m.storage_bucket || !m.storage_path) continue;
+    const list = byBucket.get(m.storage_bucket) ?? [];
+    list.push(m.storage_path);
+    byBucket.set(m.storage_bucket, list);
+  }
+  for (const [bucket, paths] of byBucket) {
+    if (paths.length === 0) continue;
+    const { error: removeError } = await sb.storage.from(bucket).remove(paths);
+    if (removeError) console.warn("[deleteRecord] storage remove failed", bucket, removeError);
+  }
+
+  return { status: "deleted" };
 }

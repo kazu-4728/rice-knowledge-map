@@ -77,7 +77,10 @@ export type RecordComment = {
 
 export type RecordDetail = {
   id: string;
+  fieldId: string | null;
   fieldName: string;
+  pointId: string | null;
+  pointType: FieldPointType | null;
   pointTypeLabel: string;
   statusLabel: string;
   status: "open" | "needs_check" | "resolved" | "monitoring";
