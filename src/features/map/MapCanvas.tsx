@@ -29,6 +29,7 @@ import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import {
+  IconChevronRight,
   IconLocate,
   IconMinus,
   IconPinFill,
@@ -1044,7 +1045,17 @@ export default function MapCanvas() {
                     閉じる
                   </button>
                 </div>
-                <div className="mt-3 flex gap-2">
+                {/* 詳細ページへ（DB保存前のローカルidは詳細ページが見つからないため出さない） */}
+                {!selectedField.id.startsWith("user-field-") && (
+                  <Link
+                    href={`/fields/${encodeURIComponent(selectedField.id)}`}
+                    className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
+                  >
+                    この田んぼの詳細を見る
+                    <IconChevronRight className="h-4 w-4" />
+                  </Link>
+                )}
+                <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => {
                       setRenameTarget(selectedField);

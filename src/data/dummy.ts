@@ -175,7 +175,10 @@ export const members: Member[] = [
 // 記録詳細のサンプル（参照モック準拠）
 export const sampleRecordDetail: RecordDetail = {
   id: "record-sample",
+  fieldId: null,
   fieldName: "A田",
+  pointId: null,
+  pointType: "outlet",
   pointTypeLabel: "出水口",
   statusLabel: "要確認",
   status: "needs_check",
