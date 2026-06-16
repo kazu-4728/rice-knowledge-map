@@ -32,7 +32,8 @@ type Props = {
 export default function MapBottomSheet({ point, onAddPin, onEditPin }: Props) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-30">
-      <div className="rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)]">
+      {/* PCではシートが横幅いっぱいに張り付かないよう中央寄せキャップ */}
+      <div className="mx-auto w-full max-w-md rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] md:max-w-2xl">
         <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-gray-300" />
 
         {point ? (

@@ -213,7 +213,7 @@ export default function RecordsScreen() {
       {groups.map((group) => (
         <section key={group.date} className="mt-4">
           <h2 className="px-1 text-sm font-bold text-gray-800">{group.date}</h2>
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
             {group.items.map((record) => (
               <Link
                 key={record.id}

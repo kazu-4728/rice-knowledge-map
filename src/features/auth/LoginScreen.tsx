@@ -62,7 +62,7 @@ function LoginScreenInner() {
   };
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md flex-col items-center bg-gray-100 px-4 pt-14">
+    <div className="mx-auto flex h-dvh max-w-md md:max-w-lg flex-col items-center bg-gray-100 px-4 pt-14">
       <LogoRice className="h-16 w-16" />
       <h1 className="mt-3 text-xl font-bold text-green-700">みらい稲作管理</h1>
       <p className="mt-1 text-sm text-gray-600">家族で使う田んぼの記録アプリ</p>

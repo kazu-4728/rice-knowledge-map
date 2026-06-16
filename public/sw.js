@@ -2,7 +2,7 @@
  * ハッシュ付き静的アセットとアイコンのみキャッシュする保守的な構成。
  * HTMLや地図タイルはキャッシュしない（常に最新を取得）。
  */
-const CACHE_NAME = "rkm-static-v1";
+const CACHE_NAME = "rkm-static-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

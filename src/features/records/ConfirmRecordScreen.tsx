@@ -65,7 +65,7 @@ export default function ConfirmRecordScreen() {
   };
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100">
+    <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
       <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
         <Link href={backHref} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
           <IconChevronLeft className="h-6 w-6" />
