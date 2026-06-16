@@ -17,7 +17,8 @@ export default function BottomNav() {
 
   return (
     <nav className="shrink-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex h-16">
+      {/* PC幅でタブ間隔が間延びしないよう中央寄せキャップ。モバイル列幅はそのまま */}
+      <div className="flex h-16 mx-auto w-full max-w-md">
         {tabs.map(({ key, label, href, Icon }) => {
           const active = href === "/home"
             ? pathname === "/home" || pathname.startsWith("/fields")

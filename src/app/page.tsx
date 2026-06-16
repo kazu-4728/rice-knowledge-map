@@ -118,20 +118,20 @@ export default function LandingPage() {
   const hero = slides[0];
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md bg-white">
+    <main className="min-h-dvh bg-white">
       {/* ===== ヒーローセクション ===== */}
       <section className="relative flex h-[100svh] min-h-[560px] flex-col overflow-hidden">
         <HeroBackdrop slides={slides} />
 
         {/* 上部: ロゴ */}
-        <header className="relative z-10 flex items-center gap-2 px-6 pt-6">
+        <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center gap-2 px-6 pt-6">
           <LogoRice className="h-7 w-7 text-white drop-shadow" />
           <span className="text-sm font-bold tracking-wide text-white drop-shadow">みらい稲作管理</span>
         </header>
 
-        {/* 中央〜下: 見出し・CTA */}
+        {/* 中央〜下: 見出し・CTA（PCでは中央寄せで横幅キャップ） */}
         <div
-          className="relative z-10 mt-auto px-6 pb-14"
+          className="relative z-10 mx-auto mt-auto w-full max-w-2xl px-6 pb-14 md:max-w-3xl"
           style={{
             opacity: ready ? 1 : 0,
             transform: ready ? "translateY(0)" : "translateY(20px)",
@@ -151,7 +151,7 @@ export default function LandingPage() {
             {hero?.body ?? "水・土・稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。"}
           </p>
 
-          <div className="mt-7 flex flex-col gap-3">
+          <div className="mt-7 flex flex-col gap-3 sm:max-w-md">
             <button
               onClick={enter}
               className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-green-500 py-4 text-base font-bold text-white shadow-[0_10px_40px_-8px_rgba(34,197,94,0.7)] transition-all hover:bg-green-400 active:scale-[0.98]"
@@ -177,19 +177,20 @@ export default function LandingPage() {
       </section>
 
       {/* ===== 機能セクション ===== */}
-      <section className="px-6 py-14">
+      <section className="mx-auto w-full max-w-6xl px-6 py-14">
         <div className="mb-2 flex items-center gap-3">
           <span className="h-px w-8 bg-green-600" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-green-700">Features</span>
         </div>
-        <h2 className="text-2xl font-bold leading-snug tracking-tight text-gray-900">
+        <h2 className="max-w-2xl text-2xl font-bold leading-snug tracking-tight text-gray-900 md:text-3xl">
           稲作の知恵を、デジタルで次の世代へ
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-gray-500">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-500">
           家族みんなで田んぼの記録を共有し、毎日の判断と世代を超えた継承を支えるアプリです。
         </p>
 
-        <div className="mt-8 space-y-4">
+        {/* PCでは横並び3カラム */}
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">{f.icon}</span>
@@ -201,8 +202,8 @@ export default function LandingPage() {
       </section>
 
       {/* ===== フッターCTA ===== */}
-      <section className="px-6 pb-16">
-        <div className="relative overflow-hidden rounded-3xl bg-green-700 px-6 py-10 text-center">
+      <section className="mx-auto w-full max-w-4xl px-6 pb-16">
+        <div className="relative overflow-hidden rounded-3xl bg-green-700 px-6 py-10 text-center md:px-12 md:py-14">
           <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-green-500/30 blur-2xl" />
           <span className="pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full bg-emerald-400/20 blur-2xl" />
           <div className="relative">

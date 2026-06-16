@@ -168,7 +168,7 @@ export default function HomeScreen() {
       )}
 
       {(fieldsMode === "live" || fieldsMode === "demo") && fields.length > 0 && (
-        <div className="space-y-2.5">
+        <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
           {fields.map((field) => (
             <Link
               key={field.id}

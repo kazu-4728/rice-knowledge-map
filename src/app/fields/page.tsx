@@ -129,7 +129,7 @@ export default function FieldsPage() {
         )}
 
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
-          <div className="space-y-2.5">
+          <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
             {fields.map((field) => (
               <div key={field.id} className="relative rounded-2xl bg-white shadow-sm overflow-hidden">
                 <Link

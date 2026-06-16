@@ -1031,7 +1031,8 @@ export default function MapCanvas() {
           {/* 田んぼ選択中は操作カード、それ以外は常設ボトムシート */}
           {selectedField ? (
             <div className="absolute inset-x-0 bottom-0 z-30">
-              <div className="rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)]">
+              {/* PCではシートが横幅いっぱいに張り付かないよう中央寄せキャップ */}
+              <div className="mx-auto w-full max-w-md rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] md:max-w-2xl">
                 <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-gray-300" />
                 <div className="flex items-center gap-2">
                   <span className="h-3.5 w-3.5 shrink-0 rounded-sm border-2 border-white bg-green-600 shadow" />
@@ -1164,7 +1165,8 @@ export default function MapCanvas() {
       {/* ── ピン追加モード: 場所選択バナー ────────────────── */}
       {addingPin && !pendingPinLngLat && (
         <div className="absolute inset-x-0 bottom-0 z-40">
-          <div className="rounded-t-3xl bg-gray-900 px-4 pb-8 pt-4 text-center text-white shadow-2xl">
+          {/* PCではバナーを中央寄せキャップ */}
+          <div className="mx-auto w-full max-w-md rounded-t-3xl bg-gray-900 px-4 pb-8 pt-4 text-center text-white shadow-2xl md:max-w-2xl">
             <p className="text-sm font-bold">地図をタップしてピンの場所を選んでください</p>
             <button
               onClick={() => { setAddingPin(false); setPendingPinLngLat(null); }}
