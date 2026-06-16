@@ -34,6 +34,8 @@
 | — | Codex/Copilot レビュー対応（pointType URL 連携・groupId undefined 修正・pointId クリア修正） | PR #28（main マージ済み） |
 | UX作り込み/レビュー解消 | トップを王道Webランディング化（ヒーロー＋機能＋CTA・大胆Ken Burns＋スクロールパララックス）／「未対応」判定をpointTypeベースに統一／export・田んぼ詳細・未対応導線を全件ページング取得／カレンダーを単一グループに統一＋viewer書込抑止／RemotePhotoキャッシュ透明化修正 ほかCodex指摘14点 | PR #31（8bde66d・squashマージ済み 2026-06-14） |
 | Phase F | 記録詳細→「同じ田んぼ」追記導線（field/point/pointTypeをクエリ引き継ぎ）／田んぼ名・地点バッジLink化／戻るボタンrouter.back()化／マップ田んぼポリゴン→「詳細を見る」CTA／記録削除（deleteRecord+確認モーダル・記録者本人 OR owner のみ）| PR #33（5d74265・squashマージ済み 2026-06-15） |
+| レスポンシブ対応（案A） | AppShell/各画面の最外コンテナを段階的に拡張（max-w-md → md:max-w-3xl lg:max-w-5xl xl:max-w-6xl 等）／カード一覧の md:grid-cols-2 lg:grid-cols-3 化／BottomNav・ボトムシート群を中央寄せキャップ／PWA Service Worker キャッシュ名 v2 bump | PR #35（0cf3e55・squashマージ済み 2026-06-16） |
+| Codex 指摘対応 | PR #35 の Codex P2 指摘：`<AppShell fullBleed>`（`/map`）にも max-width が効いて1920pxで左右にグレー帯 → fullBleed のとき `w-full` で全幅化 | PR #36（e7e2c07・squashマージ済み 2026-06-16） |
 
 ---
 
@@ -70,10 +72,48 @@
 | U-003 | DONE | Google ログイン設定（OAuth + Supabase + Vercel 環境変数）。2026-06-12 実機ログイン成功確認 |
 | U-004 | TODO | （任意）Supabase レガシー anon キーの無効化（API Keys ページ） |
 | U-006 | TODO | 本番で実機確認（PR #33・Phase F）: ①記録詳細「追記する」が同じ田んぼ・ピンに紐づく（隣接圃場の事故防止）／②田んぼ名バッジ→`/fields/[id]`、地点バッジ→`/records?point=...`／③戻るボタンが田んぼ詳細→記録詳細の流れで田んぼに戻る／④マップ田んぼポリゴンタップ→「この田んぼの詳細を見る」CTA／⑤自分の記録の⋮メニュー→削除→田んぼ詳細に戻り対象が消える／⑥他の家族（editor）の記録には⋮が出ない／⑦owner なら他人の記録も削除可 |
+| U-007 | TODO | 本番で実機確認（PR #35/#36・レスポンシブ）: ①PC幅（1920px等）でトップ`/`が全幅ヒーロー＋Features 3カラム／②`/home`・`/fields`・`/records` が `max-w-6xl` 中央寄せでカードが2〜3列／③`/map` が**全幅**でマップが広がる（左右にグレー帯なし）／④ボトムシート群（マップのピン追加・田んぼ選択カード）が中央寄せ／⑤タブレット幅（768〜1024px）で2列レイアウト／⑥モバイルで従来通り1列（リグレッションなし）／⑦ログイン後のアドレスバーURLが想定通り（リダイレクト無し）／⑧ログイン後も各画面の幅が維持されているか（スマホ幅に戻らない） |
 
 ---
 
 ## 作業ログ
+
+### 2026-06-16 — レスポンシブ対応（PC/タブレット）PR #35＋Codex指摘対応 PR #36 マージ（ブランチ claude/ecstatic-brown-rnf9u0）
+
+ユーザーから「saas でありPCブラウザでも機能しレスポンシブに表示されるべき。今はPCブラウザでもスマホサイズで表示されている。機能を壊さずレスポンシブ対応に変更する必要がある。」の指摘 → 案A（モバイルファースト維持＋段階的拡張）で2 PR に分けて対応。
+
+**A. PR #35（0cf3e55）— 案A 段階的拡張:**
+
+- 原因: `max-w-md`（448px）が AppShell・各画面の最外コンテナにハードコードされ、`md:` / `lg:` / `sm:` / `xl:` の breakpoint prefix がコードベースに1個もなかった（grep 0 hit）。`innerWidth`/`matchMedia` 等の JS 側ブレークポイント判定もなし → **CSS 追加のみで対応可能**。
+- 最外コンテナ拡張:
+  - `AppShell.tsx`（home/map/fields/records一覧/calendar/menu 共通）: `max-w-md` → `max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl`
+  - `app/records/[id]/page.tsx`（5箇所）: `max-w-md md:max-w-2xl lg:max-w-3xl`
+  - `LoginScreen.tsx` / `InviteRedeemScreen.tsx`: `max-w-md md:max-w-lg`
+  - `ConfirmRecordScreen.tsx`: `max-w-md md:max-w-2xl lg:max-w-3xl`
+  - `app/page.tsx`（トップランディング）: 最外 max-w-md 解除＋各セクション内側で個別 max-w キャップ（hero `max-w-2xl md:max-w-3xl`、Features `max-w-6xl md:grid-cols-3`、Footer CTA `max-w-4xl md:px-12 md:py-14`、CTAボタン `sm:max-w-md`）
+- BottomNav: 内側 flex 行に `mx-auto w-full max-w-md` 追加（PC でタブが間延びしないよう中央寄せ、背景白線は全幅維持）
+- カード一覧の複数列化（共通: `grid gap-2.5 md:grid-cols-2 lg:grid-cols-3`）: HomeScreen 田んぼカード／`/fields` 一覧／`/records` 日付グループ内
+- マップのボトムシート群（PC で全幅張り付き防止）: MapBottomSheet・田んぼ選択カード・ピン追加バナーに `mx-auto w-full max-w-md md:max-w-2xl`
+- PWA Service Worker: `CACHE_NAME` を `rkm-static-v1` → `v2` に bump（古いCSSキャッシュへの保険）
+
+**B. PR #36（e7e2c07）— Codex P2 指摘対応:**
+
+- 指摘: `/map` は `<AppShell fullBleed>` でレンダリングされるが、PR #35 の `xl:max-w-6xl` キャップが fullBleed でも効いてしまい、1920px の幅広ビューポートでマップ幅 72rem に制限され左右にグレー帯が残る。
+- 対応: AppShell 最外コンテナのクラスを条件付きに変更。`fullBleed: true`（`/map`）→ `w-full`（全幅）／`fullBleed: false`（home 等）→ 従来通り段階的キャップ。
+- `fullBleed` は `/map` でのみ使用（`grep` で確認済み）。ヘッダー中央ロゴ・絶対配置のアカウントチップ/戻るボタン・WeatherHeader は全幅でも自然な配置。ボトムシート群は既に内側で `max-w-md md:max-w-2xl` キャップ済み。
+
+**進め方の記録:**
+
+- ユーザーは「先にマージして本番確認」を選択（PCネイティブ化や密度調整は後回し）。
+- PR #35 マージ後すぐに Codex から P2 指摘1件 → PR #36 で即対応 → マージ。
+- PR #35 → #36 でブランチ `claude/ecstatic-brown-rnf9u0` を再利用するため、main から切り直して `git push --force-with-lease`。マージ済み履歴は main 側に残るのでデータロスなし。
+- セルフレビュー: 両 PR で `npx tsc --noEmit` エラーなし／`npm run lint` 既存warningのみ／`npm run build` 全19ページ成功。
+
+**残（次セッション）:**
+
+- **ユーザー実機確認 U-007（最優先）**: PR #35/#36 のレスポンシブ8点（PC幅トップ／home・fields・records／map全幅／ボトムシート中央寄せ／タブレット2列／モバイル1列／ログイン後URL／ログイン後の幅維持）。特に「ログインするとスマホ幅に戻る」と報告があった件が解消するか要確認（コードにはログイン依存の幅バグなし、本番URL（旧コード）へのリダイレクトが疑われていた）。
+- 任意機能候補: 据え置き（T-051/T-052/T-053/T-054/T-048）。
+- PCのデザイン作り込み（タイポグラフィ密度・デスクトップネイティブ化）はユーザー判断待ち。
 
 ### 2026-06-15 — Phase F（記録詳細・マップ・記録削除の導線改善）PR #33 マージ（ブランチ claude/ecstatic-brown-rnf9u0 → squashマージ 5d74265）
 
