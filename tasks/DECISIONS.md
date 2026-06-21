@@ -134,3 +134,11 @@
 - 理由: CockroachDB プラグインのPostToolUseフックが `python3` を使用するが、WindowsではApp Execution Aliasがストアスタブ（python3.exe）を優先しAppData\Roamingにアクセスできないため。
 - 判断: Windowsの「アプリ実行エイリアス」設定でpython3をオフにする。これにより `python3` がPATH上の実Python（C:\Python313\python.exe等）に解決される。
 - 注意: この問題はClaude Code固有。Codex DesktopはフックシステムがないためPythonを直接呼び出さず影響を受けない。
+
+## D-023: 通常作業は別ブランチで行う
+
+- 状態: 決定
+- 理由: Claude Code と Codex Desktop が同じリポジトリで協力するため、main直作業では差分の追跡・レビュー・再開が難しくなるため。
+- 判断: 今後の通常作業は、作業開始時に別ブランチを作成して進める。mainへの直接pushは、ユーザーがその作業について明示的に許可した場合だけ行う。
+- 補足: 作業完了時は `tasks/TASKS.md` に作業ログ・残タスク・再開メモを残し、Claude Code / Codex Desktop のどちらでも続きから作業できる状態にする。
+- 今回の例外: 2026-06-21 の Map Hub Phase 1 と作業ログ追記は、ユーザーが main 直pushを明示許可したため main へ直接反映する。
