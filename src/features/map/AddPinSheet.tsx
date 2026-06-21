@@ -19,14 +19,16 @@ const ADD_TYPES: FieldPointType[] = [
 type Props = {
   /** 選択候補の田んぼ名一覧（id→name） */
   fields: { id: string; name: string }[];
+  /** 田んぼ詳細から開いた場合に初期選択する田んぼ id */
+  initialFieldId?: string | null;
   onConfirm: (params: { name: string; pointType: FieldPointType; fieldId: string | null }) => void;
   onCancel: () => void;
 };
 
-export default function AddPinSheet({ fields, onConfirm, onCancel }: Props) {
+export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCancel }: Props) {
   const [pointType, setPointType] = useState<FieldPointType>("inlet");
   const [name, setName] = useState("");
-  const [fieldId, setFieldId] = useState<string | null>(null);
+  const [fieldId, setFieldId] = useState<string | null>(initialFieldId ?? null);
 
   const defaultName = TYPE_LABELS[pointType];
 

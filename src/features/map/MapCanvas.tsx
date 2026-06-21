@@ -21,7 +21,7 @@ import {
   updateFieldPoint,
   deleteFieldPoint,
 } from "../../lib/data/farm";
-import MapBottomSheet from "./MapBottomSheet";
+import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
@@ -29,9 +29,11 @@ import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import {
-  IconChevronRight,
+  IconCamera,
   IconLocate,
+  IconMic,
   IconMinus,
+  IconPin,
   IconPinFill,
   IconPlus,
   IconWarningFill,
@@ -124,12 +126,20 @@ export default function MapCanvas() {
   const [addingPin, setAddingPin] = useState(false);
   /** ピン追加の仮座標（タップ済み） */
   const [pendingPinLngLat, setPendingPinLngLat] = useState<[number, number] | null>(null);
+  /** 田んぼ詳細から「ピン追加」した場合の初期選択田んぼ id（FAB経由は null） */
+  const [pendingPinFieldId, setPendingPinFieldId] = useState<string | null>(null);
   /** 編集対象のピン */
   const [editingPoint, setEditingPoint] = useState<FieldPoint | null>(null);
   /** マップ上のピンMarker登録簿 id → Marker */
   const pinMarkersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
-  /** サーバーから読み込んだ field 一覧（AddPinSheet 用） */
-  const [fieldList, setFieldList] = useState<{ id: string; name: string }[]>([]);
+  /** サーバーから読み込んだ field 一覧（ボトムシート・AddPinSheet 用） */
+  const [fieldList, setFieldList] = useState<FieldListItem[]>([]);
+  /** 田んぼごとの統計（ピンのステータスから集計） */
+  const [fieldStats, setFieldStats] = useState<Map<string, { pendingCount: number; lastRecord: string }>>(new Map());
+  /** 右下FABメニュー展開状態 */
+  const [fabOpen, setFabOpen] = useState(false);
+  const [fabRecordOpen, setFabRecordOpen] = useState(false);
+  const [fabAddOpen, setFabAddOpen] = useState(false);
   const locationMarkerRef = useRef<Marker | null>(null);
   const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   const farmLiveRef = useRef(false);
@@ -326,6 +336,7 @@ export default function MapCanvas() {
     if (!lngLat) return;
     setPendingPinLngLat(null);
     setAddingPin(false);
+    setPendingPinFieldId(null);
 
     const newPoint: FieldPoint = {
       id: `local-${crypto.randomUUID()}`,
@@ -572,6 +583,27 @@ export default function MapCanvas() {
   const addingPinRef = useRef(addingPin);
   addingPinRef.current = addingPin;
 
+  /** 指定 id の田んぼへフライ。serverFields / savedFields から重心を計算する */
+  const flyToField = (id: string) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const serverFeat = serverFields?.features.find(
+      (f) => String(f.id ?? f.properties?.id) === id
+    );
+    if (serverFeat?.geometry.type === "Polygon") {
+      const center = polygonCentroid(serverFeat.geometry.coordinates[0]);
+      map.flyTo({ center, zoom: Math.max(map.getZoom(), 15.5), duration: 700 });
+      return;
+    }
+    const local = savedFields.find((f) => f.id === id);
+    if (local && local.vertices.length >= 3) {
+      const center = polygonCentroid([...local.vertices, local.vertices[0]]);
+      map.flyTo({ center, zoom: Math.max(map.getZoom(), 15.5), duration: 700 });
+    }
+  };
+  const flyToFieldRef = useRef(flyToField);
+  flyToFieldRef.current = flyToField;
+
   // マップ初期化
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -590,8 +622,20 @@ export default function MapCanvas() {
         setToast("データを読み込めませんでした。通信環境を確認して開き直してください");
       }
 
-      // 参照モック同様、初期表示は先頭の地点を選択状態にする
-      setSelectedPoint(farm.points[0] ?? null);
+      // ピンのステータスから田んぼごとの統計を集計（追加API呼び出しなし）
+      {
+        const stats = new Map<string, { pendingCount: number; lastRecord: string }>();
+        farm.points.forEach((p) => {
+          if (!p.fieldId) return;
+          const existing = stats.get(p.fieldId) ?? { pendingCount: 0, lastRecord: "" };
+          if (p.status === "needs_check" || p.status === "issue") existing.pendingCount++;
+          if (p.lastRecord && p.lastRecord !== "記録なし") existing.lastRecord = p.lastRecord;
+          stats.set(p.fieldId, existing);
+        });
+        setFieldStats(stats);
+      }
+
+      // 初期表示は田んぼ一覧ボトムシート（selectedPoint/selectedField ともに null のまま）
 
       map = new maplibre.Map({
         container: mapContainerRef.current,
@@ -629,11 +673,14 @@ export default function MapCanvas() {
         if (isDrawingRef.current) return;
         if (addingPinRef.current) {
           setPendingPinLngLat([e.lngLat.lng, e.lngLat.lat]);
+          setToast(null);
           return;
         }
+        setFabOpen(false);
         const hit = findFieldAtRef.current([e.lngLat.lng, e.lngLat.lat]);
         setSelectedField(hit);
         setSelectedPoint(null);
+        if (hit) flyToFieldRef.current(hit.id);
       });
 
       map.on("load", () => {
@@ -883,13 +930,19 @@ export default function MapCanvas() {
       .filter((f) => !farmLiveRef.current || !f.id.startsWith("user-field-"))
       .map((f) => ({ id: f.id, name: f.name }));
     const seen = new Set<string>();
-    const merged = [...fromServer, ...fromLocal].filter(({ id }) => {
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
+    const merged = [...fromServer, ...fromLocal]
+      .filter(({ id }) => {
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((f) => ({
+        ...f,
+        pendingCount: fieldStats.get(f.id)?.pendingCount,
+        lastRecord: fieldStats.get(f.id)?.lastRecord,
+      }));
     setFieldList(merged);
-  }, [serverFields, savedFields]);
+  }, [serverFields, savedFields, fieldStats]);
 
   // 名前ラベル（白チップ）を全フィールドと同期（追加・名前変更・移動・削除）
   useEffect(() => {
@@ -955,29 +1008,8 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
-          {/* 未ログインの案内 */}
-          {anonMode && (
-            <Link
-              href="/login?redirect=%2Fmap"
-              className="absolute top-3 left-1/2 z-20 block w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-white px-4 py-3 shadow-lg"
-            >
-              <p className="text-sm font-bold text-gray-900">ログインすると家族の田んぼが表示されます</p>
-              <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
-            </Link>
-          )}
-
-          {/* ログイン済み・田んぼ未登録の案内 */}
-          {liveEmpty && (
-            <div className="absolute top-3 left-1/2 z-20 w-[calc(100%-24px)] max-w-sm -translate-x-1/2 rounded-xl bg-green-700 px-4 py-3 text-white shadow-lg">
-              <p className="text-sm font-bold">まだ田んぼが登録されていません</p>
-              <p className="mt-0.5 text-xs text-green-100">
-                右下の緑の＋ボタンを押して、地図上の田んぼを指でなぞると登録できます
-              </p>
-            </div>
-          )}
-
           {/* 凡例 */}
-          <div className="absolute left-3 top-3 z-10 space-y-2 rounded-xl bg-white px-2.5 py-2.5 shadow-md">
+          <div className="absolute left-3 top-3 z-10 space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
             {[
               { type: "inlet" as const, label: "入水口" },
               { type: "outlet" as const, label: "出水口" },
@@ -990,12 +1022,111 @@ export default function MapCanvas() {
             ))}
           </div>
 
-          {/* 右側コントロール（現在地・ズーム・田んぼ追加） */}
-          <div className="absolute bottom-[230px] right-3 z-10 flex flex-col items-center gap-2">
+          {/* FABバックドロップ（メニュー展開中のタップで閉じる） */}
+          {fabOpen && (
+            <div
+              className="absolute inset-0 z-[38]"
+              onClick={() => {
+                setFabOpen(false);
+                setFabRecordOpen(false);
+                setFabAddOpen(false);
+              }}
+            />
+          )}
+
+          {/* FABスピードダイアルメニュー */}
+          {fabOpen && (
+            <div className="absolute bottom-[324px] right-20 z-50 flex flex-col items-end gap-2">
+              <Link
+                href="/records?status=open"
+                onClick={() => setFabOpen(false)}
+                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-orange-50"
+              >
+                <IconWarningFill className="h-5 w-5 shrink-0 text-orange-500" />
+                未対応を見る
+              </Link>
+
+              <button
+                onClick={() => {
+                  setFabRecordOpen((v) => !v);
+                  setFabAddOpen(false);
+                }}
+                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+              >
+                <IconCamera className="h-5 w-5 shrink-0 text-green-700" />
+                記録する
+              </button>
+              {fabRecordOpen && (
+                <div className="mr-3 flex flex-col items-end gap-2 border-r border-green-200 pr-3">
+                  <Link
+                    href="/records/new"
+                    onClick={() => setFabOpen(false)}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-md transition-colors hover:bg-green-800"
+                  >
+                    <IconCamera className="h-5 w-5 shrink-0" />
+                    写真で記録
+                  </Link>
+                  <Link
+                    href="/records/new?type=audio"
+                    onClick={() => setFabOpen(false)}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+                  >
+                    <IconMic className="h-5 w-5 shrink-0 text-green-700" />
+                    音声メモ
+                  </Link>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setFabAddOpen((v) => !v);
+                  setFabRecordOpen(false);
+                }}
+                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+              >
+                <IconPlus className="h-5 w-5 shrink-0 text-green-700" />
+                追加・管理
+              </button>
+              {fabAddOpen && (
+                <div className="mr-3 flex flex-col items-end gap-2 border-r border-green-200 pr-3">
+                  <button
+                    onClick={() => {
+                      setFabOpen(false);
+                      setFabAddOpen(false);
+                      setSelectedField(null);
+                      setSelectedPoint(null);
+                      setPendingPinFieldId(null);
+                      setAddingPin(true);
+                      setToast("地図をタップしてピンの場所を選んでください");
+                    }}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+                  >
+                    <IconPin className="h-5 w-5 shrink-0 text-green-700" />
+                    ピンを追加
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFabOpen(false);
+                      setFabAddOpen(false);
+                      setLiveEmpty(false);
+                      startDraw();
+                    }}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+                  >
+                    <IconPlus className="h-5 w-5 shrink-0 text-green-700" />
+                    田んぼを追加
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 右側コントロール（現在地・ズーム・FAB） */}
+          <div className="absolute bottom-[260px] right-3 z-40 flex flex-col items-center gap-2">
             <button
               onClick={() => flyToCurrentLocation()}
               aria-label="現在地に戻る"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md hover:bg-gray-50"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50"
             >
               <IconLocate className="h-5.5 w-5.5" />
             </button>
@@ -1016,83 +1147,61 @@ export default function MapCanvas() {
                 <IconMinus className="h-5 w-5" />
               </button>
             </div>
+            {/* FAB: タップで全操作メニューを開閉 */}
             <button
               onClick={() => {
-                setLiveEmpty(false);
-                startDraw();
+                setFabOpen((v) => {
+                  if (v) {
+                    setFabRecordOpen(false);
+                    setFabAddOpen(false);
+                  }
+                  return !v;
+                });
               }}
-              aria-label="田んぼを追加"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-green-700 text-white shadow-md hover:bg-green-800"
+              aria-label={fabOpen ? "メニューを閉じる" : "操作メニューを開く"}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-green-700 text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
             >
-              <IconPlus className="h-6 w-6" strokeWidth={2.2} />
+              <IconPlus
+                className={`h-6 w-6 transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}
+                strokeWidth={2.2}
+              />
             </button>
           </div>
 
-          {/* 田んぼ選択中は操作カード、それ以外は常設ボトムシート */}
-          {selectedField ? (
-            <div className="absolute inset-x-0 bottom-0 z-30">
-              {/* PCではシートが横幅いっぱいに張り付かないよう中央寄せキャップ */}
-              <div className="mx-auto w-full max-w-md rounded-t-3xl bg-white px-4 pb-4 pt-2 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] md:max-w-2xl">
-                <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-gray-300" />
-                <div className="flex items-center gap-2">
-                  <span className="h-3.5 w-3.5 shrink-0 rounded-sm border-2 border-white bg-green-600 shadow" />
-                  <h2 className="truncate text-base font-bold text-gray-900">
-                    {selectedField.name || "名前のない田んぼ"}
-                  </h2>
-                  <button
-                    onClick={() => setSelectedField(null)}
-                    className="ml-auto shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-100"
-                  >
-                    閉じる
-                  </button>
-                </div>
-                {/* 詳細ページへ（DB保存前のローカルidは詳細ページが見つからないため出さない） */}
-                {!selectedField.id.startsWith("user-field-") && (
-                  <Link
-                    href={`/fields/${encodeURIComponent(selectedField.id)}`}
-                    className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
-                  >
-                    この田んぼの詳細を見る
-                    <IconChevronRight className="h-4 w-4" />
-                  </Link>
-                )}
-                <div className="mt-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      setRenameTarget(selectedField);
-                      setRenameValue(selectedField.name);
-                    }}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-800 transition-colors hover:bg-gray-50"
-                  >
-                    名前を変更
-                  </button>
-                  <button
-                    onClick={startRedraw}
-                    className="flex-1 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
-                  >
-                    描き直す
-                  </button>
-                  <button
-                    onClick={() => setConfirmingDelete(true)}
-                    className="flex-1 rounded-xl border border-red-300 bg-white py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50"
-                  >
-                    削除
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <MapBottomSheet
-              point={selectedPoint}
-              onAddPin={() => {
-                setSelectedField(null);
-                setSelectedPoint(null);
-                setAddingPin(true);
-                setToast("地図をタップしてピンの場所を選んでください");
-              }}
-              onEditPin={(p) => setEditingPoint(p)}
-            />
-          )}
+          {/* 統合ボトムシート（一覧 / 田んぼ詳細 / ピン詳細） */}
+          <MapBottomSheet
+            selectedPoint={selectedPoint}
+            selectedField={selectedField}
+            fieldList={fieldList}
+            anonMode={anonMode}
+            liveEmpty={liveEmpty}
+            onFieldSelect={(f) => {
+              setSelectedField(f);
+              setSelectedPoint(null);
+              flyToField(f.id);
+            }}
+            onFieldClose={() => setSelectedField(null)}
+            onAddPin={(fieldId) => {
+              setPendingPinFieldId(fieldId ?? null);
+              setSelectedField(null);
+              setSelectedPoint(null);
+              setAddingPin(true);
+              setToast("地図をタップしてピンの場所を選んでください");
+            }}
+            onEditPin={(p) => setEditingPoint(p)}
+            onStartDraw={() => {
+              setLiveEmpty(false);
+              startDraw();
+            }}
+            onRenameField={() => {
+              if (selectedField) {
+                setRenameTarget(selectedField);
+                setRenameValue(selectedField.name);
+              }
+            }}
+            onRedrawField={startRedraw}
+            onDeleteField={() => setConfirmingDelete(true)}
+          />
         </>
       )}
 
@@ -1169,7 +1278,7 @@ export default function MapCanvas() {
           <div className="mx-auto w-full max-w-md rounded-t-3xl bg-gray-900 px-4 pb-8 pt-4 text-center text-white shadow-2xl md:max-w-2xl">
             <p className="text-sm font-bold">地図をタップしてピンの場所を選んでください</p>
             <button
-              onClick={() => { setAddingPin(false); setPendingPinLngLat(null); }}
+              onClick={() => { setAddingPin(false); setPendingPinLngLat(null); setPendingPinFieldId(null); }}
               className="mt-3 rounded-xl border border-gray-600 px-6 py-2.5 text-sm font-semibold text-gray-300"
             >
               キャンセル
@@ -1182,8 +1291,9 @@ export default function MapCanvas() {
       {pendingPinLngLat && (
         <AddPinSheet
           fields={fieldList}
+          initialFieldId={pendingPinFieldId}
           onConfirm={handleAddPinConfirm}
-          onCancel={() => { setPendingPinLngLat(null); setAddingPin(false); }}
+          onCancel={() => { setPendingPinLngLat(null); setAddingPin(false); setPendingPinFieldId(null); }}
         />
       )}
 
@@ -1199,7 +1309,7 @@ export default function MapCanvas() {
 
       {/* 保存結果トースト */}
       {toast && (
-        <div className="absolute bottom-[240px] left-1/2 z-40 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
+        <div className="absolute left-1/2 top-3 z-50 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
           {toast}
         </div>
       )}

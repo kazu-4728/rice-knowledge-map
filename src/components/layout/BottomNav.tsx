@@ -15,6 +15,8 @@ const tabs = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  if (pathname === "/map") return null;
+
   return (
     <nav className="shrink-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
       {/* PC幅でタブ間隔が間延びしないよう中央寄せキャップ。モバイル列幅はそのまま */}
