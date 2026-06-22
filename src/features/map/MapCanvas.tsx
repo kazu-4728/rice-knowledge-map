@@ -22,6 +22,7 @@ import {
   deleteFieldPoint,
 } from "../../lib/data/farm";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
+import FieldSearchSheet from "./FieldSearchSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
@@ -33,9 +34,9 @@ import {
   IconLocate,
   IconMic,
   IconMinus,
-  IconPin,
   IconPinFill,
   IconPlus,
+  IconSearch,
   IconWarningFill,
 } from "../../components/ui/icons";
 
@@ -136,10 +137,10 @@ export default function MapCanvas() {
   const [fieldList, setFieldList] = useState<FieldListItem[]>([]);
   /** 田んぼごとの統計（ピンのステータスから集計） */
   const [fieldStats, setFieldStats] = useState<Map<string, { pendingCount: number; lastRecord: string }>>(new Map());
-  /** 右下FABメニュー展開状態 */
-  const [fabOpen, setFabOpen] = useState(false);
-  const [fabRecordOpen, setFabRecordOpen] = useState(false);
-  const [fabAddOpen, setFabAddOpen] = useState(false);
+  /** 田んぼ検索シートの開閉 */
+  const [searchOpen, setSearchOpen] = useState(false);
+  /** 記録ボタンのポップオーバー */
+  const [recordPopOpen, setRecordPopOpen] = useState(false);
   const locationMarkerRef = useRef<Marker | null>(null);
   const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   const farmLiveRef = useRef(false);
@@ -676,7 +677,7 @@ export default function MapCanvas() {
           setToast(null);
           return;
         }
-        setFabOpen(false);
+        setRecordPopOpen(false);
         const hit = findFieldAtRef.current([e.lngLat.lng, e.lngLat.lat]);
         setSelectedField(hit);
         setSelectedPoint(null);
@@ -1008,121 +1009,31 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
-          {/* 凡例 */}
-          <div className="absolute left-3 top-3 z-10 space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
-            {[
-              { type: "inlet" as const, label: "入水口" },
-              { type: "outlet" as const, label: "出水口" },
-              { type: "caution" as const, label: "異常箇所" },
-            ].map((item) => (
-              <div key={item.type} className="flex items-center gap-1.5">
-                <IconPinFill className="h-5 w-5" style={{ color: PIN_COLORS[item.type] }} />
-                <span className="text-xs font-medium text-gray-700">{item.label}</span>
-              </div>
-            ))}
+          {/* 上部ボタン: 田んぼを探す + 凡例 */}
+          <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+            >
+              <IconSearch className="h-4.5 w-4.5 text-gray-500" />
+              田んぼを探す
+            </button>
+            <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
+              {[
+                { type: "inlet" as const, label: "入水口" },
+                { type: "outlet" as const, label: "出水口" },
+                { type: "caution" as const, label: "異常箇所" },
+              ].map((item) => (
+                <div key={item.type} className="flex items-center gap-1.5">
+                  <IconPinFill className="h-5 w-5" style={{ color: PIN_COLORS[item.type] }} />
+                  <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* FABバックドロップ（メニュー展開中のタップで閉じる） */}
-          {fabOpen && (
-            <div
-              className="absolute inset-0 z-[38]"
-              onClick={() => {
-                setFabOpen(false);
-                setFabRecordOpen(false);
-                setFabAddOpen(false);
-              }}
-            />
-          )}
-
-          {/* FABスピードダイアルメニュー */}
-          {fabOpen && (
-            <div className="absolute bottom-[324px] right-20 z-50 flex flex-col items-end gap-2">
-              <Link
-                href="/records?status=open"
-                onClick={() => setFabOpen(false)}
-                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-orange-50"
-              >
-                <IconWarningFill className="h-5 w-5 shrink-0 text-orange-500" />
-                未対応を見る
-              </Link>
-
-              <button
-                onClick={() => {
-                  setFabRecordOpen((v) => !v);
-                  setFabAddOpen(false);
-                }}
-                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-              >
-                <IconCamera className="h-5 w-5 shrink-0 text-green-700" />
-                記録する
-              </button>
-              {fabRecordOpen && (
-                <div className="mr-3 flex flex-col items-end gap-2 border-r border-green-200 pr-3">
-                  <Link
-                    href="/records/new"
-                    onClick={() => setFabOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-md transition-colors hover:bg-green-800"
-                  >
-                    <IconCamera className="h-5 w-5 shrink-0" />
-                    写真で記録
-                  </Link>
-                  <Link
-                    href="/records/new?type=audio"
-                    onClick={() => setFabOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-                  >
-                    <IconMic className="h-5 w-5 shrink-0 text-green-700" />
-                    音声メモ
-                  </Link>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  setFabAddOpen((v) => !v);
-                  setFabRecordOpen(false);
-                }}
-                className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-              >
-                <IconPlus className="h-5 w-5 shrink-0 text-green-700" />
-                追加・管理
-              </button>
-              {fabAddOpen && (
-                <div className="mr-3 flex flex-col items-end gap-2 border-r border-green-200 pr-3">
-                  <button
-                    onClick={() => {
-                      setFabOpen(false);
-                      setFabAddOpen(false);
-                      setSelectedField(null);
-                      setSelectedPoint(null);
-                      setPendingPinFieldId(null);
-                      setAddingPin(true);
-                      setToast("地図をタップしてピンの場所を選んでください");
-                    }}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-                  >
-                    <IconPin className="h-5 w-5 shrink-0 text-green-700" />
-                    ピンを追加
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFabOpen(false);
-                      setFabAddOpen(false);
-                      setLiveEmpty(false);
-                      startDraw();
-                    }}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-                  >
-                    <IconPlus className="h-5 w-5 shrink-0 text-green-700" />
-                    田んぼを追加
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 右側コントロール（現在地・ズーム・FAB） */}
-          <div className="absolute bottom-[260px] right-3 z-40 flex flex-col items-center gap-2">
+          {/* 右側コントロール（現在地・ズーム） */}
+          <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-2">
             <button
               onClick={() => flyToCurrentLocation()}
               aria-label="現在地に戻る"
@@ -1147,39 +1058,68 @@ export default function MapCanvas() {
                 <IconMinus className="h-5 w-5" />
               </button>
             </div>
-            {/* FAB: タップで全操作メニューを開閉 */}
-            <button
-              onClick={() => {
-                setFabOpen((v) => {
-                  if (v) {
-                    setFabRecordOpen(false);
-                    setFabAddOpen(false);
-                  }
-                  return !v;
-                });
-              }}
-              aria-label={fabOpen ? "メニューを閉じる" : "操作メニューを開く"}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-green-700 text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
-            >
-              <IconPlus
-                className={`h-6 w-6 transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}
-                strokeWidth={2.2}
-              />
-            </button>
           </div>
 
-          {/* 統合ボトムシート（一覧 / 田んぼ詳細 / ピン詳細） */}
+          {/* 記録ボタン（下部中央） — 田んぼ/ピン選択時はシート内CTAに譲って非表示 */}
+          {!selectedField && !selectedPoint && (
+            <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+              {recordPopOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
+                  <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
+                    <Link
+                      href="/records/new"
+                      onClick={() => setRecordPopOpen(false)}
+                      className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
+                    >
+                      <IconCamera className="h-5 w-5 shrink-0" />
+                      写真で記録
+                    </Link>
+                    <Link
+                      href="/records/new?type=audio"
+                      onClick={() => setRecordPopOpen(false)}
+                      className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
+                    >
+                      <IconMic className="h-5 w-5 shrink-0 text-green-700" />
+                      音声メモ
+                    </Link>
+                  </div>
+                </>
+              )}
+              <button
+                onClick={() => setRecordPopOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
+              >
+                <IconCamera className="h-5 w-5" />
+                記録する
+              </button>
+            </div>
+          )}
+
+          {/* 田んぼ検索シート */}
+          {searchOpen && (
+            <FieldSearchSheet
+              fieldList={fieldList}
+              anonMode={anonMode}
+              liveEmpty={liveEmpty}
+              loaded={serverFields !== null}
+              onFieldSelect={(f) => {
+                setSelectedField(f);
+                setSelectedPoint(null);
+                flyToField(f.id);
+              }}
+              onStartDraw={() => {
+                setLiveEmpty(false);
+                startDraw();
+              }}
+              onClose={() => setSearchOpen(false)}
+            />
+          )}
+
+          {/* 田んぼ詳細 / ピン詳細 ボトムシート */}
           <MapBottomSheet
             selectedPoint={selectedPoint}
             selectedField={selectedField}
-            fieldList={fieldList}
-            anonMode={anonMode}
-            liveEmpty={liveEmpty}
-            onFieldSelect={(f) => {
-              setSelectedField(f);
-              setSelectedPoint(null);
-              flyToField(f.id);
-            }}
             onFieldClose={() => setSelectedField(null)}
             onAddPin={(fieldId) => {
               setPendingPinFieldId(fieldId ?? null);
@@ -1189,10 +1129,6 @@ export default function MapCanvas() {
               setToast("地図をタップしてピンの場所を選んでください");
             }}
             onEditPin={(p) => setEditingPoint(p)}
-            onStartDraw={() => {
-              setLiveEmpty(false);
-              startDraw();
-            }}
             onRenameField={() => {
               if (selectedField) {
                 setRenameTarget(selectedField);
