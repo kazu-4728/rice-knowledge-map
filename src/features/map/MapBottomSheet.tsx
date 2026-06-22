@@ -11,7 +11,6 @@ import {
   IconDropFill,
   IconPin,
   IconPinFill,
-  IconPlus,
 } from "../../components/ui/icons";
 
 const STATUS_CHIP: Record<string, string> = {
@@ -31,14 +30,9 @@ export type FieldListItem = {
 type Props = {
   selectedPoint: FieldPoint | null;
   selectedField: { id: string; name: string } | null;
-  fieldList: FieldListItem[];
-  anonMode: boolean;
-  liveEmpty: boolean;
-  onFieldSelect: (field: FieldListItem) => void;
   onFieldClose: () => void;
   onAddPin: (fieldId?: string | null) => void;
   onEditPin: (point: FieldPoint) => void;
-  onStartDraw: () => void;
   onRenameField: () => void;
   onRedrawField: () => void;
   onDeleteField: () => void;
@@ -47,14 +41,9 @@ type Props = {
 export default function MapBottomSheet({
   selectedPoint,
   selectedField,
-  fieldList,
-  anonMode,
-  liveEmpty,
-  onFieldSelect,
   onFieldClose,
   onAddPin,
   onEditPin,
-  onStartDraw,
   onRenameField,
   onRedrawField,
   onDeleteField,
@@ -65,7 +54,7 @@ export default function MapBottomSheet({
     setShowEdit(false);
   }, [selectedField?.id]);
 
-  const mode = selectedPoint ? "pin" : selectedField ? "field" : "list";
+  if (!selectedPoint && !selectedField) return null;
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none">
@@ -74,7 +63,7 @@ export default function MapBottomSheet({
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
 
           {/* ── ピン詳細 ── */}
-          {mode === "pin" && selectedPoint && (
+          {selectedPoint && (
             <>
               <div className="mb-2 flex items-center gap-2">
                 <IconPinFill
@@ -126,7 +115,7 @@ export default function MapBottomSheet({
           )}
 
           {/* ── 田んぼ詳細 ── */}
-          {mode === "field" && selectedField && (
+          {!selectedPoint && selectedField && (
             <>
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm bg-green-600 shadow-sm" />
@@ -137,7 +126,7 @@ export default function MapBottomSheet({
                   onClick={onFieldClose}
                   className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
-                  一覧へ
+                  閉じる
                 </button>
               </div>
 
@@ -208,83 +197,6 @@ export default function MapBottomSheet({
                     削除
                   </button>
                 </div>
-              )}
-            </>
-          )}
-
-          {/* ── 田んぼ一覧 ── */}
-          {mode === "list" && (
-            <>
-              {anonMode ? (
-                <Link
-                  href="/login?redirect=%2Fmap"
-                  className="flex items-center justify-between rounded-xl bg-green-700 px-4 py-3.5 text-white transition-colors hover:bg-green-800"
-                >
-                  <div>
-                    <p className="text-sm font-bold">ログインして田んぼを管理</p>
-                    <p className="mt-0.5 text-xs text-green-100">家族と記録を共有できます</p>
-                  </div>
-                  <IconChevronRight className="h-5 w-5 shrink-0" />
-                </Link>
-              ) : liveEmpty ? (
-                <>
-                  <p className="text-sm font-bold text-gray-900">まず田んぼを登録しましょう</p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    右下の ＋ ボタンから地図をなぞって登録できます
-                  </p>
-                  <button
-                    onClick={onStartDraw}
-                    className="mt-3 w-full rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
-                  >
-                    田んぼを登録する
-                  </button>
-                </>
-              ) : fieldList.length === 0 ? (
-                <p className="py-2 text-center text-sm text-gray-400">読み込み中…</p>
-              ) : (
-                <>
-                  <div className="mb-3">
-                    <p className="text-sm font-bold text-gray-900">田んぼを選ぶ</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      登録済みの田んぼを選ぶと、地図がその場所へ移動します
-                    </p>
-                  </div>
-                  <ul className="-mx-1 max-h-48 space-y-0.5 overflow-y-auto px-1">
-                    {fieldList.map((f) => (
-                      <li key={f.id}>
-                        <button
-                          onClick={() => onFieldSelect(f)}
-                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-green-50 active:bg-green-100"
-                        >
-                          <span className="h-3.5 w-3.5 shrink-0 rounded-sm bg-green-600" />
-                          <span className="flex-1 truncate text-sm font-semibold text-gray-900">
-                            {f.name || "名前のない田んぼ"}
-                          </span>
-                          {f.pendingCount != null && f.pendingCount > 0 && (
-                            <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
-                              未対応 {f.pendingCount}
-                            </span>
-                          )}
-                          {f.lastRecord && f.lastRecord !== "記録なし" && (
-                            <span className="hidden shrink-0 text-xs text-gray-400 sm:block">
-                              {f.lastRecord}
-                            </span>
-                          )}
-                          <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-3 border-t border-gray-100 pt-3">
-                    <button
-                      onClick={onStartDraw}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-green-500 bg-green-50 py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-100"
-                    >
-                      <IconPlus className="h-4 w-4" />
-                      一覧にない田んぼを登録する
-                    </button>
-                  </div>
-                </>
               )}
             </>
           )}
