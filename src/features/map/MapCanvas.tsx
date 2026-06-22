@@ -1102,6 +1102,7 @@ export default function MapCanvas() {
               fieldList={fieldList}
               anonMode={anonMode}
               liveEmpty={liveEmpty}
+              loaded={serverFields !== null}
               onFieldSelect={(f) => {
                 setSelectedField(f);
                 setSelectedPoint(null);

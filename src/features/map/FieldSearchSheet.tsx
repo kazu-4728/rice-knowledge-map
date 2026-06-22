@@ -12,6 +12,7 @@ type Props = {
   fieldList: FieldListItem[];
   anonMode: boolean;
   liveEmpty: boolean;
+  loaded: boolean;
   onFieldSelect: (field: FieldListItem) => void;
   onStartDraw: () => void;
   onClose: () => void;
@@ -21,6 +22,7 @@ export default function FieldSearchSheet({
   fieldList,
   anonMode,
   liveEmpty,
+  loaded,
   onFieldSelect,
   onStartDraw,
   onClose,
@@ -94,7 +96,9 @@ export default function FieldSearchSheet({
 
               {/* 田んぼ一覧 */}
               {fieldList.length === 0 ? (
-                <p className="py-4 text-center text-sm text-gray-400">読み込み中…</p>
+                <p className="py-4 text-center text-sm text-gray-400">
+                  {loaded ? "登録された田んぼはありません" : "読み込み中…"}
+                </p>
               ) : filtered.length === 0 ? (
                 <p className="py-4 text-center text-sm text-gray-400">
                   「{query}」に一致する田んぼはありません
