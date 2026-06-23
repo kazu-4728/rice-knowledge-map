@@ -30,7 +30,7 @@ export default function AppShell({
   const { drawerOpen, setDrawerOpen } = useDrawer();
 
   return (
-    <div className="flex h-dvh w-full">
+    <div className="flex h-dvh w-full print:block print:h-auto">
       {/* PC left sidebar (lg+) */}
       <SideNav />
 
@@ -41,16 +41,6 @@ export default function AppShell({
         {showHeader && (
           <>
             <header className="relative flex items-center justify-center h-14 bg-white shrink-0 border-b border-gray-100 print:hidden">
-              {/* mobile hamburger — hidden when back button is shown, hidden on lg+ */}
-              {!backDynamic && !backHref && (
-                <button
-                  onClick={() => setDrawerOpen(true)}
-                  aria-label="メニューを開く"
-                  className="absolute left-2 flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
-                >
-                  <IconMenu className="h-5.5 w-5.5" />
-                </button>
-              )}
               {backDynamic && <BackButton label={backLabel} />}
               {!backDynamic && backHref && (
                 <Link
@@ -61,6 +51,14 @@ export default function AppShell({
                   {backLabel}
                 </Link>
               )}
+              {/* mobile hamburger — on right when back button present, on left otherwise; hidden on lg+ */}
+              <button
+                onClick={() => setDrawerOpen(true)}
+                aria-label="メニューを開く"
+                className={`absolute flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden ${backDynamic || backHref ? "right-12" : "left-2"}`}
+              >
+                <IconMenu className="h-5.5 w-5.5" />
+              </button>
               <div className="flex items-center gap-1.5">
                 <LogoRice className="w-7 h-7" />
                 <span className="text-green-700 font-bold text-lg tracking-tight">

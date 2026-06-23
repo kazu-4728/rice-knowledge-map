@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [isAnon, setIsAnon] = useState(false);
 
@@ -56,6 +57,7 @@ export default function HomeScreen() {
     loadRecords().then((data) => {
       setRecentRecords(data.records.slice(0, 8));
       setThumbUrls(data.thumbUrls);
+      setRecordsLoaded(true);
     });
   }, []);
 
@@ -146,7 +148,7 @@ export default function HomeScreen() {
         </div>
         {recentRecords.length === 0 ? (
           <p className="px-4 pb-4 text-sm text-gray-400">
-            {loaded ? "まだ記録がありません" : "読み込み中…"}
+            {recordsLoaded ? "まだ記録がありません" : "読み込み中…"}
           </p>
         ) : (
           <ul className="px-4 pb-3">
@@ -189,64 +191,78 @@ export default function HomeScreen() {
       </section>
 
       {/* 田んぼ概要 */}
-      <section className="rounded-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between p-4 pb-2">
-          <h2 className="text-base font-bold text-gray-900">田んぼ</h2>
+      {isAnon ? (
+        <section className="rounded-2xl bg-white p-5 text-center shadow-sm">
+          <p className="text-sm font-bold text-gray-900">
+            ログインすると田んぼ情報が表示されます
+          </p>
           <Link
-            href="/fields"
-            className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
+            href="/login?redirect=%2Fhome"
+            className="mt-1 inline-block text-sm font-bold text-green-700"
           >
-            一覧
-            <IconChevronRight className="h-4 w-4" />
+            タップしてログイン
           </Link>
-        </div>
-        {!loaded ? (
-          <p className="px-4 pb-4 text-sm text-gray-400">読み込み中…</p>
-        ) : loadError ? (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-gray-500">
-              田んぼを読み込めませんでした。通信環境を確認して開き直してください。
-            </p>
-          </div>
-        ) : fields.length === 0 ? (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-gray-400">
-              まだ田んぼが登録されていません
-            </p>
+        </section>
+      ) : (
+        <section className="rounded-2xl bg-white shadow-sm">
+          <div className="flex items-center justify-between p-4 pb-2">
+            <h2 className="text-base font-bold text-gray-900">田んぼ</h2>
             <Link
-              href="/map"
-              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-green-700"
+              href="/fields"
+              className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
             >
-              マップで登録する
+              一覧
               <IconChevronRight className="h-4 w-4" />
             </Link>
           </div>
-        ) : (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-gray-600">
-              登録済み: <span className="font-bold">{fields.length}枚</span>
-            </p>
-            <ul className="mt-2 space-y-1">
-              {fields.slice(0, 5).map((f) => (
-                <li key={f.id}>
-                  <Link
-                    href={`/fields/${encodeURIComponent(f.id)}`}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-green-600" />
-                    <span className="truncate">{f.name || "名前のない田んぼ"}</span>
-                  </Link>
-                </li>
-              ))}
-              {fields.length > 5 && (
-                <li className="px-2 text-xs text-gray-400">
-                  ほか{fields.length - 5}枚
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-      </section>
+          {!loaded ? (
+            <p className="px-4 pb-4 text-sm text-gray-400">読み込み中…</p>
+          ) : loadError ? (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-gray-500">
+                田んぼを読み込めませんでした。通信環境を確認して開き直してください。
+              </p>
+            </div>
+          ) : fields.length === 0 ? (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-gray-400">
+                まだ田んぼが登録されていません
+              </p>
+              <Link
+                href="/map"
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-green-700"
+              >
+                マップで登録する
+                <IconChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-gray-600">
+                登録済み: <span className="font-bold">{fields.length}枚</span>
+              </p>
+              <ul className="mt-2 space-y-1">
+                {fields.slice(0, 5).map((f) => (
+                  <li key={f.id}>
+                    <Link
+                      href={`/fields/${encodeURIComponent(f.id)}`}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-green-600" />
+                      <span className="truncate">{f.name || "名前のない田んぼ"}</span>
+                    </Link>
+                  </li>
+                ))}
+                {fields.length > 5 && (
+                  <li className="px-2 text-xs text-gray-400">
+                    ほか{fields.length - 5}枚
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
