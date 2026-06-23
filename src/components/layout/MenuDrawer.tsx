@@ -4,30 +4,12 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../../features/auth/useAuth";
+import { NAV_ITEMS, isNavActive } from "./navItems";
 import {
-  IconCalendar,
   IconClose,
-  IconDocDown,
-  IconFieldGrid,
-  IconGear,
-  IconHome,
-  IconMap,
-  IconPencil,
-  IconSprout,
   IconUser,
   LogoRice,
 } from "../ui/icons";
-
-const NAV_ITEMS = [
-  { href: "/map", label: "マップ", Icon: IconMap },
-  { href: "/home", label: "状況", Icon: IconHome },
-  { href: "/records", label: "記録一覧", Icon: IconPencil },
-  { href: "/fields", label: "田んぼ一覧", Icon: IconFieldGrid },
-  { href: "/calendar", label: "カレンダー", Icon: IconCalendar },
-  { href: "/export", label: "エクスポート", Icon: IconDocDown },
-  { href: "/guide", label: "使い方", Icon: IconSprout },
-  { href: "/menu", label: "設定", Icon: IconGear },
-] as const;
 
 type Props = {
   open: boolean;
@@ -85,10 +67,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
         {/* nav links */}
         <div className="flex-1 overflow-y-auto px-2 py-3">
           {NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active =
-              href === "/home"
-                ? pathname === "/home"
-                : pathname === href || pathname.startsWith(href + "/");
+            const active = isNavActive(href, pathname);
             return (
               <Link
                 key={href}
