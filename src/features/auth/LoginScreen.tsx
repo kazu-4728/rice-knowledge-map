@@ -12,8 +12,8 @@ const GOOGLE_LOGIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN === "1"
 
 /** アプリ内パス（"/"始まり・"//"等の外部URL形式は不可）のみ許可する */
 function sanitizeRedirect(raw: string | null): string {
-  if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  if (!raw) return "/map";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/map";
   return raw;
 }
 
