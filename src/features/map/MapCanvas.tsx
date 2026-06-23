@@ -29,9 +29,11 @@ import AddPinSheet from "./AddPinSheet";
 import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import { useDrawer } from "../../components/layout/DrawerContext";
 import {
   IconCamera,
   IconLocate,
+  IconMenu,
   IconMic,
   IconMinus,
   IconPinFill,
@@ -110,6 +112,7 @@ function polygonCentroid(coords: number[][]): [number, number] {
 }
 
 export default function MapCanvas() {
+  const { setDrawerOpen } = useDrawer();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
@@ -1009,15 +1012,25 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
-          {/* 上部ボタン: 田んぼを探す + 凡例 */}
+          {/* 上部ボタン: ≡ + 田んぼを探す + 凡例 */}
           <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
-            >
-              <IconSearch className="h-4.5 w-4.5 text-gray-500" />
-              田んぼを探す
-            </button>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              {/* mobile ≡ button (hidden on lg+ where SideNav is visible) */}
+              <button
+                onClick={() => setDrawerOpen(true)}
+                aria-label="メニューを開く"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50 lg:hidden"
+              >
+                <IconMenu className="h-5.5 w-5.5" />
+              </button>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+              >
+                <IconSearch className="h-4.5 w-4.5 text-gray-500" />
+                田んぼを探す
+              </button>
+            </div>
             <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
               {[
                 { type: "inlet" as const, label: "入水口" },

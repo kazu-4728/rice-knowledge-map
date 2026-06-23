@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useAuth } from "../../features/auth/useAuth";
 import { IconUserFill } from "../ui/icons";
 
-/** ヘッダー右上のログイン状態表示。未ログインなら「ログイン」、ログイン中はアカウントアイコン */
 export default function HeaderAccountChip() {
   const { configured, loading, session } = useAuth();
 
@@ -23,9 +22,9 @@ export default function HeaderAccountChip() {
 
   return (
     <Link
-      href="/menu"
+      href="/menu/site"
       aria-label="アカウント"
-      className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200"
+      className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200 lg:hidden"
     >
       <IconUserFill className="h-5 w-5" />
     </Link>
