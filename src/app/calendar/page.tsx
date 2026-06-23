@@ -3,7 +3,7 @@ import CalendarScreen from "../../features/calendar/CalendarScreen";
 
 export default function CalendarPage() {
   return (
-    <AppShell backDynamic backLabel="戻る">
+    <AppShell>
       <CalendarScreen />
     </AppShell>
   );

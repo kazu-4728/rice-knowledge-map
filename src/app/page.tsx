@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "../features/auth/useAuth";
 import { loadSiteContent, type HeroSlide } from "../lib/data/siteContent";
 import { PaddyPhoto } from "../components/ui/PaddyPhoto";
 import {
@@ -100,11 +101,17 @@ function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
 
 export default function LandingPage() {
   const router = useRouter();
+  const { loading, session } = useAuth();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // ヒーローの各スライドは下で <img> として描画され即時読み込みされるため、別途の手動プリロードは不要
+    if (!loading && session) {
+      router.replace("/map");
+    }
+  }, [loading, session, router]);
+
+  useEffect(() => {
     loadSiteContent().then((r) => {
       setSlides(r.slides);
       requestAnimationFrame(() => setReady(true));
@@ -112,7 +119,7 @@ export default function LandingPage() {
   }, []);
 
   const enter = () => {
-    router.push("/home");
+    router.push("/map");
   };
 
   const hero = slides[0];

@@ -3,7 +3,7 @@ import MapScreen from "../../features/map/MapScreen";
 
 export default function MapPage() {
   return (
-    <AppShell fullBleed>
+    <AppShell fullBleed showHeader={false}>
       <MapScreen />
     </AppShell>
   );

@@ -67,7 +67,7 @@ export default function ExportPage() {
     : fields.find((f) => f.id === selectedFieldId)?.name ?? "不明";
 
   return (
-    <AppShell backDynamic backLabel="戻る">
+    <AppShell>
       <div className="space-y-4 px-3 pb-8 pt-3 print:hidden">
         <h1 className="text-xl font-bold text-gray-900">記録エクスポート</h1>
 

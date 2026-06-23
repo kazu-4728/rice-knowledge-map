@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "../components/pwa/PwaRegister";
+import { DrawerProvider } from "../components/layout/DrawerContext";
 import { ToastProvider } from "../components/ui/Toast";
 import "../styles/globals.css";
 
@@ -29,9 +30,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body className="bg-gray-200 text-gray-900 antialiased">
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <DrawerProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </DrawerProvider>
         <PwaRegister />
       </body>
     </html>
