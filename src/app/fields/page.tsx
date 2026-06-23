@@ -84,7 +84,7 @@ export default function FieldsPage() {
   };
 
   return (
-    <AppShell backDynamic backLabel="戻る">
+    <AppShell>
       <div className="space-y-3 px-3 pb-6 pt-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
