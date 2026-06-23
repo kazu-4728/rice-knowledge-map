@@ -37,6 +37,7 @@
 | レスポンシブ対応（案A） | AppShell/各画面の最外コンテナを段階的に拡張（max-w-md → md:max-w-3xl lg:max-w-5xl xl:max-w-6xl 等）／カード一覧の md:grid-cols-2 lg:grid-cols-3 化／BottomNav・ボトムシート群を中央寄せキャップ／PWA Service Worker キャッシュ名 v2 bump | PR #35（0cf3e55・squashマージ済み 2026-06-16） |
 | Codex 指摘対応 | PR #35 の Codex P2 指摘：`<AppShell fullBleed>`（`/map`）にも max-width が効いて1920pxで左右にグレー帯 → fullBleed のとき `w-full` で全幅化 | PR #36（e7e2c07・squashマージ済み 2026-06-16） |
 | Map Hub Phase 1 | `/map` を初期導線の中心に変更。実画像マップ全画面化、田んぼ一覧ボトムシート、田んぼ選択/登録CTA、折りたたみFAB、田んぼ詳細/ピン詳細の導線整理 | main直push（22fd0c5・2026-06-21） |
+| UI/UXリデザイン | BottomNav・FAB廃止→MenuDrawer（モバイル）＋SideNav（PC lg以上）の2系統ナビ。DrawerContext共有・AppShellハンバーガー・navItems.ts一元化。`/home`をステータスダッシュボードに再定義。PCマップ横にMapDetailPanel常時表示。signOutで`/login`へページ遷移。Codex 3ラウンド計11件P2すべて対応 | PR #38（77ae814・squashマージ済み 2026-06-23） |
 
 ---
 
@@ -79,10 +80,62 @@
 | U-006 | TODO | 本番で実機確認（PR #33・Phase F）: ①記録詳細「追記する」が同じ田んぼ・ピンに紐づく（隣接圃場の事故防止）／②田んぼ名バッジ→`/fields/[id]`、地点バッジ→`/records?point=...`／③戻るボタンが田んぼ詳細→記録詳細の流れで田んぼに戻る／④マップ田んぼポリゴンタップ→「この田んぼの詳細を見る」CTA／⑤自分の記録の⋮メニュー→削除→田んぼ詳細に戻り対象が消える／⑥他の家族（editor）の記録には⋮が出ない／⑦owner なら他人の記録も削除可 |
 | U-007 | TODO | 本番で実機確認（PR #35/#36・レスポンシブ）: ①PC幅（1920px等）でトップ`/`が全幅ヒーロー＋Features 3カラム／②`/home`・`/fields`・`/records` が `max-w-6xl` 中央寄せでカードが2〜3列／③`/map` が**全幅**でマップが広がる（左右にグレー帯なし）／④ボトムシート群（マップのピン追加・田んぼ選択カード）が中央寄せ／⑤タブレット幅（768〜1024px）で2列レイアウト／⑥モバイルで従来通り1列（リグレッションなし）／⑦ログイン後のアドレスバーURLが想定通り（リダイレクト無し）／⑧ログイン後も各画面の幅が維持されているか（スマホ幅に戻らない） |
 | U-008 | TODO | 本番で実機確認（Map Hub Phase 1）: ①`/map` 初期表示でフッターなし・田んぼ一覧ボトムシートが出る／②田んぼタップで該当田んぼへ移動し詳細シートになる／③「一覧にない田んぼを登録する」からなぞり描き登録へ進める／④FABは初期状態で写真/音声/ピン追加が露出せず、カテゴリを開いた時だけ表示される／⑤田んぼ詳細→ピン追加で田んぼが初期選択される |
+| U-009 | TODO | 本番で実機確認（PR #38・UI/UXリデザイン）: ①モバイルでハンバーガー→MenuDrawerが開き全ナビ項目が表示される／②PC（lg以上）で左SideNavが常時表示される／③`/map` でPCの場合は右側にMapDetailPanelが出る／④ログアウト→`/login` に遷移しReact状態がクリアされる／⑤未ログイン時に`/home`で「ログインすると田んぼ情報が表示されます」と出る（「未登録」ではない）／⑥印刷時にSideNav/MenuDrawer/ヘッダーが消えコンテンツのみ印刷される／⑦戻るボタン付きページでもハンバーガーが表示される（右寄せ）／⑧記録一覧が空の時にモード別メッセージ（読み込み中/未ログイン/エラー/空）が適切に表示される |
 
 ---
 
 ## 作業ログ
+
+### 2026-06-23 — UI/UXリデザイン PR #38（squashマージ 77ae814・ブランチ claude/zealous-cerf-senlzg）
+
+ユーザーから「BottomNav を MenuDrawer + SideNav に置き換え、/map を主導線にし /home をステータスダッシュボードにする」方針で PR #38 を作成。Codex レビュー3ラウンド（計11件 P2）すべて対応し、ナビ定義の一元化も実施。
+
+**A. ナビ体系の全面移行:**
+
+- `BottomNav.tsx` と `FAB.tsx` を削除。代わりに `MenuDrawer.tsx`（モバイル用スライドイン）と `SideNav.tsx`（PC lg以上で常時表示）を新設。
+- `DrawerContext.tsx` を新設し、AppShell のハンバーガーボタンから MenuDrawer の開閉状態を共有。
+- `navItems.ts` を新設し、8項目のナビ定義（`NAV_ITEMS`）と `isNavActive()` を一元化。MenuDrawer・SideNav の両方がこれを参照。
+- AppShell のハンバーガーは常時表示（戻るボタンがあるときは `right-12`、ないときは `left-2`）。`lg:hidden` で PC では非表示。
+- `HeaderAccountChip` に `hasBack` prop を追加し、戻るボタン＋未ログイン時にログインボタンを隠してハンバーガーとの重なりを防止。
+
+**B. 画面の役割再定義:**
+
+- `/map`（`MapCanvas.tsx`）: PC では右側に `MapDetailPanel.tsx`（新設）を常時表示（田んぼ一覧・選択時の詳細・ピン一覧）。モバイルではボトムシートのまま。
+- `/home`（`HomeScreen.tsx`）: ステータスダッシュボード化。未対応異常バナー・クイックアクション（写真/音声/マップ/田んぼ）・最近の記録・田んぼ概要。匿名時は田んぼセクションにログイン促進を表示（「未登録」と誤表示しない）。
+- `/menu`（`page.tsx`）: 設定ハブとしてのリンク先を整理（`/menu/site` ではなく `/menu` へ）。
+- `app/page.tsx`（`/`）: ランディングページから `/map` へ直接リダイレクト。
+
+**C. 認証・印刷対応:**
+
+- `useAuth.ts` の `signOut()`: `window.location.href = "/login"` でフルページ遷移し React 状態をクリア（SPA内遷移だと古い状態が残る問題を解消）。
+- `SideNav`: `print:hidden` で印刷時に非表示。
+- `AppShell`: 外側 `div` に `print:block print:h-auto` を追加し、印刷時に `h-dvh` が切り詰めない。
+
+**D. Codex レビュー対応（3ラウンド・計11件 P2）:**
+
+- **Round 1**（cb5b07a・4件）: ①設定リンクを `/menu` へ修正 ②田んぼ取得失敗時のエラー表示（`loadError` state）③SideNav に `print:hidden` ④田んぼ詳細の `backHref="/fields"`
+- **Round 2**（0ae9cd8・4件）: ⑤戻るボタン付きページでハンバーガー常時表示 ⑥記録一覧空状態のモード別メッセージ（`recordsMode`）⑦印刷時の `print:block print:h-auto` ⑧匿名時の田んぼセクションにログイン促進
+- **Round 3**（fa42066・3件）: ⑨signOut の `window.location.href` 遷移 ⑩`recordsMode` state 追跡 ⑪`HeaderAccountChip` の `hasBack` prop でログインボタン/ハンバーガー重なり防止
+
+**E. ナビ定義一元化（baa5da0）:**
+
+- MenuDrawer と SideNav に重複していた `NAV_ITEMS` 配列と `isNavActive` 関数を `navItems.ts` に切り出し。リンク先・表示順・アクティブ判定の基準が1箇所で管理される。
+
+**変更ファイル一覧:**
+
+- 新規: `navItems.ts`, `DrawerContext.tsx`, `MenuDrawer.tsx`, `SideNav.tsx`, `MapDetailPanel.tsx`
+- 削除: `BottomNav.tsx`, `FAB.tsx`
+- 修正: `AppShell.tsx`, `HeaderAccountChip.tsx`, `HomeScreen.tsx`, `MapCanvas.tsx`, `useAuth.ts`, `icons.tsx`, `layout.tsx`, `app/page.tsx`, `app/map/page.tsx`, `app/menu/page.tsx`, 他 page.tsx 群
+
+**セルフレビュー:**
+
+- 全コミットで `npx tsc --noEmit` エラーなし／`npm run lint` 既存warningのみ／`npm run build` 全ページ成功。
+
+**残（次セッション）:**
+
+- **ユーザー実機確認 U-009（最優先）**: PR #38 の8点（ハンバーガー→Drawer／SideNav／MapDetailPanel／signOut遷移／匿名ホーム／印刷／戻る+ハンバーガー／空状態メッセージ）。
+- 既存の U-002/U-005〜U-008 も未確認。
+- 任意機能候補: T-051/T-052/T-048/T-053/T-054/T-055〜T-058 据え置き。
 
 ### 2026-06-21 — Map Hub Phase 1（main直push 22fd0c5）
 
