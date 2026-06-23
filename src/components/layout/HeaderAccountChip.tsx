@@ -22,7 +22,7 @@ export default function HeaderAccountChip() {
 
   return (
     <Link
-      href="/menu/site"
+      href="/menu"
       aria-label="アカウント"
       className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200 lg:hidden"
     >

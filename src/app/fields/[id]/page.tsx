@@ -6,7 +6,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function FieldDetailPage({ params }: Props) {
   const { id } = await params;
   return (
-    <AppShell backDynamic backLabel="田んぼ一覧">
+    <AppShell backHref="/fields" backLabel="田んぼ一覧">
       <FieldDetailScreen fieldId={decodeURIComponent(id)} />
     </AppShell>
   );

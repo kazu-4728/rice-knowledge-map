@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [isAnon, setIsAnon] = useState(false);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function HomeScreen() {
 
     loadFarmData().then((data) => {
       if (data.mode === "anon") setIsAnon(true);
+      if (data.mode === "error") setLoadError(true);
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -200,6 +202,12 @@ export default function HomeScreen() {
         </div>
         {!loaded ? (
           <p className="px-4 pb-4 text-sm text-gray-400">読み込み中…</p>
+        ) : loadError ? (
+          <div className="px-4 pb-4">
+            <p className="text-sm text-gray-500">
+              田んぼを読み込めませんでした。通信環境を確認して開き直してください。
+            </p>
+          </div>
         ) : fields.length === 0 ? (
           <div className="px-4 pb-4">
             <p className="text-sm text-gray-400">

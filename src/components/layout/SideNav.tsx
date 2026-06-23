@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "カレンダー", Icon: IconCalendar },
   { href: "/export", label: "エクスポート", Icon: IconDocDown },
   { href: "/guide", label: "使い方", Icon: IconSprout },
-  { href: "/menu/site", label: "設定", Icon: IconGear },
+  { href: "/menu", label: "設定", Icon: IconGear },
 ] as const;
 
 export default function SideNav() {
@@ -32,7 +32,7 @@ export default function SideNav() {
   const { session, signOut } = useAuth();
 
   return (
-    <nav className="hidden lg:flex h-dvh w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
+    <nav className="hidden lg:flex print:hidden h-dvh w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
       {/* logo */}
       <Link
         href="/map"

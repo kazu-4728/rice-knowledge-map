@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "カレンダー", Icon: IconCalendar },
   { href: "/export", label: "エクスポート", Icon: IconDocDown },
   { href: "/guide", label: "使い方", Icon: IconSprout },
-  { href: "/menu/site", label: "設定", Icon: IconGear },
+  { href: "/menu", label: "設定", Icon: IconGear },
 ] as const;
 
 type Props = {
