@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
@@ -39,7 +39,7 @@ import {
   IconMinus,
   IconPinFill,
   IconPlus,
-  IconSearch,
+  IconListBullet,
   IconWarningFill,
 } from "../../components/ui/icons";
 
@@ -123,6 +123,7 @@ export default function MapCanvas() {
   const [anonMode, setAnonMode] = useState(false);
   const [serverFields, setServerFields] = useState<GeoJSON.FeatureCollection | null>(null);
   const [selectedField, setSelectedField] = useState<SelectedField | null>(null);
+  const [previewField, setPreviewField] = useState<SelectedField | null>(null);
   const [redrawTarget, setRedrawTarget] = useState<SelectedField | null>(null);
   const [renameTarget, setRenameTarget] = useState<SelectedField | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -147,6 +148,7 @@ export default function MapCanvas() {
   const [recordPopOpen, setRecordPopOpen] = useState(false);
   const locationMarkerRef = useRef<Marker | null>(null);
   const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const farmLiveRef = useRef(false);
 
   const {
@@ -609,6 +611,54 @@ export default function MapCanvas() {
   const flyToFieldRef = useRef(flyToField);
   flyToFieldRef.current = flyToField;
 
+  /** プレビュー用: ズーム変更なしで田んぼの重心へ緩やかにパンする */
+  const panToField = (id: string) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const serverFeat = serverFields?.features.find(
+      (f) => String(f.id ?? f.properties?.id) === id
+    );
+    if (serverFeat?.geometry.type === "Polygon") {
+      const center = polygonCentroid(serverFeat.geometry.coordinates[0]);
+      map.easeTo({ center, duration: 400 });
+      return;
+    }
+    const local = savedFields.find((f) => f.id === id);
+    if (local && local.vertices.length >= 3) {
+      const center = polygonCentroid([...local.vertices, local.vertices[0]]);
+      map.easeTo({ center, duration: 400 });
+    }
+  };
+  const panToFieldRef = useRef(panToField);
+  panToFieldRef.current = panToField;
+
+  const handlePreview = useCallback((field: FieldListItem | null) => {
+    setPreviewField(field ? { id: field.id, name: field.name } : null);
+    clearTimeout(previewTimerRef.current);
+    if (field) {
+      previewTimerRef.current = setTimeout(() => {
+        panToFieldRef.current(field.id);
+      }, 300);
+    }
+  }, []);
+
+  const handlePickerClose = useCallback(() => {
+    setSearchOpen(false);
+    setPreviewField(null);
+    clearTimeout(previewTimerRef.current);
+    requestAnimationFrame(() => mapRef.current?.resize());
+  }, []);
+
+  const handlePickerSelect = useCallback((f: FieldListItem) => {
+    setPreviewField(null);
+    clearTimeout(previewTimerRef.current);
+    setSelectedField({ id: f.id, name: f.name });
+    setSelectedPoint(null);
+    setSearchOpen(false);
+    flyToFieldRef.current(f.id);
+    requestAnimationFrame(() => mapRef.current?.resize());
+  }, []);
+
   // マップ初期化
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -749,6 +799,22 @@ export default function MapCanvas() {
           type: "line",
           source: "user-fields",
           paint: { "line-color": "#ffffff", "line-width": 2.5 },
+        });
+
+        // ── プレビュー中の田んぼの強調表示（アンバー） ──────
+        map.addLayer({
+          id: "fields-preview",
+          type: "line",
+          source: "fields",
+          paint: { "line-color": "#F59E0B", "line-width": 4.5 },
+          filter: ["==", ["get", "id"], "__none__"],
+        });
+        map.addLayer({
+          id: "user-fields-preview",
+          type: "line",
+          source: "user-fields",
+          paint: { "line-color": "#F59E0B", "line-width": 4.5 },
+          filter: ["==", ["get", "id"], "__none__"],
         });
 
         // ── 選択中の田んぼの強調表示 ──────────────────
@@ -922,6 +988,32 @@ export default function MapCanvas() {
     }
   }, [selectedField]);
 
+  // プレビュー中の田んぼを強調表示（アンバー）
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const idValue = previewField?.id ?? "__none__";
+    for (const layer of ["fields-preview", "user-fields-preview"]) {
+      if (map.getLayer(layer)) map.setFilter(layer, ["==", ["get", "id"], idValue]);
+    }
+  }, [previewField]);
+
+  // viewport 変化時に MapLibre の resize を実行（iOS Safari アドレスバー等）
+  useEffect(() => {
+    const handleResize = () => mapRef.current?.resize();
+    window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // プレビュータイマーのクリーンアップ
+  useEffect(() => {
+    return () => clearTimeout(previewTimerRef.current);
+  }, []);
+
   // AddPinSheet の田んぼ候補を serverFields + savedFields から常に同期する
   useEffect(() => {
     const fromServer = (serverFields?.features ?? []).flatMap((f) => {
@@ -1013,7 +1105,7 @@ export default function MapCanvas() {
       {/* ── 通常モード UI ─────────────────────────────── */}
       {!isDrawing && !isNaming && (
         <>
-          {/* 上部ボタン: ≡ + 田んぼを探す + 凡例 */}
+          {/* 上部ボタン: ≡ + 田んぼを選ぶ + 凡例 */}
           <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
             <div className="flex items-center gap-2 pointer-events-auto">
               {/* mobile ≡ button (hidden on lg+ where SideNav is visible) */}
@@ -1025,11 +1117,16 @@ export default function MapCanvas() {
                 <IconMenu className="h-5.5 w-5.5" />
               </button>
               <button
-                onClick={() => setSearchOpen(true)}
+                onClick={() => {
+                  setSelectedField(null);
+                  setSelectedPoint(null);
+                  setRecordPopOpen(false);
+                  setSearchOpen(true);
+                }}
                 className="flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
               >
-                <IconSearch className="h-4.5 w-4.5 text-gray-500" />
-                田んぼを探す
+                <IconListBullet className="h-4.5 w-4.5 text-gray-500" />
+                田んぼを選ぶ
               </button>
             </div>
             <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
@@ -1110,23 +1207,20 @@ export default function MapCanvas() {
             </div>
           )}
 
-          {/* 田んぼ検索シート */}
+          {/* 田んぼ選択シート */}
           {searchOpen && (
             <FieldSearchSheet
               fieldList={fieldList}
               anonMode={anonMode}
               liveEmpty={liveEmpty}
               loaded={serverFields !== null}
-              onFieldSelect={(f) => {
-                setSelectedField(f);
-                setSelectedPoint(null);
-                flyToField(f.id);
-              }}
+              onFieldSelect={handlePickerSelect}
+              onPreview={handlePreview}
               onStartDraw={() => {
                 setLiveEmpty(false);
                 startDraw();
               }}
-              onClose={() => setSearchOpen(false)}
+              onClose={handlePickerClose}
             />
           )}
 
