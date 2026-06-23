@@ -22,6 +22,7 @@ import {
   deleteFieldPoint,
 } from "../../lib/data/farm";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
+import MapDetailPanel from "./MapDetailPanel";
 import FieldSearchSheet from "./FieldSearchSheet";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
@@ -1129,11 +1130,34 @@ export default function MapCanvas() {
             />
           )}
 
-          {/* 田んぼ詳細 / ピン詳細 ボトムシート */}
-          <MapBottomSheet
+          {/* 田んぼ詳細 / ピン詳細 — モバイル: ボトムシート, PC: 右パネル */}
+          <div className="lg:hidden">
+            <MapBottomSheet
+              selectedPoint={selectedPoint}
+              selectedField={selectedField}
+              onFieldClose={() => setSelectedField(null)}
+              onAddPin={(fieldId) => {
+                setPendingPinFieldId(fieldId ?? null);
+                setSelectedField(null);
+                setSelectedPoint(null);
+                setAddingPin(true);
+                setToast("地図をタップしてピンの場所を選んでください");
+              }}
+              onEditPin={(p) => setEditingPoint(p)}
+              onRenameField={() => {
+                if (selectedField) {
+                  setRenameTarget(selectedField);
+                  setRenameValue(selectedField.name);
+                }
+              }}
+              onRedrawField={startRedraw}
+              onDeleteField={() => setConfirmingDelete(true)}
+            />
+          </div>
+          <MapDetailPanel
             selectedPoint={selectedPoint}
             selectedField={selectedField}
-            onFieldClose={() => setSelectedField(null)}
+            onFieldClose={() => { setSelectedField(null); setSelectedPoint(null); }}
             onAddPin={(fieldId) => {
               setPendingPinFieldId(fieldId ?? null);
               setSelectedField(null);
