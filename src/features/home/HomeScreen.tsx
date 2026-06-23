@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [recordsLoaded, setRecordsLoaded] = useState(false);
+  const [recordsMode, setRecordsMode] = useState<"loading" | "demo" | "anon" | "live" | "error">("loading");
   const [loadError, setLoadError] = useState(false);
   const [isAnon, setIsAnon] = useState(false);
 
@@ -55,9 +55,9 @@ export default function HomeScreen() {
     });
 
     loadRecords().then((data) => {
+      setRecordsMode(data.mode);
       setRecentRecords(data.records.slice(0, 8));
       setThumbUrls(data.thumbUrls);
-      setRecordsLoaded(true);
     });
   }, []);
 
@@ -148,7 +148,13 @@ export default function HomeScreen() {
         </div>
         {recentRecords.length === 0 ? (
           <p className="px-4 pb-4 text-sm text-gray-400">
-            {recordsLoaded ? "まだ記録がありません" : "読み込み中…"}
+            {recordsMode === "loading"
+              ? "読み込み中…"
+              : recordsMode === "anon"
+                ? "ログインすると記録が表示されます"
+                : recordsMode === "error"
+                  ? "記録を読み込めませんでした"
+                  : "まだ記録がありません"}
           </p>
         ) : (
           <ul className="px-4 pb-3">

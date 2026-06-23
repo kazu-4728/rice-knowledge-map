@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useAuth } from "../../features/auth/useAuth";
 import { IconUserFill } from "../ui/icons";
 
-export default function HeaderAccountChip() {
+export default function HeaderAccountChip({ hasBack }: { hasBack?: boolean }) {
   const { configured, loading, session } = useAuth();
 
   if (loading || !configured) return null;
 
   if (!session) {
+    if (hasBack) return null;
     return (
       <Link
         href="/login"

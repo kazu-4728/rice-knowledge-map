@@ -65,7 +65,7 @@ export default function AppShell({
                   みらい稲作管理
                 </span>
               </div>
-              <HeaderAccountChip />
+              <HeaderAccountChip hasBack={!!(backDynamic || backHref)} />
             </header>
             <div className="print:hidden">
               <WeatherHeader />

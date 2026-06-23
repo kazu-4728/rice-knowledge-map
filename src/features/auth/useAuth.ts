@@ -59,6 +59,7 @@ export function useAuth() {
 
   const signOut = async () => {
     await getSupabase()?.auth.signOut();
+    window.location.href = "/login";
   };
 
   return { ...state, signInWithGoogle, signInWithEmail, signOut };
