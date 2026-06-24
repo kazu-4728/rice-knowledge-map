@@ -4,12 +4,12 @@ Claude Code向けの引き継ぎ文書です。
 
 ---
 
-## 1. 現在の状態（2026-06-23 更新）
+## 1. 現在の状態（2026-06-24 更新）
 
 - **最新の進捗・残タスク・詳細な作業ログは `tasks/TASKS.md` が最新の一次情報**。このセクションは要約。
-- **直近（2026-06-23）**: PR #38（`77ae814`・squashマージ済み）でUI/UXリデザイン。BottomNav・FABを廃止し、**MenuDrawer（モバイル）＋SideNav（PC lg以上）**の2系統ナビに全面移行。`/map` を初期導線の中心にし `/home` はステータスダッシュボードに再定義。PCではマップ横に `MapDetailPanel` を常時表示。`DrawerContext` でドロワー状態を共有し、AppShell のハンバーガーから開閉。`navItems.ts` にナビ定義を一元化（8項目＋`isNavActive`）。Codex レビュー3ラウンド（計11件 P2）すべて対応: ①設定リンク先を `/menu` に修正 ②田んぼ取得失敗のエラー表示 ③SideNav `print:hidden` ④田んぼ詳細 backHref ⑤戻るボタン付きページのハンバーガー表示 ⑥記録一覧の空状態メッセージ ⑦印刷対応 `print:block print:h-auto` ⑧匿名時の田んぼセクション ⑨signOut 時のページ遷移（`window.location.href = "/login"`）⑩recordsMode 追跡 ⑪ログインボタンとハンバーガーの重なり防止。
-- **前回（2026-06-21）**: Map Hub Phase 1（main直push `22fd0c5`）で `/map` を初期導線の中心に。BottomNav を `/map` で非表示化、田んぼ一覧ボトムシート、折りたたみFAB、田んぼ詳細/ピン詳細の導線整理。
-- **次の最優先はユーザーの本番実機確認**（TASKS.md の U-002/U-005〜U-009）。デザインは文章でなく実機/プレビューで見せて判断してもらう。
+- **直近（2026-06-24）**: PR #39（`7f42d42`・squashマージ済み）で田んぼ選択UIを「登録田んぼを選ぶ」に作り直し。検索欄を削除し、下部シートを固定高さの一覧スクロールに変更。`previewField` と `selectedField` を分離し、スクロール中はアンバー色プレビュー（200msデバウンス＋300ms easeToパン）、タップ時のみ正式選択。シート閉じ時の不具合修正（メニュー/ボタン消失・地図幅崩れ）: 開閉時の状態クリーンアップ＋`map.resize()`＋viewport変化時の自動resize。
+- **前回（2026-06-23）**: PR #38（`77ae814`・squashマージ済み）でUI/UXリデザイン。BottomNav・FABを廃止し、**MenuDrawer（モバイル）＋SideNav（PC lg以上）**の2系統ナビに全面移行。`/map` を初期導線の中心にし `/home` はステータスダッシュボードに再定義。PCではマップ横に `MapDetailPanel` を常時表示。`DrawerContext` でドロワー状態を共有し、AppShell のハンバーガーから開閉。`navItems.ts` にナビ定義を一元化（8項目＋`isNavActive`）。Codex レビュー3ラウンド（計11件 P2）すべて対応。
+- **次の最優先はユーザーの本番実機確認**（TASKS.md の U-002/U-005〜U-010）。デザインは文章でなく実機/プレビューで見せて判断してもらう。
 - **本番公開済み**: https://rice-knowledge-map.vercel.app （Vercel接続済み。mainへのマージで自動デプロイ）
 - Supabaseスキーマは **適用済み**（0001〜0006）。プロジェクトは `rice-farm-app`（無料プランのため放置で一時停止する点に注意）
 - 認証・マップのSupabase接続・田んぼ保存（なぞり描き/編集/削除）・招待は実装済み。**メールリンクログイン・Googleログインとも実機確認済み**

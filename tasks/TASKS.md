@@ -38,6 +38,7 @@
 | Codex 指摘対応 | PR #35 の Codex P2 指摘：`<AppShell fullBleed>`（`/map`）にも max-width が効いて1920pxで左右にグレー帯 → fullBleed のとき `w-full` で全幅化 | PR #36（e7e2c07・squashマージ済み 2026-06-16） |
 | Map Hub Phase 1 | `/map` を初期導線の中心に変更。実画像マップ全画面化、田んぼ一覧ボトムシート、田んぼ選択/登録CTA、折りたたみFAB、田んぼ詳細/ピン詳細の導線整理 | main直push（22fd0c5・2026-06-21） |
 | UI/UXリデザイン | BottomNav・FAB廃止→MenuDrawer（モバイル）＋SideNav（PC lg以上）の2系統ナビ。DrawerContext共有・AppShellハンバーガー・navItems.ts一元化。`/home`をステータスダッシュボードに再定義。PCマップ横にMapDetailPanel常時表示。signOutで`/login`へページ遷移。Codex 3ラウンド計11件P2すべて対応 | PR #38（77ae814・squashマージ済み 2026-06-23） |
+| 田んぼ選択UI作り直し | 「田んぼを探す」→「田んぼを選ぶ」へ。検索欄削除・固定高さ一覧スクロール・previewField/selectedField分離（スクロールプレビュー＋タップ選択）・シート閉じ時の不具合修正（メニュー消失・地図幅崩れ・viewport resize対応） | PR #39（7f42d42・squashマージ済み 2026-06-24） |
 
 ---
 
@@ -81,10 +82,57 @@
 | U-007 | TODO | 本番で実機確認（PR #35/#36・レスポンシブ）: ①PC幅（1920px等）でトップ`/`が全幅ヒーロー＋Features 3カラム／②`/home`・`/fields`・`/records` が `max-w-6xl` 中央寄せでカードが2〜3列／③`/map` が**全幅**でマップが広がる（左右にグレー帯なし）／④ボトムシート群（マップのピン追加・田んぼ選択カード）が中央寄せ／⑤タブレット幅（768〜1024px）で2列レイアウト／⑥モバイルで従来通り1列（リグレッションなし）／⑦ログイン後のアドレスバーURLが想定通り（リダイレクト無し）／⑧ログイン後も各画面の幅が維持されているか（スマホ幅に戻らない） |
 | U-008 | TODO | 本番で実機確認（Map Hub Phase 1）: ①`/map` 初期表示でフッターなし・田んぼ一覧ボトムシートが出る／②田んぼタップで該当田んぼへ移動し詳細シートになる／③「一覧にない田んぼを登録する」からなぞり描き登録へ進める／④FABは初期状態で写真/音声/ピン追加が露出せず、カテゴリを開いた時だけ表示される／⑤田んぼ詳細→ピン追加で田んぼが初期選択される |
 | U-009 | TODO | 本番で実機確認（PR #38・UI/UXリデザイン）: ①モバイルでハンバーガー→MenuDrawerが開き全ナビ項目が表示される／②PC（lg以上）で左SideNavが常時表示される／③`/map` でPCの場合は右側にMapDetailPanelが出る／④ログアウト→`/login` に遷移しReact状態がクリアされる／⑤未ログイン時に`/home`で「ログインすると田んぼ情報が表示されます」と出る（「未登録」ではない）／⑥印刷時にSideNav/MenuDrawer/ヘッダーが消えコンテンツのみ印刷される／⑦戻るボタン付きページでもハンバーガーが表示される（右寄せ）／⑧記録一覧が空の時にモード別メッセージ（読み込み中/未ログイン/エラー/空）が適切に表示される |
+| U-010 | TODO | 本番で実機確認（PR #39・田んぼ選択UI作り直し）: ①「田んぼを選ぶ」ボタンが表示される／②下部シートの見出しが「登録田んぼ（N件）」になっている／③検索欄がない／④一覧だけが縦スクロールできる（少数・多数の両方）／⑤スクロール中に中央付近の田んぼが地図上でアンバー色プレビューされる／⑥スクロール中に地図が過剰に飛び回らない／⑦一覧タップで正式選択→詳細シート表示・地図flyTo／⑧選ばず閉じても通常マップUI（メニュー＋ボタン）へ確実に戻る／⑨シート開閉後に地図の幅・高さ・操作性が崩れない |
 
 ---
 
 ## 作業ログ
+
+### 2026-06-24 — 田んぼ選択UI作り直し PR #39（squashマージ 7f42d42・ブランチ claude/ecstatic-lovelace-uhfu02）
+
+ユーザーから「マップの『田んぼを探す』を現場で使いやすい『登録田んぼを選ぶ』UIに作り直す」指示。検索UI→一覧ピッカーUI、スクロールプレビュー＋タップ選択の2段階操作、シート閉じ時の不具合修正を1 PRで実施。
+
+**A. FieldSearchSheet.tsx 書き直し:**
+
+- 見出しを「田んぼを探す」→「登録田んぼ（N件）」に変更。
+- 常設の検索入力欄を削除（将来用の絞り込みは今回未実装）。
+- 一覧を `max-h-56`（224px）の固定高さ内で縦スクロール（`overscroll-contain`）。
+- `useRef` + `getBoundingClientRect` でリスト中央のアイテムを検出し、200msデバウンスで `onPreview` コールバックを発火。
+- 初回表示時も100ms後に中央アイテムを検出し初期プレビューを実行。
+- タップ時は `onFieldSelect(f)` のみ呼び出し（`onClose` は親が管理）。
+- 「田んぼを登録する」ボタンは維持。匿名/未登録時の導線も維持。
+
+**B. MapCanvas.tsx の状態分離と地図連動:**
+
+- `previewField`（スクロールプレビュー用）と `selectedField`（正式選択用）を完全に分離。
+- ボタン名を「田んぼを探す」→「田んぼを選ぶ」に変更、アイコンを `IconSearch` → `IconListBullet` に差し替え。
+- マップレイヤーに `fields-preview` / `user-fields-preview`（アンバー色 `#F59E0B`、太さ4.5px）を追加。選択レイヤー（緑）の下に配置。
+- `panToField()` を新設: `flyTo` ではなく `easeTo`（duration 400ms）でズーム変更なしの緩やかなパン。
+- `handlePreview`: `previewField` を即時更新（→レイヤーフィルタが即反映）、`panToField` は300msデバウンスで安定時のみ実行。
+- `handlePickerSelect`: `previewField` クリア → `selectedField` セット → `flyToField` → シート閉じ → `map.resize()`。
+- `handlePickerClose`: シート閉じ → `previewField` クリア → `map.resize()`。
+
+**C. シート閉じ時の不具合修正:**
+
+- シート開く時に `selectedField`/`selectedPoint`/`recordPopOpen` をクリアし中途半端な状態を防止。
+- シート閉じ時に `requestAnimationFrame(() => map.resize())` でオーバーレイ除去後のレイアウト崩れを解消。
+- `window.addEventListener("resize")` + `visualViewport.addEventListener("resize")` でiOS Safari のアドレスバー表示/非表示によるMapLibreの地図幅・高さ崩れに対応。
+- シートは `absolute inset-0` のオーバーレイ方式を維持し、地図コンテナのレイアウト幅に影響しない。
+
+**変更ファイル:**
+
+- `src/features/map/FieldSearchSheet.tsx`（書き直し）
+- `src/features/map/MapCanvas.tsx`（状態追加・レイヤー追加・ハンドラ追加・ボタン変更）
+
+**セルフレビュー:**
+
+- `npx tsc --noEmit` 変更ファイルにエラーなし／`npm run lint` 既存warningのみ／`npm run build` 全ページ成功。
+
+**残（次セッション）:**
+
+- **ユーザー実機確認 U-010（最優先）**: PR #39 の9点（ボタン名／見出し／検索欄なし／スクロール／プレビュー／地図安定／タップ選択／閉じて復帰／地図崩れなし）。
+- 既存の U-002/U-005〜U-009 も未確認。
+- 任意機能候補: T-051/T-052/T-048/T-053/T-054/T-055〜T-058 据え置き。
 
 ### 2026-06-23 — UI/UXリデザイン PR #38（squashマージ 77ae814・ブランチ claude/zealous-cerf-senlzg）
 
