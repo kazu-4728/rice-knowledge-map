@@ -83,10 +83,31 @@
 | U-008 | TODO | 本番で実機確認（Map Hub Phase 1）: ①`/map` 初期表示でフッターなし・田んぼ一覧ボトムシートが出る／②田んぼタップで該当田んぼへ移動し詳細シートになる／③「一覧にない田んぼを登録する」からなぞり描き登録へ進める／④FABは初期状態で写真/音声/ピン追加が露出せず、カテゴリを開いた時だけ表示される／⑤田んぼ詳細→ピン追加で田んぼが初期選択される |
 | U-009 | TODO | 本番で実機確認（PR #38・UI/UXリデザイン）: ①モバイルでハンバーガー→MenuDrawerが開き全ナビ項目が表示される／②PC（lg以上）で左SideNavが常時表示される／③`/map` でPCの場合は右側にMapDetailPanelが出る／④ログアウト→`/login` に遷移しReact状態がクリアされる／⑤未ログイン時に`/home`で「ログインすると田んぼ情報が表示されます」と出る（「未登録」ではない）／⑥印刷時にSideNav/MenuDrawer/ヘッダーが消えコンテンツのみ印刷される／⑦戻るボタン付きページでもハンバーガーが表示される（右寄せ）／⑧記録一覧が空の時にモード別メッセージ（読み込み中/未ログイン/エラー/空）が適切に表示される |
 | U-010 | TODO | 本番で実機確認（PR #39・田んぼ選択UI作り直し）: ①「田んぼを選ぶ」ボタンが表示される／②下部シートの見出しが「登録田んぼ（N件）」になっている／③検索欄がない／④一覧だけが縦スクロールできる（少数・多数の両方）／⑤スクロール中に中央付近の田んぼが地図上でアンバー色プレビューされる／⑥スクロール中に地図が過剰に飛び回らない／⑦一覧タップで正式選択→詳細シート表示・地図flyTo／⑧選ばず閉じても通常マップUI（メニュー＋ボタン）へ確実に戻る／⑨シート開閉後に地図の幅・高さ・操作性が崩れない |
+| U-011 | TODO | iPhone実機確認（マップ操作モデル作り直し・本PR）: ①登録田んぼが多数でも一覧部分だけ指で縦スクロールできる／②スクロール中のプレビュー田んぼが下部シートの裏に隠れず地図の上側に出る／③タップ時だけ正式選択される／④一覧を閉じても通常マップUIと地図サイズが確実に復帰する／⑤「田んぼを登録する」が即描画にならず、地図を現場以外の任意地点へ移動してから登録できる／⑥輪郭描画開始後も「場所を合わせ直す」で場所合わせへ戻れる／⑦保存後は登録した田んぼが選択状態で表示される／⑧シート開閉・アドレスバー変化でも地図の幅・高さが崩れない |
 
 ---
 
 ## 作業ログ
+
+### 2026-06-24 — マップ操作モデルの作り直し（draft PR・ブランチ claude/ecstatic-lovelace-uhfu02）
+
+ユーザーから「『田んぼを選ぶ』『田んぼを登録する』導線を、部分修正でなく操作モデルから作り直す」指示。PR #39 の一覧UIは見た目止まりで、(a) iPhoneで一覧がスクロールできない (b) 閉じた後に地図表示が復帰しない (c) 「田んぼを登録する」が即描画モードで現場以外を登録できない、の3点を構造から直す。
+
+**0. 状態遷移の明文化（実装前）:** `docs/MAP_STATE_MACHINE.md` を新規作成。通常閲覧／登録田んぼ一覧／場所合わせ／輪郭描画／名前入力／田んぼ詳細／ピン詳細／ピン追加を単一モードとして定義し、遷移図・browse復帰の保証・地図サイズ復帰の多重防御・iPhoneタッチ競合対策を先に確定してから実装。
+
+**A. 単一モード state machine（MapCanvas.tsx）:** 独立していた `searchOpen`/`selectedField`/`selectedPoint`/`addingPin`/`pendingPinFieldId` を、discriminated union の `mode`（browse/picker/placing/field/point/addPin）へ統合。`selectedField`/`selectedPoint` は mode から導出。`returnToBrowse()` を唯一の復帰口にし、プレビュー/仮ピン座標/redrawTarget/記録ポップ/タイマーを必ずクリア。輪郭描画・名前入力は頂点を持つ `useFieldDraw`（drawState）が一次情報で、表示は mode より優先。
+
+**B. 2段階の田んぼ登録:** 「田んぼを登録する」で即描画せず、まず `placing`（場所合わせ）へ。新規 `FieldPlaceOverlay`（中央照準＋案内＋「この場所で輪郭を描く」＋キャンセル）で地図を自由移動・現在地・遠隔地登録が可能。「この場所で輪郭を描く」で初めて drawing に入る。`FieldDrawOverlay` に「場所を合わせ直す」を追加し、輪郭を捨てて placing へ戻れる。保存後は登録した田んぼを選択状態で表示。
+
+**C. iPhoneスクロール（FieldSearchSheet.tsx）:** 下部シートを「固定ヘッダ＋スクロール一覧（`flex-1 min-h-0 overflow-y-auto`）＋固定『田んぼを登録する』」の縦フレックスに。全体は `max-h-[48vh]` 固定、一覧領域だけ縦スクロール。`touch-action: pan-y` / `overscroll-contain` / `-webkit-overflow-scrolling: touch` ＋ `touchmove` の伝播停止で MapLibre のタッチ競合を回避。スクロール中央プレビューは `panToField` に上方向オフセット（コンテナ高×0.22）を入れ、田んぼがシートの裏に隠れないよう見える上側へ寄せる。
+
+**D. 地図サイズ復帰の多重防御:** ①`ResizeObserver` をマップコンテナに常設 ②`window.resize`/`visualViewport.resize` ③mode 変化ごとに rAF＋250ms 後の resize。rAF 1回依存をやめ、シート開閉・iOS Safari アドレスバー変化でも崩れないようにした。
+
+**変更ファイル:** `docs/MAP_STATE_MACHINE.md`（新規）／`src/features/map/FieldPlaceOverlay.tsx`（新規）／`MapCanvas.tsx`（モード統合・placing・resize多重防御）／`FieldSearchSheet.tsx`（縦フレックス・touch対応・onStartRegister）／`FieldDrawOverlay.tsx`（場所を合わせ直す）。
+
+**セルフレビュー:** `npx tsc --noEmit` エラーなし／`npm run lint` 既存warning（Toast.tsx）のみ／`npm run build` 全19ページ成功。
+
+**残:** ユーザーの iPhone 実機確認 U-011（最優先）。既存 U-002/U-005〜U-010 も未確認。
 
 ### 2026-06-24 — 田んぼ選択UI作り直し PR #39（squashマージ 7f42d42・ブランチ claude/ecstatic-lovelace-uhfu02）
 

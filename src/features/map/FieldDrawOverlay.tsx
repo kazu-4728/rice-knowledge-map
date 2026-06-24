@@ -5,9 +5,11 @@ type Props = {
   onFinish: () => void;
   onCancel: () => void;
   onUndo: () => void;
+  /** 輪郭を捨てて「場所合わせ」へ戻る */
+  onReposition: () => void;
 };
 
-export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUndo }: Props) {
+export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUndo, onReposition }: Props) {
   const canFinish = vertexCount >= 3;
 
   return (
@@ -15,11 +17,21 @@ export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUn
       {/* 上部バナー */}
       <div className="absolute top-3 left-3 right-3 z-20">
         <div className="bg-blue-600 text-white rounded-xl px-4 py-3 shadow-lg">
-          <p className="text-sm font-bold">田んぼの輪郭を描いています</p>
-          <p className="text-xs mt-0.5 text-blue-100">
-            指でなぞるか、タップで点を打って輪郭を描く — {vertexCount} 点
-            {vertexCount < 3 && `（あと ${3 - vertexCount} 点で完成できます）`}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold">田んぼの輪郭を描いています</p>
+              <p className="text-xs mt-0.5 text-blue-100">
+                指でなぞるか、タップで点を打って輪郭を描く — {vertexCount} 点
+                {vertexCount < 3 && `（あと ${3 - vertexCount} 点で完成できます）`}
+              </p>
+            </div>
+            <button
+              onClick={onReposition}
+              className="shrink-0 rounded-lg bg-blue-500/60 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
+            >
+              場所を合わせ直す
+            </button>
+          </div>
         </div>
       </div>
 

@@ -24,6 +24,7 @@ import {
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import MapDetailPanel from "./MapDetailPanel";
 import FieldSearchSheet from "./FieldSearchSheet";
+import FieldPlaceOverlay from "./FieldPlaceOverlay";
 import FieldDrawOverlay from "./FieldDrawOverlay";
 import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
@@ -50,6 +51,19 @@ const TRACE_MIN_DISTANCE_PX = 12;
 
 /** タップで選択された田んぼ */
 type SelectedField = { id: string; name: string };
+
+/**
+ * 地図上の操作状態を、矛盾しない単一のモードとして管理する。
+ * 輪郭描画(drawing)・名前入力(naming)は頂点データを持つ useFieldDraw が一次情報で、
+ * その表示は mode より優先される（docs/MAP_STATE_MACHINE.md）。
+ */
+type Mode =
+  | { kind: "browse" } //                       通常閲覧
+  | { kind: "picker" } //                       登録田んぼ一覧
+  | { kind: "placing" } //                      新規/描き直しの場所合わせ
+  | { kind: "field"; field: SelectedField } //  田んぼ詳細
+  | { kind: "point"; point: FieldPoint } //     ピン詳細
+  | { kind: "addPin"; fieldId: string | null }; // ピン追加
 
 /**
  * ピンMarkerを作成してマップに追加する。
@@ -116,24 +130,24 @@ export default function MapCanvas() {
   const { setDrawerOpen } = useDrawer();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
-  const [selectedPoint, setSelectedPoint] = useState<FieldPoint | null>(null);
+
+  // 地図上の単一モード（矛盾しない明確な状態管理）
+  const [mode, setMode] = useState<Mode>({ kind: "browse" });
+  const selectedField = mode.kind === "field" ? mode.field : null;
+  const selectedPoint = mode.kind === "point" ? mode.point : null;
+
   const [tileError, setTileError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [liveEmpty, setLiveEmpty] = useState(false);
   const [anonMode, setAnonMode] = useState(false);
   const [serverFields, setServerFields] = useState<GeoJSON.FeatureCollection | null>(null);
-  const [selectedField, setSelectedField] = useState<SelectedField | null>(null);
   const [previewField, setPreviewField] = useState<SelectedField | null>(null);
   const [redrawTarget, setRedrawTarget] = useState<SelectedField | null>(null);
   const [renameTarget, setRenameTarget] = useState<SelectedField | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  /** ピン追加モード: trueのときマップタップで座標を取得する */
-  const [addingPin, setAddingPin] = useState(false);
-  /** ピン追加の仮座標（タップ済み） */
+  /** ピン追加の仮座標（地図タップ済み） */
   const [pendingPinLngLat, setPendingPinLngLat] = useState<[number, number] | null>(null);
-  /** 田んぼ詳細から「ピン追加」した場合の初期選択田んぼ id（FAB経由は null） */
-  const [pendingPinFieldId, setPendingPinFieldId] = useState<string | null>(null);
   /** 編集対象のピン */
   const [editingPoint, setEditingPoint] = useState<FieldPoint | null>(null);
   /** マップ上のピンMarker登録簿 id → Marker */
@@ -142,8 +156,6 @@ export default function MapCanvas() {
   const [fieldList, setFieldList] = useState<FieldListItem[]>([]);
   /** 田んぼごとの統計（ピンのステータスから集計） */
   const [fieldStats, setFieldStats] = useState<Map<string, { pendingCount: number; lastRecord: string }>>(new Map());
-  /** 田んぼ検索シートの開閉 */
-  const [searchOpen, setSearchOpen] = useState(false);
   /** 記録ボタンのポップオーバー */
   const [recordPopOpen, setRecordPopOpen] = useState(false);
   const locationMarkerRef = useRef<Marker | null>(null);
@@ -173,6 +185,32 @@ export default function MapCanvas() {
   const isDrawing = drawState.mode === "drawing";
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
+
+  // モードを map click ハンドラ（一度だけ登録）から参照するためのref
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  /** DOM更新・シートアニメ完了後にMapLibreのサイズを再計算する（多重防御） */
+  const resizeMapSoon = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    requestAnimationFrame(() => mapRef.current?.resize());
+    setTimeout(() => mapRef.current?.resize(), 250);
+  }, []);
+
+  /**
+   * どのモードからでも通常閲覧へ確実に戻す単一の出口。
+   * 中途半端な選択・プレビュー・ピン・記録ポップを残さず、地図サイズも再計算する。
+   */
+  const returnToBrowse = useCallback(() => {
+    setMode({ kind: "browse" });
+    setPreviewField(null);
+    setPendingPinLngLat(null);
+    setRedrawTarget(null);
+    setRecordPopOpen(false);
+    clearTimeout(previewTimerRef.current);
+    resizeMapSoon();
+  }, [resizeMapSoon]);
 
   /** サーバー由来フィールドの名前・輪郭をローカル状態へ反映する */
   const applyServerFieldUpdate = (id: string, name: string, vertices?: [number, number][]) => {
@@ -218,7 +256,13 @@ export default function MapCanvas() {
       const target = redrawTarget;
       setRedrawTarget(null);
       closeNaming();
-      if (vertices.length < 3) return;
+      if (vertices.length < 3) {
+        returnToBrowse();
+        return;
+      }
+      // 描き直した田んぼを選択状態で表示し、その場所へ寄せる
+      setMode({ kind: "field", field: { id: target.id, name } });
+      flyToVertices(vertices);
       const applyLocally = () => {
         updateSavedField(target.id, name, vertices);
         applyServerFieldUpdate(target.id, name, vertices);
@@ -246,18 +290,26 @@ export default function MapCanvas() {
 
     // 新規: ローカル表示に追加しつつSupabaseへ保存
     const localId = saveName(pendingName);
-    if (vertices.length < 3) return;
+    if (vertices.length < 3) {
+      returnToBrowse();
+      return;
+    }
+    // 登録した田んぼを選択状態で表示し、その場所へ寄せる
+    setMode({ kind: "field", field: { id: localId, name } });
+    flyToVertices(vertices);
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
       if (status === "saved") {
         // 保存直後の編集・削除ができるよう、ローカルidをDBのidへ差し替える。
         // 保存完了前に操作カード等を開いていた場合も選択中idを同期する
         if (id) {
           replaceSavedFieldId(localId, id);
-          const sync = (prev: SelectedField | null) =>
-            prev && prev.id === localId ? { ...prev, id } : prev;
-          setSelectedField(sync);
-          setRedrawTarget(sync);
-          setRenameTarget(sync);
+          setMode((m) =>
+            m.kind === "field" && m.field.id === localId
+              ? { kind: "field", field: { ...m.field, id } }
+              : m
+          );
+          setRedrawTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
+          setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
         setToast("田んぼを保存しました");
       } else if (status === "demo") {
@@ -268,12 +320,47 @@ export default function MapCanvas() {
     });
   };
 
-  /** 操作カードの「描き直す」 */
+  /** 場所合わせ（placing）を開始する。redraw を渡すと描き直し扱い */
+  const startPlacing = (redraw: SelectedField | null) => {
+    setRedrawTarget(redraw);
+    setPreviewField(null);
+    setRecordPopOpen(false);
+    clearTimeout(previewTimerRef.current);
+    setMode({ kind: "placing" });
+  };
+
+  /** placing →「この場所で輪郭を描く」: 初めて描画モードへ入る */
+  const beginDrawing = () => {
+    setLiveEmpty(false);
+    startDraw();
+    // drawState が drawing になり描画オーバーレイが優先表示される。modeは中立に戻す
+    setMode({ kind: "browse" });
+  };
+
+  /** drawing →「場所を合わせ直す」: 輪郭を捨てて placing へ戻る（redrawTargetは保持） */
+  const repositionDraw = () => {
+    cancelDraw();
+    setMode({ kind: "placing" });
+  };
+
+  /** 操作カードの「描き直す」: 場所合わせから始める */
   const startRedraw = () => {
     if (!selectedField) return;
-    setRedrawTarget(selectedField);
-    setSelectedField(null);
-    startDraw();
+    startPlacing(selectedField);
+  };
+
+  /** ピン追加（場所選択）を開始する */
+  const startAddPin = (fieldId: string | null) => {
+    setPendingPinLngLat(null);
+    setMode({ kind: "addPin", fieldId });
+    setToast("地図をタップしてピンの場所を選んでください");
+  };
+
+  /** 「田んぼを選ぶ」: 登録田んぼ一覧を開く */
+  const openPicker = () => {
+    setRecordPopOpen(false);
+    setPreviewField(null);
+    setMode({ kind: "picker" });
   };
 
   /** 名前変更ダイアログの確定（ローカル反映はDB更新の成功後） */
@@ -282,7 +369,7 @@ export default function MapCanvas() {
     if (!target) return;
     const name = renameValue.trim() || target.name;
     setRenameTarget(null);
-    setSelectedField(null);
+    setMode({ kind: "browse" });
     const applyLocally = () => {
       updateSavedField(target.id, name);
       applyServerFieldUpdate(target.id, name);
@@ -312,7 +399,7 @@ export default function MapCanvas() {
     const target = selectedField;
     if (!target) return;
     setConfirmingDelete(false);
-    setSelectedField(null);
+    setMode({ kind: "browse" });
     if (farmLiveRef.current) {
       deleteField(target.id).then((result) => {
         if (result === "deleted") {
@@ -342,8 +429,6 @@ export default function MapCanvas() {
     const lngLat = pendingPinLngLat;
     if (!lngLat) return;
     setPendingPinLngLat(null);
-    setAddingPin(false);
-    setPendingPinFieldId(null);
 
     const newPoint: FieldPoint = {
       id: `local-${crypto.randomUUID()}`,
@@ -355,8 +440,8 @@ export default function MapCanvas() {
       lngLat,
     };
 
-    // 楽観的にローカル表示
-    setSelectedPoint(newPoint);
+    // 楽観的に新規ピンを選択表示
+    setMode({ kind: "point", point: newPoint });
 
     // Markerをマップへ追加してから DB保存へ進む（awaitで順序を保証し二重表示を防ぐ）
     {
@@ -364,8 +449,7 @@ export default function MapCanvas() {
       const map = mapRef.current;
       if (map) {
         const marker = createPinMarker(maplibre, map, newPoint, () => {
-          setSelectedPoint(newPoint);
-          setSelectedField(null);
+          setMode({ kind: "point", point: newPoint });
         });
         pinMarkersRef.current.set(newPoint.id, marker);
       }
@@ -390,7 +474,7 @@ export default function MapCanvas() {
       // Markerを作り直してDB IDのオブジェクトを参照させる
       // （クロージャが localId を保持したままになるため差し替えだけでは不十分）
       const dbPoint: FieldPoint = { ...newPoint, id };
-      setSelectedPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
+      setMode((m) => (m.kind === "point" && m.point.id === newPoint.id ? { kind: "point", point: dbPoint } : m));
       setEditingPoint((prev) => (prev?.id === newPoint.id ? dbPoint : prev));
       import("maplibre-gl").then((maplibre) => {
         const map = mapRef.current;
@@ -406,8 +490,7 @@ export default function MapCanvas() {
         old.remove();
         pinMarkersRef.current.delete(newPoint.id);
         const marker = createPinMarker(maplibre, map, dbPoint, () => {
-          setSelectedPoint(dbPoint);
-          setSelectedField(null);
+          setMode({ kind: "point", point: dbPoint });
         });
         pinMarkersRef.current.set(id, marker);
       });
@@ -419,7 +502,7 @@ export default function MapCanvas() {
       const old = pinMarkersRef.current.get(newPoint.id);
       if (old) old.remove();
       pinMarkersRef.current.delete(newPoint.id);
-      setSelectedPoint((prev) => (prev?.id === newPoint.id ? null : prev));
+      setMode((m) => (m.kind === "point" && m.point.id === newPoint.id ? { kind: "browse" } : m));
       setToast("ピンの保存に失敗しました。通信環境を確認してください");
     }
   };
@@ -433,7 +516,7 @@ export default function MapCanvas() {
     const updated: FieldPoint = { ...point, name: patch.name, type: patch.pointType, status: patch.status };
 
     const applyLocally = () => {
-      setSelectedPoint((prev) => (prev?.id === point.id ? updated : prev));
+      setMode((m) => (m.kind === "point" && m.point.id === point.id ? { kind: "point", point: updated } : m));
       // Markerを作り直す（SVGアイコンと種別ラベルを更新するため）
       import("maplibre-gl").then((maplibre) => {
         const map = mapRef.current;
@@ -441,8 +524,7 @@ export default function MapCanvas() {
         const old = pinMarkersRef.current.get(point.id);
         if (old) old.remove();
         const marker = createPinMarker(maplibre, map, updated, () => {
-          setSelectedPoint(updated);
-          setSelectedField(null);
+          setMode({ kind: "point", point: updated });
         });
         pinMarkersRef.current.set(point.id, marker);
       });
@@ -479,7 +561,7 @@ export default function MapCanvas() {
     setEditingPoint(null);
 
     const removeLocally = () => {
-      setSelectedPoint((prev) => (prev?.id === point.id ? null : prev));
+      setMode((m) => (m.kind === "point" && m.point.id === point.id ? { kind: "browse" } : m));
       const marker = pinMarkersRef.current.get(point.id);
       if (marker) {
         marker.remove();
@@ -587,8 +669,6 @@ export default function MapCanvas() {
   flyToCurrentLocationRef.current = flyToCurrentLocation;
   const findFieldAtRef = useRef(findFieldAt);
   findFieldAtRef.current = findFieldAt;
-  const addingPinRef = useRef(addingPin);
-  addingPinRef.current = addingPin;
 
   /** 指定 id の田んぼへフライ。serverFields / savedFields から重心を計算する */
   const flyToField = (id: string) => {
@@ -611,22 +691,35 @@ export default function MapCanvas() {
   const flyToFieldRef = useRef(flyToField);
   flyToFieldRef.current = flyToField;
 
-  /** プレビュー用: ズーム変更なしで田んぼの重心へ緩やかにパンする */
+  /** 頂点配列の重心へフライ（保存直後でstateが未反映でも確実に寄せる用） */
+  const flyToVertices = (vertices: [number, number][]) => {
+    const map = mapRef.current;
+    if (!map || vertices.length < 3) return;
+    const center = polygonCentroid([...vertices, vertices[0]]);
+    map.flyTo({ center, zoom: Math.max(map.getZoom(), 15.5), duration: 700 });
+  };
+
+  /**
+   * プレビュー用: ズーム変更なしで田んぼの重心へ緩やかにパンする。
+   * 下部シート（約48%）の裏に隠れないよう、画面の見える上側へオフセットして寄せる。
+   */
   const panToField = (id: string) => {
     const map = mapRef.current;
     if (!map) return;
+    // シート分だけ上方向へずらして、田んぼが見える領域の中央に来るようにする
+    const offsetY = Math.round(map.getContainer().clientHeight * 0.22);
+    const ease = (center: [number, number]) =>
+      map.easeTo({ center, duration: 400, offset: [0, -offsetY] });
     const serverFeat = serverFields?.features.find(
       (f) => String(f.id ?? f.properties?.id) === id
     );
     if (serverFeat?.geometry.type === "Polygon") {
-      const center = polygonCentroid(serverFeat.geometry.coordinates[0]);
-      map.easeTo({ center, duration: 400 });
+      ease(polygonCentroid(serverFeat.geometry.coordinates[0]));
       return;
     }
     const local = savedFields.find((f) => f.id === id);
     if (local && local.vertices.length >= 3) {
-      const center = polygonCentroid([...local.vertices, local.vertices[0]]);
-      map.easeTo({ center, duration: 400 });
+      ease(polygonCentroid([...local.vertices, local.vertices[0]]));
     }
   };
   const panToFieldRef = useRef(panToField);
@@ -636,28 +729,20 @@ export default function MapCanvas() {
     setPreviewField(field ? { id: field.id, name: field.name } : null);
     clearTimeout(previewTimerRef.current);
     if (field) {
+      // スクロール停止後に短いdebounceでパン（激しく飛び回らないように）
       previewTimerRef.current = setTimeout(() => {
         panToFieldRef.current(field.id);
       }, 300);
     }
   }, []);
 
-  const handlePickerClose = useCallback(() => {
-    setSearchOpen(false);
-    setPreviewField(null);
-    clearTimeout(previewTimerRef.current);
-    requestAnimationFrame(() => mapRef.current?.resize());
-  }, []);
-
   const handlePickerSelect = useCallback((f: FieldListItem) => {
     setPreviewField(null);
     clearTimeout(previewTimerRef.current);
-    setSelectedField({ id: f.id, name: f.name });
-    setSelectedPoint(null);
-    setSearchOpen(false);
+    setMode({ kind: "field", field: { id: f.id, name: f.name } });
     flyToFieldRef.current(f.id);
-    requestAnimationFrame(() => mapRef.current?.resize());
-  }, []);
+    resizeMapSoon();
+  }, [resizeMapSoon]);
 
   // マップ初期化
   useEffect(() => {
@@ -665,6 +750,7 @@ export default function MapCanvas() {
 
     let map: MLMap | undefined;
     let cancelled = false;
+    let resizeObserver: ResizeObserver | undefined;
 
     // 地図ライブラリと田んぼデータ（Supabaseまたはサンプル）を並行読込
     Promise.all([import("maplibre-gl"), loadFarmData()]).then(([maplibre, farm]) => {
@@ -690,8 +776,6 @@ export default function MapCanvas() {
         setFieldStats(stats);
       }
 
-      // 初期表示は田んぼ一覧ボトムシート（selectedPoint/selectedField ともに null のまま）
-
       map = new maplibre.Map({
         container: mapContainerRef.current,
         style: {
@@ -714,6 +798,10 @@ export default function MapCanvas() {
 
       mapRef.current = map;
 
+      // コンテナのサイズ変化（シート開閉・viewport変化）で常にresizeする多重防御
+      resizeObserver = new ResizeObserver(() => mapRef.current?.resize());
+      resizeObserver.observe(mapContainerRef.current);
+
       map.on("error", (e) => {
         console.error("[MapLibre error]", e);
         const msg = (e.error?.message ?? String(e.error ?? "")).toLowerCase();
@@ -722,20 +810,28 @@ export default function MapCanvas() {
         }
       });
 
-      // 通常モード: 田んぼタップで操作カード、それ以外は選択解除
-      // ピン追加モード: タップ座標を pendingPinLngLat にセットして種別選択シートへ
+      // モード別のタップ挙動:
+      // - drawing: 描画effectが処理（ここでは無視）
+      // - placing / picker: 地図の自由移動のみ（選択しない）
+      // - addPin: タップ座標を pendingPinLngLat にセット
+      // - browse / field / point: 田んぼタップで詳細、空きタップで通常閲覧へ
       map.on("click", (e: MapMouseEvent) => {
         if (isDrawingRef.current) return;
-        if (addingPinRef.current) {
+        const m = modeRef.current;
+        if (m.kind === "placing" || m.kind === "picker") return;
+        if (m.kind === "addPin") {
           setPendingPinLngLat([e.lngLat.lng, e.lngLat.lat]);
           setToast(null);
           return;
         }
         setRecordPopOpen(false);
         const hit = findFieldAtRef.current([e.lngLat.lng, e.lngLat.lat]);
-        setSelectedField(hit);
-        setSelectedPoint(null);
-        if (hit) flyToFieldRef.current(hit.id);
+        if (hit) {
+          setMode({ kind: "field", field: hit });
+          flyToFieldRef.current(hit.id);
+        } else {
+          setMode({ kind: "browse" });
+        }
       });
 
       map.on("load", () => {
@@ -873,8 +969,7 @@ export default function MapCanvas() {
         // ── 地点ピン（ティアドロップ＋ラベルチップ） ─────────
         farm.points.forEach((point) => {
           const marker = createPinMarker(maplibre, map!, point, () => {
-            setSelectedPoint(point);
-            setSelectedField(null);
+            setMode({ kind: "point", point });
           });
           pinMarkersRef.current.set(point.id, marker);
         });
@@ -887,6 +982,7 @@ export default function MapCanvas() {
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       if (map) {
         map.remove();
         mapRef.current = null;
@@ -948,7 +1044,6 @@ export default function MapCanvas() {
       map.off("touchstart", start);
       map.off("touchmove", move);
       map.off("touchend", end);
-      map.off("touchcancel", end);
       map.dragPan.enable();
     };
   }, [isDrawing]);
@@ -1008,6 +1103,11 @@ export default function MapCanvas() {
       window.visualViewport?.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  // モードが変わるたび（シート開閉等のレイアウト変化）に地図サイズを再計算
+  useEffect(() => {
+    resizeMapSoon();
+  }, [mode.kind, resizeMapSoon]);
 
   // プレビュータイマーのクリーンアップ
   useEffect(() => {
@@ -1089,6 +1189,11 @@ export default function MapCanvas() {
     });
   }, [serverFields, savedFields]);
 
+  const idle = !isDrawing && !isNaming;
+  const showTopBar = idle && (mode.kind === "browse" || mode.kind === "field" || mode.kind === "point");
+  const showControls = idle && mode.kind !== "picker";
+  const showDetail = idle && (mode.kind === "field" || mode.kind === "point");
+
   return (
     <div className="absolute inset-0">
       {/* マップキャンバス（maplibreのCSSがpositionを上書きするためh-fullで明示サイズ指定） */}
@@ -1102,141 +1207,139 @@ export default function MapCanvas() {
         </div>
       )}
 
-      {/* ── 通常モード UI ─────────────────────────────── */}
-      {!isDrawing && !isNaming && (
-        <>
-          {/* 上部ボタン: ≡ + 田んぼを選ぶ + 凡例 */}
-          <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              {/* mobile ≡ button (hidden on lg+ where SideNav is visible) */}
-              <button
-                onClick={() => setDrawerOpen(true)}
-                aria-label="メニューを開く"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50 lg:hidden"
-              >
-                <IconMenu className="h-5.5 w-5.5" />
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedField(null);
-                  setSelectedPoint(null);
-                  setRecordPopOpen(false);
-                  setSearchOpen(true);
-                }}
-                className="flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
-              >
-                <IconListBullet className="h-4.5 w-4.5 text-gray-500" />
-                田んぼを選ぶ
-              </button>
-            </div>
-            <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
-              {[
-                { type: "inlet" as const, label: "入水口" },
-                { type: "outlet" as const, label: "出水口" },
-                { type: "caution" as const, label: "異常箇所" },
-              ].map((item) => (
-                <div key={item.type} className="flex items-center gap-1.5">
-                  <IconPinFill className="h-5 w-5" style={{ color: PIN_COLORS[item.type] }} />
-                  <span className="text-xs font-medium text-gray-700">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 右側コントロール（現在地・ズーム） */}
-          <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-2">
+      {/* 上部ボタン: ≡ + 田んぼを選ぶ + 凡例（通常閲覧・田んぼ詳細・ピン詳細） */}
+      {showTopBar && (
+        <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {/* mobile ≡ button (hidden on lg+ where SideNav is visible) */}
             <button
-              onClick={() => flyToCurrentLocation()}
-              aria-label="現在地に戻る"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="メニューを開く"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50 lg:hidden"
             >
-              <IconLocate className="h-5.5 w-5.5" />
+              <IconMenu className="h-5.5 w-5.5" />
             </button>
-            <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md">
-              <button
-                onClick={() => mapRef.current?.zoomIn()}
-                aria-label="拡大"
-                className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
-              >
-                <IconPlus className="h-5 w-5" />
-              </button>
-              <div className="mx-2 h-px bg-gray-200" />
-              <button
-                onClick={() => mapRef.current?.zoomOut()}
-                aria-label="縮小"
-                className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
-              >
-                <IconMinus className="h-5 w-5" />
-              </button>
-            </div>
+            <button
+              onClick={openPicker}
+              className="flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+            >
+              <IconListBullet className="h-4.5 w-4.5 text-gray-500" />
+              田んぼを選ぶ
+            </button>
           </div>
+          <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
+            {[
+              { type: "inlet" as const, label: "入水口" },
+              { type: "outlet" as const, label: "出水口" },
+              { type: "caution" as const, label: "異常箇所" },
+            ].map((item) => (
+              <div key={item.type} className="flex items-center gap-1.5">
+                <IconPinFill className="h-5 w-5" style={{ color: PIN_COLORS[item.type] }} />
+                <span className="text-xs font-medium text-gray-700">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-          {/* 記録ボタン（下部中央） — 田んぼ/ピン選択時はシート内CTAに譲って非表示 */}
-          {!selectedField && !selectedPoint && (
-            <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-              {recordPopOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
-                  <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
-                    <Link
-                      href="/records/new"
-                      onClick={() => setRecordPopOpen(false)}
-                      className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
-                    >
-                      <IconCamera className="h-5 w-5 shrink-0" />
-                      写真で記録
-                    </Link>
-                    <Link
-                      href="/records/new?type=audio"
-                      onClick={() => setRecordPopOpen(false)}
-                      className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
-                    >
-                      <IconMic className="h-5 w-5 shrink-0 text-green-700" />
-                      音声メモ
-                    </Link>
-                  </div>
-                </>
-              )}
-              <button
-                onClick={() => setRecordPopOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
-              >
-                <IconCamera className="h-5 w-5" />
-                記録する
-              </button>
-            </div>
+      {/* 右側コントロール（現在地・ズーム）: picker以外で表示（placing/addPinでも地図操作可） */}
+      {showControls && (
+        <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-2">
+          <button
+            onClick={() => flyToCurrentLocation()}
+            aria-label="現在地に戻る"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+          >
+            <IconLocate className="h-5.5 w-5.5" />
+          </button>
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md">
+            <button
+              onClick={() => mapRef.current?.zoomIn()}
+              aria-label="拡大"
+              className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
+            >
+              <IconPlus className="h-5 w-5" />
+            </button>
+            <div className="mx-2 h-px bg-gray-200" />
+            <button
+              onClick={() => mapRef.current?.zoomOut()}
+              aria-label="縮小"
+              className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
+            >
+              <IconMinus className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 記録ボタン（下部中央） — 通常閲覧のみ */}
+      {idle && mode.kind === "browse" && (
+        <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+          {recordPopOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
+              <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
+                <Link
+                  href="/records/new"
+                  onClick={() => setRecordPopOpen(false)}
+                  className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
+                >
+                  <IconCamera className="h-5 w-5 shrink-0" />
+                  写真で記録
+                </Link>
+                <Link
+                  href="/records/new?type=audio"
+                  onClick={() => setRecordPopOpen(false)}
+                  className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
+                >
+                  <IconMic className="h-5 w-5 shrink-0 text-green-700" />
+                  音声メモ
+                </Link>
+              </div>
+            </>
           )}
+          <button
+            onClick={() => setRecordPopOpen((v) => !v)}
+            className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
+          >
+            <IconCamera className="h-5 w-5" />
+            記録する
+          </button>
+        </div>
+      )}
 
-          {/* 田んぼ選択シート */}
-          {searchOpen && (
-            <FieldSearchSheet
-              fieldList={fieldList}
-              anonMode={anonMode}
-              liveEmpty={liveEmpty}
-              loaded={serverFields !== null}
-              onFieldSelect={handlePickerSelect}
-              onPreview={handlePreview}
-              onStartDraw={() => {
-                setLiveEmpty(false);
-                startDraw();
-              }}
-              onClose={handlePickerClose}
-            />
-          )}
+      {/* 田んぼ選択シート（登録田んぼ一覧） */}
+      {idle && mode.kind === "picker" && (
+        <FieldSearchSheet
+          fieldList={fieldList}
+          anonMode={anonMode}
+          liveEmpty={liveEmpty}
+          loaded={serverFields !== null}
+          onFieldSelect={handlePickerSelect}
+          onPreview={handlePreview}
+          onStartRegister={() => startPlacing(null)}
+          onClose={returnToBrowse}
+        />
+      )}
 
-          {/* 田んぼ詳細 / ピン詳細 — モバイル: ボトムシート, PC: 右パネル */}
+      {/* 場所合わせ（新規/描き直し） */}
+      {idle && mode.kind === "placing" && (
+        <FieldPlaceOverlay
+          redraw={!!redrawTarget}
+          onStart={beginDrawing}
+          onCancel={returnToBrowse}
+        />
+      )}
+
+      {/* 田んぼ詳細 / ピン詳細 — モバイル: ボトムシート, PC: 右パネル */}
+      {showDetail && (
+        <>
           <div className="lg:hidden">
             <MapBottomSheet
               selectedPoint={selectedPoint}
               selectedField={selectedField}
-              onFieldClose={() => setSelectedField(null)}
-              onAddPin={(fieldId) => {
-                setPendingPinFieldId(fieldId ?? null);
-                setSelectedField(null);
-                setSelectedPoint(null);
-                setAddingPin(true);
-                setToast("地図をタップしてピンの場所を選んでください");
-              }}
+              onFieldClose={returnToBrowse}
+              onAddPin={(fieldId) => startAddPin(fieldId ?? null)}
               onEditPin={(p) => setEditingPoint(p)}
               onRenameField={() => {
                 if (selectedField) {
@@ -1251,14 +1354,8 @@ export default function MapCanvas() {
           <MapDetailPanel
             selectedPoint={selectedPoint}
             selectedField={selectedField}
-            onFieldClose={() => { setSelectedField(null); setSelectedPoint(null); }}
-            onAddPin={(fieldId) => {
-              setPendingPinFieldId(fieldId ?? null);
-              setSelectedField(null);
-              setSelectedPoint(null);
-              setAddingPin(true);
-              setToast("地図をタップしてピンの場所を選んでください");
-            }}
+            onFieldClose={returnToBrowse}
+            onAddPin={(fieldId) => startAddPin(fieldId ?? null)}
             onEditPin={(p) => setEditingPoint(p)}
             onRenameField={() => {
               if (selectedField) {
@@ -1277,9 +1374,10 @@ export default function MapCanvas() {
         <FieldDrawOverlay
           vertexCount={vertexCount}
           onFinish={finishDraw}
+          onReposition={repositionDraw}
           onCancel={() => {
-            setRedrawTarget(null);
             cancelDraw();
+            returnToBrowse();
           }}
           onUndo={undoVertex}
         />
@@ -1293,8 +1391,8 @@ export default function MapCanvas() {
           onChange={setPendingName}
           onSave={handleSaveField}
           onCancel={() => {
-            setRedrawTarget(null);
             cancelDraw();
+            returnToBrowse();
           }}
         />
       )}
@@ -1339,13 +1437,13 @@ export default function MapCanvas() {
       )}
 
       {/* ── ピン追加モード: 場所選択バナー ────────────────── */}
-      {addingPin && !pendingPinLngLat && (
+      {idle && mode.kind === "addPin" && !pendingPinLngLat && (
         <div className="absolute inset-x-0 bottom-0 z-40">
           {/* PCではバナーを中央寄せキャップ */}
           <div className="mx-auto w-full max-w-md rounded-t-3xl bg-gray-900 px-4 pb-8 pt-4 text-center text-white shadow-2xl md:max-w-2xl">
             <p className="text-sm font-bold">地図をタップしてピンの場所を選んでください</p>
             <button
-              onClick={() => { setAddingPin(false); setPendingPinLngLat(null); setPendingPinFieldId(null); }}
+              onClick={returnToBrowse}
               className="mt-3 rounded-xl border border-gray-600 px-6 py-2.5 text-sm font-semibold text-gray-300"
             >
               キャンセル
@@ -1355,12 +1453,12 @@ export default function MapCanvas() {
       )}
 
       {/* ── ピン追加: 種別・名前選択シート ───────────────── */}
-      {pendingPinLngLat && (
+      {pendingPinLngLat && mode.kind === "addPin" && (
         <AddPinSheet
           fields={fieldList}
-          initialFieldId={pendingPinFieldId}
+          initialFieldId={mode.fieldId}
           onConfirm={handleAddPinConfirm}
-          onCancel={() => { setPendingPinLngLat(null); setAddingPin(false); setPendingPinFieldId(null); }}
+          onCancel={returnToBrowse}
         />
       )}
 

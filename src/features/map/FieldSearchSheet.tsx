@@ -14,7 +14,8 @@ type Props = {
   loaded: boolean;
   onFieldSelect: (field: FieldListItem) => void;
   onPreview: (field: FieldListItem | null) => void;
-  onStartDraw: () => void;
+  /** 「田んぼを登録する」: 場所合わせ（placing）へ進む */
+  onStartRegister: () => void;
   onClose: () => void;
 };
 
@@ -25,7 +26,7 @@ export default function FieldSearchSheet({
   loaded,
   onFieldSelect,
   onPreview,
-  onStartDraw,
+  onStartRegister,
   onClose,
 }: Props) {
   const listRef = useRef<HTMLUListElement>(null);
@@ -71,6 +72,8 @@ export default function FieldSearchSheet({
     return () => clearTimeout(debounceRef.current);
   }, []);
 
+  const showList = !anonMode && !liveEmpty;
+
   return (
     <div
       className="absolute inset-0 z-40 flex items-end"
@@ -80,13 +83,15 @@ export default function FieldSearchSheet({
         className="mx-auto w-full max-w-md md:max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        {/* 縦フレックス: ヘッダ固定 / 一覧スクロール / フッタ固定。全体は画面の約48%に固定 */}
+        <div className="flex max-h-[48vh] flex-col rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]">
+          <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-gray-300" />
 
-          <div className="mb-3 flex items-center justify-between">
+          {/* ── 固定ヘッダ ── */}
+          <div className="mb-3 flex shrink-0 items-center justify-between">
             <h2 className="text-base font-bold text-gray-900">
               登録田んぼ
-              {fieldList.length > 0 && (
+              {showList && fieldList.length > 0 && (
                 <span className="ml-1.5 text-sm font-medium text-gray-400">
                   {fieldList.length}件
                 </span>
@@ -103,7 +108,7 @@ export default function FieldSearchSheet({
           {anonMode ? (
             <a
               href="/login?redirect=%2Fmap"
-              className="flex items-center justify-between rounded-xl bg-green-700 px-4 py-3.5 text-white transition-colors hover:bg-green-800"
+              className="flex shrink-0 items-center justify-between rounded-xl bg-green-700 px-4 py-3.5 text-white transition-colors hover:bg-green-800"
             >
               <div>
                 <p className="text-sm font-bold">ログインして田んぼを管理</p>
@@ -112,29 +117,32 @@ export default function FieldSearchSheet({
               <IconChevronRight className="h-5 w-5 shrink-0" />
             </a>
           ) : liveEmpty ? (
-            <>
+            <div className="shrink-0">
               <p className="text-sm font-bold text-gray-900">まず田んぼを登録しましょう</p>
               <p className="mt-0.5 text-xs text-gray-500">
-                地図をなぞって田んぼの輪郭を登録できます
+                地図を動かして場所を合わせてから、田んぼの輪郭を登録できます
               </p>
               <button
-                onClick={() => { onStartDraw(); onClose(); }}
+                onClick={onStartRegister}
                 className="mt-3 w-full rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
               >
                 田んぼを登録する
               </button>
-            </>
+            </div>
           ) : (
             <>
+              {/* ── スクロールする一覧領域（ここだけが縦スクロール） ── */}
               {fieldList.length === 0 ? (
-                <p className="py-4 text-center text-sm text-gray-400">
+                <p className="shrink-0 py-4 text-center text-sm text-gray-400">
                   {loaded ? "登録された田んぼはありません" : "読み込み中…"}
                 </p>
               ) : (
                 <ul
                   ref={listRef}
                   onScroll={handleScroll}
-                  className="-mx-1 max-h-56 space-y-0.5 overflow-y-auto overscroll-contain px-1"
+                  onTouchMove={(e) => e.stopPropagation()}
+                  style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+                  className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-1"
                 >
                   {fieldList.map((f) => (
                     <li
@@ -169,9 +177,10 @@ export default function FieldSearchSheet({
                 </ul>
               )}
 
-              <div className="mt-3 border-t border-gray-100 pt-3">
+              {/* ── 固定フッタ: 田んぼを登録する ── */}
+              <div className="mt-3 shrink-0 border-t border-gray-100 pt-3">
                 <button
-                  onClick={() => { onStartDraw(); onClose(); }}
+                  onClick={onStartRegister}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-green-500 bg-green-50 py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-100"
                 >
                   <IconPlus className="h-4 w-4" />
