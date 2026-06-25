@@ -260,9 +260,10 @@ export default function MapCanvas() {
         returnToBrowse();
         return;
       }
-      // 描き直した田んぼを選択状態で表示し、その場所へ寄せる
-      setMode({ kind: "field", field: { id: target.id, name } });
-      flyToVertices(vertices);
+      const selectAndFly = () => {
+        setMode({ kind: "field", field: { id: target.id, name } });
+        flyToVertices(vertices);
+      };
       const applyLocally = () => {
         updateSavedField(target.id, name, vertices);
         applyServerFieldUpdate(target.id, name, vertices);
@@ -271,18 +272,23 @@ export default function MapCanvas() {
         updateField(target.id, name, vertices).then((result) => {
           if (result === "saved") {
             applyLocally();
+            selectAndFly();
             setToast("田んぼを描き直しました");
           } else if (result === "demo") {
             applyLocally();
+            selectAndFly();
             setToast("ローカルで更新しました（ログインすると共有されます）");
           } else if (result === "denied") {
+            returnToBrowse();
             setToast("変更できませんでした（編集権限がありません）");
           } else {
+            returnToBrowse();
             setToast("更新を保存できませんでした。通信環境を確認してください");
           }
         });
       } else {
         applyLocally();
+        selectAndFly();
         setToast("田んぼを描き直しました");
       }
       return;
