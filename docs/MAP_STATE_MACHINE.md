@@ -84,11 +84,24 @@ placing / drawing / naming の各状態で、**画面上部の固定位置に必
 2. `window.resize` / `visualViewport.resize`（iOS Safari アドレスバー、PWA viewport 変化）
 3. `mode` が変わるたびに rAF ＋ 250ms 後の resize（シート開閉アニメーション完了後）
 
-## iPhone のタッチ競合対策（picker）
+## 田んぼ選択ホイールピッカー（picker）
 
-- 下部シートは「固定ヘッダ＋スクロール一覧（`flex-1 min-h-0 overflow-y-auto`）＋固定フッタ」の縦フレックス
-- シート全体は明示的な高さ `h-[48dvh]`（`dvh` = iOS Safari の動的 viewport 対応。`vh` は大きい viewport を返し実際の表示より高くなるため使わない）
-- 一覧領域だけが縦スクロール。`min-h-0` で flex 子要素がコンテンツ高さ以下に縮小可能
+- 通常の一覧ではなく**無限ループ式ホイールピッカー**で田んぼを選択する
+- 固定高さ `VIEWPORT_H = 5 * 52px = 260px` のスクロール領域に、田んぼリストを多数回繰り返した仮想リストを配置
+- `scroll-snap-type: y mandatory` + `scroll-snap-align: center` で各アイテムがピタリと中央に止まる
+- **中央ハイライトバー**: 固定位置のアンバー色の背景で中央スロットを強調
+- **中央アイテム = プレビュー**: スクロールで中央に来たアイテムの田んぼを地図上でアンバー強調＋パン
+- **中央アイテムをタップ = 正式選択**: タップすると `onFieldSelect` で田んぼ詳細へ遷移
+- 中央以外のアイテムをタップすると、そのアイテムが中央にスムーズスクロールされる
+- 上下にフェードグラデーション（`from-white to-transparent`）で端をぼかす
+- スクロールが中間グループから大きく離れた場合、300msデバウンス後に中間グループの同等位置へ `behavior: "instant"` で静かに再配置
 - スクロール領域に `touch-action: pan-y` / `overscroll-contain` / `-webkit-overflow-scrolling: touch`
-- 一覧の `touchmove` は伝播を止め、MapLibre の地図操作へ奪われないようにする
-- シート外側ラッパーにも `onTouchMove stopPropagation` を設定し、ヘッダ/フッタへのタッチも遮断
+- `touchmove` の伝播を止め、MapLibre の地図操作へ奪われないようにする
+- シート外側ラッパーにも `onTouchMove stopPropagation` を設定
+
+## 横幅オーバーフロー対策
+
+- `left-1/2 -translate-x-1/2` による中央配置はレイアウト上コンテナ右端を超えるため使用禁止
+- 代わりに `inset-x-0 flex justify-center`（または `inset-x-3`）で幅をコンテナ内に収める
+- Toast.tsx の `calc(100vw - 2rem)` は iOS Safari で不正確になるため `inset-x-0 px-4 flex justify-center` に変更
+- `scrollWidth === innerWidth` が成立することを確認基準とする

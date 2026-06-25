@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { IconCheck, IconWarningFill } from "./icons";
 
 type ToastItem = {
@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2 pointer-events-none" style={{ maxWidth: "calc(100vw - 2rem)" }}>
+      <div className="fixed bottom-20 inset-x-0 z-50 flex justify-center pointer-events-none px-4">
         {toasts.map((t) => (
           <div
             key={t.id}

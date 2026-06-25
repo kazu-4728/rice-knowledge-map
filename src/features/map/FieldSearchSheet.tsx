@@ -1,11 +1,16 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useMemo } from "react";
 import type { FieldListItem } from "./MapBottomSheet";
 import {
   IconChevronRight,
   IconPlus,
 } from "../../components/ui/icons";
+
+const ITEM_H = 52;
+const VISIBLE = 5;
+const VIEWPORT_H = VISIBLE * ITEM_H;
+const PAD = ((VISIBLE - 1) / 2) * ITEM_H;
 
 type Props = {
   fieldList: FieldListItem[];
@@ -14,7 +19,6 @@ type Props = {
   loaded: boolean;
   onFieldSelect: (field: FieldListItem) => void;
   onPreview: (field: FieldListItem | null) => void;
-  /** 「田んぼを登録する」: 場所合わせ（placing）へ進む */
   onStartRegister: () => void;
   onClose: () => void;
 };
@@ -29,72 +33,113 @@ export default function FieldSearchSheet({
   onStartRegister,
   onClose,
 }: Props) {
-  const listRef = useRef<HTMLUListElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const itemRefsMap = useRef<Map<string, HTMLLIElement>>(new Map());
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const centerIdxRef = useRef(-1);
+  const recenterRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const readyRef = useRef(false);
 
-  const detectCenterItem = useCallback(() => {
-    const list = listRef.current;
-    if (!list || fieldList.length === 0) return;
+  const n = fieldList.length;
+  const repeats = useMemo(
+    () => (n > 0 ? Math.max(21, Math.ceil(201 / n)) | 1 : 0),
+    [n],
+  );
+  const totalItems = n * repeats;
+  const midStart = Math.floor(repeats / 2) * n;
 
-    const listRect = list.getBoundingClientRect();
-    const centerY = listRect.top + listRect.height / 2;
+  const showWheel = !anonMode && !liveEmpty && n > 0;
 
-    let closest: FieldListItem | null = null;
-    let minDist = Infinity;
+  const getCenterReal = useCallback(
+    (scrollTop: number) => {
+      if (n === 0) return -1;
+      const vi = Math.round((scrollTop + PAD) / ITEM_H);
+      return ((vi % n) + n) % n;
+    },
+    [n],
+  );
 
-    for (const field of fieldList) {
-      const el = itemRefsMap.current.get(field.id);
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const itemCenterY = rect.top + rect.height / 2;
-      const dist = Math.abs(itemCenterY - centerY);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = field;
-      }
-    }
+  const scrollToReal = useCallback(
+    (realIdx: number, behavior: ScrollBehavior = "instant") => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const vi = midStart + realIdx;
+      el.scrollTo({ top: vi * ITEM_H - PAD, behavior });
+    },
+    [midStart],
+  );
 
-    onPreview(closest);
-  }, [fieldList, onPreview]);
+  useEffect(() => {
+    if (!showWheel) return;
+    readyRef.current = false;
+    requestAnimationFrame(() => {
+      scrollToReal(0, "instant");
+      centerIdxRef.current = 0;
+      onPreview(fieldList[0] ?? null);
+      requestAnimationFrame(() => {
+        readyRef.current = true;
+      });
+    });
+  }, [fieldList, showWheel, scrollToReal, onPreview]);
 
   const handleScroll = useCallback(() => {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(detectCenterItem, 200);
-  }, [detectCenterItem]);
+    const el = scrollRef.current;
+    if (!el || !readyRef.current) return;
 
-  useEffect(() => {
-    const timer = setTimeout(detectCenterItem, 100);
-    return () => clearTimeout(timer);
-  }, [detectCenterItem]);
+    const ri = getCenterReal(el.scrollTop);
+    if (ri >= 0 && ri !== centerIdxRef.current) {
+      centerIdxRef.current = ri;
+      onPreview(fieldList[ri] ?? null);
+    }
 
-  useEffect(() => {
-    return () => clearTimeout(debounceRef.current);
-  }, []);
+    clearTimeout(recenterRef.current);
+    recenterRef.current = setTimeout(() => {
+      const el2 = scrollRef.current;
+      if (!el2 || n === 0) return;
+      const vi = Math.round((el2.scrollTop + PAD) / ITEM_H);
+      const group = Math.floor(vi / n);
+      const midGroup = Math.floor(repeats / 2);
+      if (Math.abs(group - midGroup) > repeats / 4) {
+        const cur = ((vi % n) + n) % n;
+        scrollToReal(cur, "instant");
+      }
+    }, 300);
+  }, [n, repeats, getCenterReal, scrollToReal, fieldList, onPreview]);
+
+  useEffect(() => () => clearTimeout(recenterRef.current), []);
+
+  const handleItemClick = useCallback(
+    (virtualIdx: number) => {
+      const ri = virtualIdx % n;
+      if (ri === centerIdxRef.current) {
+        onFieldSelect(fieldList[ri]);
+      } else {
+        scrollRef.current?.scrollTo({
+          top: virtualIdx * ITEM_H - PAD,
+          behavior: "smooth",
+        });
+      }
+    },
+    [n, fieldList, onFieldSelect],
+  );
 
   const showList = !anonMode && !liveEmpty;
 
   return (
-    <div
-      className="absolute inset-0 z-40 flex items-end"
-      onClick={onClose}
-    >
+    <div className="absolute inset-0 z-40 flex items-end" onClick={onClose}>
       <div
         className="mx-auto w-full max-w-md md:max-w-2xl"
         onClick={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
       >
-        {/* 縦フレックス: ヘッダ固定 / 一覧スクロール / フッタ固定。全体は画面の約48%に固定 */}
-        <div className={`flex flex-col rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]${showList ? " h-[48dvh]" : ""}`}>
+        <div className="flex flex-col rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]">
           <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-gray-300" />
 
           {/* ── 固定ヘッダ ── */}
           <div className="mb-3 flex shrink-0 items-center justify-between">
             <h2 className="text-base font-bold text-gray-900">
               登録田んぼ
-              {showList && fieldList.length > 0 && (
+              {showList && n > 0 && (
                 <span className="ml-1.5 text-sm font-medium text-gray-400">
-                  {fieldList.length}件
+                  {n}件
                 </span>
               )}
             </h2>
@@ -113,13 +158,17 @@ export default function FieldSearchSheet({
             >
               <div>
                 <p className="text-sm font-bold">ログインして田んぼを管理</p>
-                <p className="mt-0.5 text-xs text-green-100">家族と記録を共有できます</p>
+                <p className="mt-0.5 text-xs text-green-100">
+                  家族と記録を共有できます
+                </p>
               </div>
               <IconChevronRight className="h-5 w-5 shrink-0" />
             </a>
           ) : liveEmpty ? (
             <div className="shrink-0">
-              <p className="text-sm font-bold text-gray-900">まず田んぼを登録しましょう</p>
+              <p className="text-sm font-bold text-gray-900">
+                まず田んぼを登録しましょう
+              </p>
               <p className="mt-0.5 text-xs text-gray-500">
                 地図を動かして場所を合わせてから、田んぼの輪郭を登録できます
               </p>
@@ -132,52 +181,69 @@ export default function FieldSearchSheet({
             </div>
           ) : (
             <>
-              {/* ── スクロールする一覧領域（ここだけが縦スクロール） ── */}
-              {fieldList.length === 0 ? (
-                <div className="flex min-h-0 flex-1 items-center justify-center">
+              {n === 0 ? (
+                <div
+                  className="flex items-center justify-center"
+                  style={{ height: VIEWPORT_H }}
+                >
                   <p className="text-sm text-gray-400">
-                    {loaded ? "登録された田んぼはありません" : "読み込み中…"}
+                    {loaded
+                      ? "登録された田んぼはありません"
+                      : "読み込み中…"}
                   </p>
                 </div>
               ) : (
-                <ul
-                  ref={listRef}
-                  onScroll={handleScroll}
-                  onTouchMove={(e) => e.stopPropagation()}
-                  style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
-                  className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-1"
-                >
-                  {fieldList.map((f) => (
-                    <li
-                      key={f.id}
-                      ref={(el) => {
-                        if (el) itemRefsMap.current.set(f.id, el);
-                        else itemRefsMap.current.delete(f.id);
-                      }}
-                    >
-                      <button
-                        onClick={() => onFieldSelect(f)}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-green-50 active:bg-green-100"
-                      >
-                        <span className="h-3.5 w-3.5 shrink-0 rounded-sm bg-green-600" />
-                        <span className="flex-1 truncate text-sm font-semibold text-gray-900">
-                          {f.name || "名前のない田んぼ"}
-                        </span>
-                        {f.pendingCount != null && f.pendingCount > 0 && (
-                          <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
-                            未対応 {f.pendingCount}
+                <div className="relative" style={{ height: VIEWPORT_H }}>
+                  {/* 中央ハイライトバー */}
+                  <div
+                    className="pointer-events-none absolute inset-x-2 z-10 rounded-xl border border-amber-200 bg-amber-50/80"
+                    style={{ top: PAD, height: ITEM_H }}
+                  />
+
+                  {/* ホイールスクロール */}
+                  <div
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    onTouchMove={(e) => e.stopPropagation()}
+                    className="relative z-0 h-full overflow-y-auto overscroll-contain"
+                    style={{
+                      scrollSnapType: "y mandatory",
+                      touchAction: "pan-y",
+                      WebkitOverflowScrolling: "touch",
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    {Array.from({ length: totalItems }, (_, vi) => {
+                      const ri = vi % n;
+                      const f = fieldList[ri];
+                      return (
+                        <div
+                          key={vi}
+                          onClick={() => handleItemClick(vi)}
+                          className="flex cursor-pointer items-center gap-3 px-3"
+                          style={{
+                            height: ITEM_H,
+                            scrollSnapAlign: "center",
+                          }}
+                        >
+                          <span className="h-3.5 w-3.5 shrink-0 rounded-sm bg-green-600" />
+                          <span className="flex-1 truncate text-sm font-semibold text-gray-900">
+                            {f.name || "名前のない田んぼ"}
                           </span>
-                        )}
-                        {f.lastRecord && f.lastRecord !== "記録なし" && (
-                          <span className="hidden shrink-0 text-xs text-gray-400 sm:block">
-                            {f.lastRecord}
-                          </span>
-                        )}
-                        <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                          {f.pendingCount != null && f.pendingCount > 0 && (
+                            <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
+                              未対応 {f.pendingCount}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 上下フェードグラデーション */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 rounded-t-xl bg-gradient-to-b from-white via-white/80 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 rounded-b-xl bg-gradient-to-t from-white via-white/80 to-transparent" />
+                </div>
               )}
 
               {/* ── 固定フッタ: 田んぼを登録する ── */}

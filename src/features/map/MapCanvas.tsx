@@ -301,20 +301,14 @@ export default function MapCanvas() {
       returnToBrowse();
       return;
     }
-    // 登録した田んぼを選択状態で表示し、その場所へ寄せる
-    setMode({ kind: "field", field: { id: localId, name } });
+    // 保存後は通常閲覧に戻し、登録位置へ寄せる（詳細シートは開かない）
+    setMode({ kind: "browse" });
     flyToVertices(vertices);
+    resizeMapSoon();
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
       if (status === "saved") {
-        // 保存直後の編集・削除ができるよう、ローカルidをDBのidへ差し替える。
-        // 保存完了前に操作カード等を開いていた場合も選択中idを同期する
         if (id) {
           replaceSavedFieldId(localId, id);
-          setMode((m) =>
-            m.kind === "field" && m.field.id === localId
-              ? { kind: "field", field: { ...m.field, id } }
-              : m
-          );
           setRedrawTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
           setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
@@ -1208,9 +1202,11 @@ export default function MapCanvas() {
 
       {/* タイル取得失敗バナー */}
       {tileError && (
-        <div className="absolute top-3 left-1/2 z-20 flex max-w-xs -translate-x-1/2 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800 shadow">
-          <IconWarningFill className="h-5 w-5 shrink-0 text-amber-500" />
-          <span>航空写真を読み込めません。区画・ピンは表示しています。</span>
+        <div className="absolute top-3 inset-x-3 z-20 flex justify-center pointer-events-none">
+          <div className="flex max-w-xs items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800 shadow pointer-events-auto">
+            <IconWarningFill className="h-5 w-5 shrink-0 text-amber-500" />
+            <span>航空写真を読み込めません。区画・ピンは表示しています。</span>
+          </div>
         </div>
       )}
 
@@ -1281,37 +1277,39 @@ export default function MapCanvas() {
 
       {/* 記録ボタン（下部中央） — 通常閲覧のみ */}
       {idle && mode.kind === "browse" && (
-        <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-          {recordPopOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
-              <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
-                <Link
-                  href="/records/new"
-                  onClick={() => setRecordPopOpen(false)}
-                  className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
-                >
-                  <IconCamera className="h-5 w-5 shrink-0" />
-                  写真で記録
-                </Link>
-                <Link
-                  href="/records/new?type=audio"
-                  onClick={() => setRecordPopOpen(false)}
-                  className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
-                >
-                  <IconMic className="h-5 w-5 shrink-0 text-green-700" />
-                  音声メモ
-                </Link>
-              </div>
-            </>
-          )}
-          <button
-            onClick={() => setRecordPopOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
-          >
-            <IconCamera className="h-5 w-5" />
-            記録する
-          </button>
+        <div className="absolute bottom-6 inset-x-0 z-20 flex justify-center">
+          <div className="relative">
+            {recordPopOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
+                <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
+                  <Link
+                    href="/records/new"
+                    onClick={() => setRecordPopOpen(false)}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
+                  >
+                    <IconCamera className="h-5 w-5 shrink-0" />
+                    写真で記録
+                  </Link>
+                  <Link
+                    href="/records/new?type=audio"
+                    onClick={() => setRecordPopOpen(false)}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
+                  >
+                    <IconMic className="h-5 w-5 shrink-0 text-green-700" />
+                    音声メモ
+                  </Link>
+                </div>
+              </>
+            )}
+            <button
+              onClick={() => setRecordPopOpen((v) => !v)}
+              className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
+            >
+              <IconCamera className="h-5 w-5" />
+              記録する
+            </button>
+          </div>
         </div>
       )}
 
@@ -1475,8 +1473,10 @@ export default function MapCanvas() {
 
       {/* 保存結果トースト */}
       {toast && (
-        <div className="absolute left-1/2 top-3 z-50 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
-          {toast}
+        <div className="absolute inset-x-3 top-3 z-50 flex justify-center pointer-events-none">
+          <div className="rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg pointer-events-auto">
+            {toast}
+          </div>
         </div>
       )}
     </div>
