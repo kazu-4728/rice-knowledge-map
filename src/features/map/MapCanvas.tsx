@@ -199,13 +199,16 @@ export default function MapCanvas() {
     const map = mapRef.current;
     if (!map) return;
     map.stop();
+    window.scrollTo(0, 0);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
         mapRef.current?.resize();
         setTimeout(() => {
+          window.scrollTo(0, 0);
           mapRef.current?.resize();
           mapRef.current?.triggerRepaint();
-        }, 250);
+        }, 400);
       });
     });
   }, []);
@@ -215,6 +218,9 @@ export default function MapCanvas() {
    * 中途半端な選択・プレビュー・ピン・記録ポップを残さず、地図サイズも再計算する。
    */
   const returnToBrowse = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     cancelDraw();
     setMode({ kind: "browse" });
     setPreviewField(null);
@@ -308,12 +314,14 @@ export default function MapCanvas() {
     }
 
     // 新規: ローカル表示に追加しつつSupabaseへ保存
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     const localId = saveName(pendingName);
     if (vertices.length < 3) {
       returnToBrowse();
       return;
     }
-    // 保存後は通常閲覧へ戻す。地図の中心・ズームは維持（ユーザーは既に場所を見ている）
     captureSequence("新規保存・前");
     cancelDraw();
     setMode({ kind: "browse" });
@@ -321,6 +329,7 @@ export default function MapCanvas() {
     setRedrawTarget(null);
     setRecordPopOpen(false);
     clearTimeout(previewTimerRef.current);
+    window.scrollTo(0, 0);
     resizeMapSoon();
     captureSequence("新規保存・後");
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
@@ -1114,7 +1123,10 @@ export default function MapCanvas() {
 
   // viewport 変化時に MapLibre の resize を実行（iOS Safari アドレスバー等）
   useEffect(() => {
-    const handleResize = () => mapRef.current?.resize();
+    const handleResize = () => {
+      window.scrollTo(0, 0);
+      mapRef.current?.resize();
+    };
     window.addEventListener("resize", handleResize);
     window.visualViewport?.addEventListener("resize", handleResize);
     return () => {
