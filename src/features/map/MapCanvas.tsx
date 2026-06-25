@@ -32,6 +32,7 @@ import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import { useDrawer } from "../../components/layout/DrawerContext";
+import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
 import {
   IconCamera,
   IconLocate,
@@ -128,8 +129,11 @@ function polygonCentroid(coords: number[][]): [number, number] {
 
 export default function MapCanvas() {
   const { setDrawerOpen } = useDrawer();
+  const rootRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
+
+  const { captureSequence } = useLayoutDebug(rootRef, mapContainerRef, mapRef);
 
   // 地図上の単一モード（矛盾しない明確な状態管理）
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
@@ -194,8 +198,16 @@ export default function MapCanvas() {
   const resizeMapSoon = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    requestAnimationFrame(() => mapRef.current?.resize());
-    setTimeout(() => mapRef.current?.resize(), 250);
+    map.stop();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        mapRef.current?.resize();
+        setTimeout(() => {
+          mapRef.current?.resize();
+          mapRef.current?.triggerRepaint();
+        }, 250);
+      });
+    });
   }, []);
 
   /**
@@ -301,10 +313,16 @@ export default function MapCanvas() {
       returnToBrowse();
       return;
     }
-    // 保存後は通常閲覧に戻し、登録位置へ寄せる（詳細シートは開かない）
+    // 保存後は通常閲覧へ戻す。地図の中心・ズームは維持（ユーザーは既に場所を見ている）
+    captureSequence("新規保存・前");
+    cancelDraw();
     setMode({ kind: "browse" });
-    flyToVertices(vertices);
+    setPreviewField(null);
+    setRedrawTarget(null);
+    setRecordPopOpen(false);
+    clearTimeout(previewTimerRef.current);
     resizeMapSoon();
+    captureSequence("新規保存・後");
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
       if (status === "saved") {
         if (id) {
@@ -1196,7 +1214,7 @@ export default function MapCanvas() {
   const showDetail = idle && (mode.kind === "field" || mode.kind === "point");
 
   return (
-    <div className="absolute inset-0">
+    <div ref={rootRef} className="absolute inset-0">
       {/* マップキャンバス（maplibreのCSSがpositionを上書きするためh-fullで明示サイズ指定） */}
       <div ref={mapContainerRef} className="h-full w-full" />
 
@@ -1479,6 +1497,9 @@ export default function MapCanvas() {
           </div>
         </div>
       )}
+
+      {/* レイアウト診断パネル (?layoutDebug=1) */}
+      <LayoutDebugPanel rootRef={rootRef} mapContainerRef={mapContainerRef} mapRef={mapRef} />
     </div>
   );
 }
