@@ -204,8 +204,10 @@ export default function RecordsScreen() {
 
       {/* 保存完了トースト */}
       {toast && (
-        <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg">
-          {toast}
+        <div className="fixed bottom-24 inset-x-0 z-40 flex justify-center pointer-events-none">
+          <div className="rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg pointer-events-auto">
+            {toast}
+          </div>
         </div>
       )}
 

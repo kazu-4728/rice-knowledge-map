@@ -27,14 +27,34 @@ export default function FieldNameDialog({
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
+  const blurInput = () => {
+    inputRef.current?.blur();
+  };
+
+  const handleSave = () => {
+    blurInput();
+    onSave();
+  };
+
+  const handleCancel = () => {
+    blurInput();
+    onCancel();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onSave();
-    if (e.key === "Escape") onCancel();
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") handleCancel();
   };
 
   return (
     /* 背景オーバーレイ */
     <div className="absolute inset-0 z-30 flex items-end justify-center pb-20 bg-black/40">
+      <button
+        onClick={handleCancel}
+        className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+      >
+        ← 地図へ戻る
+      </button>
       <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl p-5">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
@@ -49,19 +69,19 @@ export default function FieldNameDialog({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="例: A田、北の田んぼ、実家前"
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           maxLength={30}
         />
 
         <div className="flex gap-2 mt-4">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="flex-1 bg-gray-100 text-gray-600 text-sm font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors"
           >
             キャンセル
           </button>
           <button
-            onClick={onSave}
+            onClick={handleSave}
             className="flex-1 bg-green-600 text-white text-sm font-bold py-3 rounded-xl hover:bg-green-700 transition-colors"
           >
             保存する
