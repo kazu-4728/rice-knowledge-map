@@ -194,33 +194,22 @@ export default function MapCanvas() {
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
-  /** DOM更新・シートアニメ完了後にMapLibreのサイズを再計算する（多重防御） */
+  /** DOM更新後に1回だけMapLibreのサイズを再計算する。 */
   const resizeMapSoon = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.stop();
-    window.scrollTo(0, 0);
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, 0);
-        mapRef.current?.resize();
-        setTimeout(() => {
-          window.scrollTo(0, 0);
-          mapRef.current?.resize();
-          mapRef.current?.triggerRepaint();
-        }, 400);
-      });
+      mapRef.current?.resize();
     });
   }, []);
 
   /**
    * どのモードからでも通常閲覧へ確実に戻す単一の出口。
-   * 中途半端な選択・プレビュー・ピン・記録ポップを残さず、地図サイズも再計算する。
+   * 中途半端な選択・プレビュー・ピン・記録ポップを残さず、地図アニメも停止する。
    */
   const returnToBrowse = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    mapRef.current?.stop();
     cancelDraw();
     setMode({ kind: "browse" });
     setPreviewField(null);
@@ -323,14 +312,13 @@ export default function MapCanvas() {
       return;
     }
     captureSequence("新規保存・前");
+    mapRef.current?.stop();
     cancelDraw();
     setMode({ kind: "browse" });
     setPreviewField(null);
     setRedrawTarget(null);
     setRecordPopOpen(false);
     clearTimeout(previewTimerRef.current);
-    window.scrollTo(0, 0);
-    resizeMapSoon();
     captureSequence("新規保存・後");
     saveFieldPolygon(name, vertices).then(({ status, id }) => {
       if (status === "saved") {
@@ -1027,6 +1015,17 @@ export default function MapCanvas() {
     if (!isDrawing) return;
 
     map.dragPan.disable();
+
+    // 1本指の touchstart/touchmove でブラウザのページスクロール・ページズームを禁止する。
+    // passive: false が必須（passive: true のままでは preventDefault() が効かない）。
+    // 2本指は preventDefault() せず MapLibre の touchZoomRotate に委ねる。
+    const canvasContainer = map.getCanvasContainer();
+    const preventPageGesture = (e: TouchEvent) => {
+      if (e.touches.length === 1) e.preventDefault();
+    };
+    canvasContainer.addEventListener("touchstart", preventPageGesture, { passive: false });
+    canvasContainer.addEventListener("touchmove", preventPageGesture, { passive: false });
+
     let tracing = false;
     let lastPoint: { x: number; y: number } | null = null;
 
@@ -1066,12 +1065,15 @@ export default function MapCanvas() {
     map.on("touchcancel", end);
 
     return () => {
+      canvasContainer.removeEventListener("touchstart", preventPageGesture);
+      canvasContainer.removeEventListener("touchmove", preventPageGesture);
       map.off("mousedown", start);
       map.off("mousemove", move);
       map.off("mouseup", end);
       map.off("touchstart", start);
       map.off("touchmove", move);
       map.off("touchend", end);
+      map.off("touchcancel", end);
       map.dragPan.enable();
     };
   }, [isDrawing]);
@@ -1121,24 +1123,24 @@ export default function MapCanvas() {
     }
   }, [previewField]);
 
-  // viewport 変化時に MapLibre の resize を実行（iOS Safari アドレスバー等）
+  // viewport 変化時（キーボード開閉・アドレスバー等）に MapLibre の resize を実行。
+  // iOS のキーボード dismiss は ~300ms かかるため、最後の変化から 400ms 後に一度だけ実行する。
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
-      window.scrollTo(0, 0);
-      mapRef.current?.resize();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        mapRef.current?.resize();
+      }, 400);
     };
     window.addEventListener("resize", handleResize);
     window.visualViewport?.addEventListener("resize", handleResize);
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener("resize", handleResize);
       window.visualViewport?.removeEventListener("resize", handleResize);
     };
   }, []);
-
-  // モードが変わるたび（シート開閉等のレイアウト変化）に地図サイズを再計算
-  useEffect(() => {
-    resizeMapSoon();
-  }, [mode.kind, resizeMapSoon]);
 
   // プレビュータイマーのクリーンアップ
   useEffect(() => {
