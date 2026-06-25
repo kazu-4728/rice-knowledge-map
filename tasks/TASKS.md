@@ -39,6 +39,7 @@
 | Map Hub Phase 1 | `/map` を初期導線の中心に変更。実画像マップ全画面化、田んぼ一覧ボトムシート、田んぼ選択/登録CTA、折りたたみFAB、田んぼ詳細/ピン詳細の導線整理 | main直push（22fd0c5・2026-06-21） |
 | UI/UXリデザイン | BottomNav・FAB廃止→MenuDrawer（モバイル）＋SideNav（PC lg以上）の2系統ナビ。DrawerContext共有・AppShellハンバーガー・navItems.ts一元化。`/home`をステータスダッシュボードに再定義。PCマップ横にMapDetailPanel常時表示。signOutで`/login`へページ遷移。Codex 3ラウンド計11件P2すべて対応 | PR #38（77ae814・squashマージ済み 2026-06-23） |
 | 田んぼ選択UI作り直し | 「田んぼを探す」→「田んぼを選ぶ」へ。検索欄削除・固定高さ一覧スクロール・previewField/selectedField分離（スクロールプレビュー＋タップ選択）・シート閉じ時の不具合修正（メニュー消失・地図幅崩れ・viewport resize対応） | PR #39（7f42d42・squashマージ済み 2026-06-24） |
+| マップ操作モデル作り直し＋iOS修正 | discriminated union `Mode` で単一モード state machine 化。2段階田んぼ登録（placing→drawing）。iOS Safari 入力ズーム修正（input 16px化＋blur-before-action）。描画中ブラウザジェスチャー漏れ防止。ピン誤タップ防止（`activatePoint` ガード）。トースト積み重ね復元。Codex 5件中3件対応・2件P3見送り | PR #40（75d4016・squashマージ済み 2026-06-25） |
 
 ---
 
@@ -88,6 +89,44 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-25 — マップ操作モデル作り直し PR #40 マージ＋iOS修正＋Codexレビュー対応（squashマージ 75d4016・ブランチ claude/ecstatic-lovelace-uhfu02）
+
+前セッション（2026-06-24）で draft PR として作成したマップ操作モデル作り直しを、ユーザーの iPhone 実機確認→追加修正→Codexレビュー対応を経てマージ。
+
+**A. iPhone 実機バグ修正（3フェーズ）:**
+
+- **Phase 1（dc56611）**: 田んぼ登録/描画中にトップバーの「×」キャンセルボタンを追加。`returnToBrowse()` を単一の復帰口として強化（`document.activeElement.blur()` + `mapRef.current.stop()` + `cancelDraw()` + 全状態クリア + `resizeMapSoon()`）。`h-dvh` で iOS Safari の動的ビューポートに対応。
+- **Phase 2（f1c3b45）**: FieldSearchSheet を無限ループホイールピッカーに作り直し。トースト/レコード画面の横幅オーバーフロー修正（`inset-x-0 px-4` 方式）。新規田んぼ保存後の遷移改善（`handleSaveField` で mode=browse + 選択状態セット）。
+- **Phase 3（957e3d9, 450ae07）**: **iOS Safari の入力フォーカスによるビューポート拡大**（根本原因）を修正。FieldNameDialog/AddPinSheet/PointEditDialog の input を `text-sm`(14px) → `text-base`(16px) に変更し iOS の自動ズームを防止。ダイアログの blur-before-action パターン（`blurInput()` → `handleSave()`/`handleCancel()`）で、ダイアログ削除前にズーム解除を保証。`LayoutDebugPanel.tsx` を新設（`?layoutDebug=1` で有効化）し、resize/viewport の診断情報をキャプチャ。
+
+**B. 並行セッション修正の統合（570780c）:**
+
+- 描画モードの `touchcancel` イベントリスナー漏れ修正。
+- `resizeMapSoon` を単一 rAF に簡素化（`map.resize()` は `getContainer()` で自動的にサイズ検出するため rAF×2 は不要）。
+- `visualViewport` リスナーのデバウンスを 400ms に変更（iOS キーボード dismiss の安定待ち）。
+
+**C. Codexレビュー対応（c75b51d）:**
+
+| 指摘 | 重要度 | 対応 |
+|---|---|---|
+| 描き直し選択の遅延適用 | P2 | `e5097d9` で修正（`selectAndFly` を DB 更新成否判定の後に移動） |
+| ピン誤タップ防止（placing中） | P2 | `c75b51d` で修正（`activatePoint` ヘルパーでモードガード） |
+| トースト積み重ね復元 | P3 | `c75b51d` で修正（`flex-col items-center gap-2` 復元） |
+| LayoutDebugPanel 二重インスタンス | P3 | 見送り（デバッグ専用ツール） |
+| 非同期描き直しレースコンディション | P3 | 見送り（実運用上発生しない） |
+
+**変更ファイル（PR #40 全体）:**
+
+- 新規: `docs/MAP_STATE_MACHINE.md`, `src/features/map/FieldPlaceOverlay.tsx`, `src/features/map/LayoutDebugPanel.tsx`
+- 大幅修正: `MapCanvas.tsx`（モード統合・placing・activatePoint・resize防御）, `FieldSearchSheet.tsx`（ホイールピッカー）
+- 修正: `FieldNameDialog.tsx`, `FieldDrawOverlay.tsx`, `AddPinSheet.tsx`, `PointEditDialog.tsx`, `Toast.tsx`, `RecordsScreen.tsx`
+
+**残（次セッション）:**
+
+- **ユーザー実機確認 U-011（最優先）**: PR #40 の8点。特に iOS Safari での入力ズーム解消・2段階登録・ピン誤タップ防止。
+- 既存の U-002/U-005〜U-010 も未確認。
+- 任意機能候補: T-051/T-052/T-048/T-053/T-054/T-055〜T-058 据え置き。
 
 ### 2026-06-24 — マップ操作モデルの作り直し（draft PR・ブランチ claude/ecstatic-lovelace-uhfu02）
 
