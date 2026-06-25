@@ -193,6 +193,15 @@ export default function MapCanvas() {
   // モードを map click ハンドラ（一度だけ登録）から参照するためのref
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const isDrawingOrNamingRef = useRef(false);
+  isDrawingOrNamingRef.current = isDrawing || isNaming;
+
+  const activatePoint = useCallback((point: FieldPoint) => {
+    const m = modeRef.current;
+    if (isDrawingOrNamingRef.current) return;
+    if (m.kind === "placing" || m.kind === "addPin" || m.kind === "picker") return;
+    setMode({ kind: "point", point });
+  }, []);
 
   /** DOM更新後に1回だけMapLibreのサイズを再計算する。 */
   const resizeMapSoon = useCallback(() => {
@@ -465,7 +474,7 @@ export default function MapCanvas() {
       const map = mapRef.current;
       if (map) {
         const marker = createPinMarker(maplibre, map, newPoint, () => {
-          setMode({ kind: "point", point: newPoint });
+          activatePoint(newPoint);
         });
         pinMarkersRef.current.set(newPoint.id, marker);
       }
@@ -506,7 +515,7 @@ export default function MapCanvas() {
         old.remove();
         pinMarkersRef.current.delete(newPoint.id);
         const marker = createPinMarker(maplibre, map, dbPoint, () => {
-          setMode({ kind: "point", point: dbPoint });
+          activatePoint(dbPoint);
         });
         pinMarkersRef.current.set(id, marker);
       });
@@ -540,7 +549,7 @@ export default function MapCanvas() {
         const old = pinMarkersRef.current.get(point.id);
         if (old) old.remove();
         const marker = createPinMarker(maplibre, map, updated, () => {
-          setMode({ kind: "point", point: updated });
+          activatePoint(updated);
         });
         pinMarkersRef.current.set(point.id, marker);
       });
@@ -985,7 +994,7 @@ export default function MapCanvas() {
         // ── 地点ピン（ティアドロップ＋ラベルチップ） ─────────
         farm.points.forEach((point) => {
           const marker = createPinMarker(maplibre, map!, point, () => {
-            setMode({ kind: "point", point });
+            activatePoint(point);
           });
           pinMarkersRef.current.set(point.id, marker);
         });
@@ -1004,6 +1013,7 @@ export default function MapCanvas() {
         mapRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- activatePoint は安定（deps=[]）; init effect は mount 時のみ実行
   }, []);
 
   // 描画モード: 地図の移動を止め、指・マウスのなぞり軌跡を頂点として記録する
