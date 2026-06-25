@@ -82,9 +82,10 @@ export default function FieldSearchSheet({
       <div
         className="mx-auto w-full max-w-md md:max-w-2xl"
         onClick={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
       >
         {/* 縦フレックス: ヘッダ固定 / 一覧スクロール / フッタ固定。全体は画面の約48%に固定 */}
-        <div className="flex max-h-[48vh] flex-col rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]">
+        <div className={`flex flex-col rounded-t-3xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]${showList ? " h-[48dvh]" : ""}`}>
           <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-gray-300" />
 
           {/* ── 固定ヘッダ ── */}
@@ -133,9 +134,11 @@ export default function FieldSearchSheet({
             <>
               {/* ── スクロールする一覧領域（ここだけが縦スクロール） ── */}
               {fieldList.length === 0 ? (
-                <p className="shrink-0 py-4 text-center text-sm text-gray-400">
-                  {loaded ? "登録された田んぼはありません" : "読み込み中…"}
-                </p>
+                <div className="flex min-h-0 flex-1 items-center justify-center">
+                  <p className="text-sm text-gray-400">
+                    {loaded ? "登録された田んぼはありません" : "読み込み中…"}
+                  </p>
+                </div>
               ) : (
                 <ul
                   ref={listRef}

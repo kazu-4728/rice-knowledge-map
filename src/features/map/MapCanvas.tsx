@@ -203,6 +203,7 @@ export default function MapCanvas() {
    * 中途半端な選択・プレビュー・ピン・記録ポップを残さず、地図サイズも再計算する。
    */
   const returnToBrowse = useCallback(() => {
+    cancelDraw();
     setMode({ kind: "browse" });
     setPreviewField(null);
     setPendingPinLngLat(null);
@@ -210,7 +211,7 @@ export default function MapCanvas() {
     setRecordPopOpen(false);
     clearTimeout(previewTimerRef.current);
     resizeMapSoon();
-  }, [resizeMapSoon]);
+  }, [cancelDraw, resizeMapSoon]);
 
   /** サーバー由来フィールドの名前・輪郭をローカル状態へ反映する */
   const applyServerFieldUpdate = (id: string, name: string, vertices?: [number, number][]) => {
@@ -1381,10 +1382,7 @@ export default function MapCanvas() {
           vertexCount={vertexCount}
           onFinish={finishDraw}
           onReposition={repositionDraw}
-          onCancel={() => {
-            cancelDraw();
-            returnToBrowse();
-          }}
+          onCancel={returnToBrowse}
           onUndo={undoVertex}
         />
       )}
@@ -1396,10 +1394,7 @@ export default function MapCanvas() {
           value={pendingName}
           onChange={setPendingName}
           onSave={handleSaveField}
-          onCancel={() => {
-            cancelDraw();
-            returnToBrowse();
-          }}
+          onCancel={returnToBrowse}
         />
       )}
 

@@ -22,15 +22,23 @@ export default function FieldPlaceOverlay({ redraw, onStart, onCancel }: Props) 
         <div className="h-9 w-9 rounded-full border-2 border-white bg-green-600/30 shadow-[0_0_0_4px_rgba(22,163,74,0.25)]" />
       </div>
 
-      {/* 上部案内 */}
+      {/* 上部: 中止ボタン + 案内 */}
       <div className="absolute inset-x-3 top-3 z-30">
-        <div className="mx-auto max-w-md rounded-xl bg-gray-900/90 px-4 py-3 text-center text-white shadow-lg backdrop-blur-sm md:max-w-2xl">
-          <p className="text-sm font-bold">
-            {redraw ? "描き直す田んぼの場所を地図で合わせてください" : "登録したい田んぼの場所を地図で合わせてください"}
-          </p>
-          <p className="mt-0.5 text-xs text-gray-300">
-            地図を動かして中央の○を田んぼに合わせます
-          </p>
+        <div className="mx-auto max-w-md md:max-w-2xl">
+          <button
+            onClick={onCancel}
+            className="mb-2 flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-2 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+          >
+            ← 地図へ戻る
+          </button>
+          <div className="rounded-xl bg-gray-900/90 px-4 py-3 text-center text-white shadow-lg backdrop-blur-sm">
+            <p className="text-sm font-bold">
+              {redraw ? "描き直す場所を合わせてください" : "登録したい場所を合わせてください"}
+            </p>
+            <p className="mt-0.5 text-xs text-gray-300">
+              地図を動かして中央の○を田んぼに合わせます
+            </p>
+          </div>
         </div>
       </div>
 

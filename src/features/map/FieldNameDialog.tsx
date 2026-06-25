@@ -35,6 +35,12 @@ export default function FieldNameDialog({
   return (
     /* 背景オーバーレイ */
     <div className="absolute inset-0 z-30 flex items-end justify-center pb-20 bg-black/40">
+      <button
+        onClick={onCancel}
+        className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+      >
+        ← 地図へ戻る
+      </button>
       <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl p-5">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold text-gray-800">{title}</h2>

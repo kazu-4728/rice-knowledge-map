@@ -14,8 +14,14 @@ export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUn
 
   return (
     <>
-      {/* 上部バナー */}
+      {/* 上部: 中止ボタン + バナー */}
       <div className="absolute top-3 left-3 right-3 z-20">
+        <button
+          onClick={onCancel}
+          className="mb-2 flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-2 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+        >
+          ← 中止して地図へ戻る
+        </button>
         <div className="bg-blue-600 text-white rounded-xl px-4 py-3 shadow-lg">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
