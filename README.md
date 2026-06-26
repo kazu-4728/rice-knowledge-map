@@ -83,7 +83,7 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 - 音声メモ録音（MediaRecorder）→ Storage 保存→再生
 - 保存前確認画面（田んぼ・地点・カテゴリ・状態・メモ）
 - 記録詳細・コメント・「対応済みにする」
-- 記録削除（owner / editor のみ。RLS で制御）
+- 記録削除（記録者本人 or owner のみ）
 
 ### 認証・共有
 

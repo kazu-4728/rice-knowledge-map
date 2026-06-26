@@ -90,20 +90,6 @@
 
 ## 作業ログ
 
-### 2026-06-26 — 文書体系の整合（ブランチ docs/documentation-consolidation）
-
-Markdown 文書体系を現行実装に整合させる PR 作業。実装コード変更なし。
-
-- `docs/UI_REPRODUCTION_SPEC.md` を削除（AGENTS.md と全面重複・独自情報なし）
-- `docs/MAP_STATE_MACHINE.md` を実装に合わせて修正: picker 地図操作の説明修正、naming→保存の遷移を新規/描き直しに分割、`resizeMapSoon` = rAF 1 回のみ・`visualViewport` = 400ms デバウンスに訂正
-- `docs/UIUX_IMPLEMENTATION_ROADMAP.md`: Phase 0（UX-060/061/062）を削除。UI/UX導線改善（UX-070〜）を最優先フェーズへ昇格。REF-001 は後回しへ移動
-- `docs/ARCHITECTURE.md`: ディレクトリ構成を実際の src/ 構造に更新。開発順序を「完了済み」と明記
-- `AGENTS.md`: Section 6 を現在フェーズ（UI/UX 改善フェーズ）に更新
-- `CLAUDE.md`: 完成形・技術方針（AGENTS.md と重複）を削除。ハマりどころは維持
-- `supabase/README.md`: migration 0004〜0006 の記述を追加
-- `README.md`: 開発者向けに大幅更新（セットアップ・環境変数・画面一覧・実装済み機能）
-- `tasks/TASKS.md`: U-011 を IN_PROGRESS に変更。⑦ の説明を実装に合わせて修正（新規保存 → browse 遷移）
-
 ### 2026-06-25 — マップ操作モデル作り直し PR #40 マージ＋iOS修正＋Codexレビュー対応（squashマージ 75d4016・ブランチ claude/ecstatic-lovelace-uhfu02）
 
 前セッション（2026-06-24）で draft PR として作成したマップ操作モデル作り直しを、ユーザーの iPhone 実機確認→追加修正→Codexレビュー対応を経てマージ。
