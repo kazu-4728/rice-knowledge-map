@@ -133,10 +133,8 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 
 ## 開発ガイド
 
-作業ルール・UI 基準・技術方針は `AGENTS.md` を参照してください（Codex / Claude Code 共通）。
+作業ルール・UI 基準・技術方針・現在のフェーズは `AGENTS.md` を参照してください（Codex / Claude Code 共通）。
 
 Claude Code 固有の引き継ぎ情報（現在の状態・ハマりどころ・次の作業）は `CLAUDE.md` にあります。
 
-UI/UX 改善の実装順序と進捗は `docs/UIUX_IMPLEMENTATION_ROADMAP.md` で管理しています。
-
-残タスク・作業ログの一次情報は `tasks/TASKS.md` です。
+残タスク・実機確認ログ・作業ログの一次情報は `tasks/TASKS.md` です。
