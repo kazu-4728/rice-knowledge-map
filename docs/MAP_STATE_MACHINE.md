@@ -46,7 +46,8 @@ drawing ──「場所を合わせ直す」──────────▶ pl
 drawing ──「完成」（3点以上）──────────▶ naming
 drawing ──「キャンセル」────────────────▶ browse（redrawTarget クリア）
 
-naming  ──「保存」────────────────────▶ field（保存した田んぼを選択・flyTo）
+naming  ──「保存」（新規）─────────────▶ browse（保存完了・新規田んぼは詳細遷移しない）
+naming  ──「保存」（描き直し）──────────▶ field（保存した田んぼを selectAndFly・flyTo）
 naming  ──「キャンセル」────────────────▶ browse（redrawTarget クリア）
 
 addPin  ──地図タップ──────────────────▶ addPin（pendingPinLngLat 取得→AddPinSheet）
@@ -63,8 +64,8 @@ addPin  ──「キャンセル」───────────────
 - `previewField` / `pendingPinLngLat` / `redrawTarget` / `recordPopOpen` をクリア
 - プレビューの debounce タイマーをクリア
 - 上部メニューと「田んぼを選ぶ」が表示される状態へ戻す
-- MapLibre のサイズを **DOM 更新・シートアニメーション完了後**に再計算する
-  - `requestAnimationFrame` 1 回に依存せず、`ResizeObserver`（常設）＋ rAF ＋ 約 250ms 後の resize ＋ `visualViewport` 監視を併用
+- MapLibre のサイズを **DOM 更新後**に再計算する
+  - `ResizeObserver`（常設）＋ `returnToBrowse`・`handlePickerSelect` 時の rAF 1 回 ＋ `visualViewport.resize` の 400ms デバウンスを併用
 - 横スワイプでしか戻れない状態を作らない（各オーバーレイに明示的な閉じる/キャンセルを置く）
 
 ## モバイルでの常設退避導線
@@ -82,7 +83,7 @@ placing / drawing / naming の各状態で、**画面上部の固定位置に必
 
 1. `ResizeObserver` をマップコンテナに常設し、サイズ変化で `map.resize()`
 2. `window.resize` / `visualViewport.resize`（iOS Safari アドレスバー、PWA viewport 変化）
-3. `mode` が変わるたびに rAF ＋ 250ms 後の resize（シート開閉アニメーション完了後）
+3. `returnToBrowse()` と `handlePickerSelect()` 実行時に rAF 1 回（シート開閉アニメーション後の resize。全モード遷移で呼ばれるわけではない）
 
 ## 田んぼ選択ホイールピッカー（picker）
 
