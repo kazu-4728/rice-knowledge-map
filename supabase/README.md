@@ -2,9 +2,9 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-06-10）
+## 適用状況（2026-06-26）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001 / 0002 / 0003 適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0006 適用済み**。
 - セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
   `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
   **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
@@ -28,9 +28,22 @@ Supabase関連のファイルを置くディレクトリです。
   - RLSの構造上クライアントから直接できない「グループ作成+owner登録」を
     1トランザクションで行う
 
+- `0004_field_photos_site_content.sql` — 田んぼカバー写真とグループサイト設定
+  - `farm_fields.photo_path`（テキスト）カラム追加
+  - `group_site_content` テーブル新設（グループ別ヒーロー/ランディング設定。owner のみ作成・更新・削除）
+  - 適用済み: 2026-06-13（U-001 MCP apply_migration で確認）
+- `0005_farm_schedule.sql` — 家族共有の作業カレンダー
+  - `farm_schedules` テーブル新設（グループ・田んぼひも付き予定。title / scheduled_date / category / done など）
+  - category: water_in / water_out / fertilize / pesticide / weed / harvest / other
+  - 適用済み: PR #29（カレンダー機能実装時）
+- `0006_schedule_authz.sql` — カレンダーの権限・整合性ハードニング
+  - `farm_schedules` の INSERT / UPDATE / DELETE を owner / editor に制限（0005 では全メンバーが書き込み可だった）
+  - `field_id` と `group_id` の整合性チェックトリガー追加
+  - 適用済み: PR #29 と同時
+
 ## 今後migrationを追加するとき
 
-1. `0004_xxx.sql` のように連番でこのディレクトリに追加する
+1. `0007_xxx.sql` のように連番でこのディレクトリに追加する
 2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
    （docs/NEGATIVE_ACTIONS.md 参照）
 3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
