@@ -2,9 +2,9 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-06-10）
+## 適用状況（2026-06-26）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001 / 0002 / 0003 適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0006 適用済み**。
 - セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
   `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
   **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
@@ -43,7 +43,7 @@ Supabase関連のファイルを置くディレクトリです。
 
 ## 今後migrationを追加するとき
 
-1. `0004_xxx.sql` のように連番でこのディレクトリに追加する
+1. `0007_xxx.sql` のように連番でこのディレクトリに追加する
 2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
    （docs/NEGATIVE_ACTIONS.md 参照）
 3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
