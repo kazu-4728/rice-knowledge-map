@@ -62,30 +62,52 @@ Deploy   : Vercel Preview
 - 一覧中心の画面
 - 管理ダッシュボード
 
-## 4. 推奨ディレクトリ構成
+## 4. ディレクトリ構成（実際の src/ 構造）
 
 ```text
 src/
-├── app/
+├── app/               App Router ページ（16 ルート）
 │   ├── layout.tsx
-│   ├── page.tsx
-│   ├── map/page.tsx
-│   ├── records/page.tsx
-│   └── menu/page.tsx
+│   ├── page.tsx         /: スプラッシュ
+│   ├── home/            /home: ステータスダッシュボード
+│   ├── map/             /map: メインマップ（MapCanvas）
+│   ├── fields/          /fields: 田んぼ一覧
+│   ├── fields/[id]/     /fields/[id]: 田んぼ詳細
+│   ├── records/         /records: 記録一覧
+│   ├── records/[id]/    /records/[id]: 記録詳細
+│   ├── records/new/     /records/new: 記録作成（写真/音声）
+│   ├── records/new/confirm/  /records/new/confirm: 保存前確認
+│   ├── calendar/        /calendar: カレンダー
+│   ├── guide/           /guide: 使い方
+│   ├── export/          /export: エクスポート（PDF）
+│   ├── menu/            /menu: メニュー
+│   ├── menu/site/       /menu/site: サイト設定（owner のみ）
+│   ├── login/           /login: ログイン
+│   └── invite/          /invite: 招待引き換え
 ├── components/
-│   ├── layout/
-│   └── ui/
+│   ├── layout/          AppShell / MenuDrawer / SideNav / BackButton / DrawerContext ほか
+│   ├── ui/              icons / PaddyPhoto / Toast / VoiceInputButton / WeatherHeader ほか
+│   └── pwa/             PwaRegister
 ├── features/
-│   ├── map/
-│   ├── records/
-│   ├── farm-fields/
-│   ├── field-points/
-│   ├── groups/
-│   └── auth/
+│   ├── auth/
+│   ├── calendar/
+│   ├── fields/
+│   ├── guide/
+│   ├── home/
+│   ├── map/             MapCanvas / FieldSearchSheet / useFieldDraw ほか
+│   ├── menu/
+│   └── records/
 ├── data/
+│   └── dummy.ts
 ├── lib/
+│   ├── data/            farm / records / recordSave / schedule / siteContent / weather ほか
+│   ├── hooks/
+│   ├── supabase/        client / types
+│   └── utils/
 ├── styles/
+│   └── globals.css
 └── types/
+    └── index.ts
 ```
 
 ## 5. マップ設計
@@ -171,17 +193,19 @@ Supabaseは以下を担当します。
 
 共有はユーザー個人所有ではなく、グループ単位にします。
 
-## 8. 開発順序
+## 8. 開発順序（完了済み）
 
-1. 参照モック画像に近いメインマップUIを作る
-2. App Shellを整える
-3. 写真で記録UIを作る
-4. 音声メモUIを作る
-5. 保存前確認UIを作る
-6. 記録詳細UIを作る
-7. Supabaseスキーマを確認する
-8. Supabase接続を行う
-9. 保存処理を実装する
-10. Vercel Previewでスマホ実機確認を行う
+以下の順序で実装を完了しています（PR #10〜#40）。
 
-UIが参照モック画像から離れている状態では、DB接続や機能追加へ進まないでください。
+1. 参照モック画像に近いメインマップUIを作る — 完了（PR #10）
+2. App Shellを整える — 完了（PR #10, #38）
+3. 写真で記録UIを作る — 完了（Phase B / PR #16）
+4. 音声メモUIを作る — 完了（Phase B2 / PR #17）
+5. 保存前確認UIを作る — 完了（PR #16）
+6. 記録詳細UIを作る — 完了（Phase C / PR #18）
+7. Supabaseスキーマを確認する — 完了（PR #11）
+8. Supabase接続を行う — 完了（PR #12〜#14）
+9. 保存処理を実装する — 完了（PR #16〜#25）
+10. Vercel Previewでスマホ実機確認を行う — 完了（本番: https://rice-knowledge-map.vercel.app）
+
+現在は **UI/UX 改善フェーズ**（実機確認→導線課題の修正）。詳細は `docs/UIUX_IMPLEMENTATION_ROADMAP.md` を参照。
