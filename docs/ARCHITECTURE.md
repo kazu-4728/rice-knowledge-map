@@ -206,6 +206,6 @@ Supabaseは以下を担当します。
 7. Supabaseスキーマを確認する — 完了（PR #11）
 8. Supabase接続を行う — 完了（PR #12〜#14）
 9. 保存処理を実装する — 完了（PR #16〜#25）
-10. Vercel Previewでスマホ実機確認を行う — 完了（本番: https://rice-knowledge-map.vercel.app）
+10. 本番環境の整備 — 完了（https://rice-knowledge-map.vercel.app）。個別の実機確認は tasks/TASKS.md で継続管理
 
 現在は **UI/UX 改善フェーズ**（実機確認→導線課題の修正）。詳細は `docs/UIUX_IMPLEMENTATION_ROADMAP.md` を参照。
