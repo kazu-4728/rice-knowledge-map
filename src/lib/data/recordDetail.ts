@@ -73,7 +73,7 @@ const VALID_POINT_TYPES: ReadonlySet<string> = new Set<FieldPointType>([
 const STATUS_LABELS: Record<string, string> = {
   open: "未対応",
   needs_check: "要確認",
-  resolved: "対応済み",
+  resolved: "解決済み",
   monitoring: "経過観察",
 };
 

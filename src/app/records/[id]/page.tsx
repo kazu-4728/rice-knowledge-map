@@ -10,6 +10,7 @@ import {
   IconChevronLeft,
   IconClipboard,
   IconCommentFill,
+  IconMap,
   IconMic,
   IconMore,
   IconMoreVertical,
@@ -309,6 +310,28 @@ export default function RecordDetailPage() {
             )}
           </div>
         </section>
+
+        {/* マップで見る — 田んぼ or 座標がある場合 */}
+        {(record.fieldId || (record.latitude !== null && record.longitude !== null)) && (() => {
+          const params = new URLSearchParams();
+          if (record.fieldId) params.set("field", record.fieldId);
+          if (record.pointId) params.set("point", record.pointId);
+          if (record.latitude !== null && record.longitude !== null) {
+            params.set("lat", String(record.latitude));
+            params.set("lng", String(record.longitude));
+          }
+          return (
+            <Link
+              href={`/map?${params.toString()}`}
+              className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm transition-transform active:scale-98"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                <IconMap className="h-4.5 w-4.5 text-green-700" />
+              </span>
+              <span className="text-sm font-bold text-green-700">マップで見る</span>
+            </Link>
+          );
+        })()}
 
         {/* 記録情報カード */}
         <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">

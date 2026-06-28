@@ -38,7 +38,7 @@ const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: stri
   issue: { label: "異常", cls: "bg-red-100 text-red-700", order: 0 },
   needs_check: { label: "要確認", cls: "bg-amber-100 text-amber-700", order: 1 },
   normal: { label: "正常", cls: "bg-green-50 text-green-700", order: 2 },
-  resolved: { label: "対応済み", cls: "bg-blue-50 text-blue-600", order: 3 },
+  resolved: { label: "解決済み", cls: "bg-blue-50 text-blue-600", order: 3 },
 };
 
 const CATEGORY_CHIP: Record<RecordItem["category"], string> = {
@@ -342,7 +342,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               return (
                 <li key={point.id}>
                   <Link
-                    href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}&pointType=${encodeURIComponent(point.type)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
+                    href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
                     className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-all hover:bg-gray-50 active:scale-95"
                   >
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
@@ -446,11 +446,11 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           <IconChevronRight className="h-4 w-4 text-gray-400" />
         </Link>
         <Link
-          href="/map"
+          href={`/map?field=${encodeURIComponent(fieldId)}`}
           className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
         >
           <IconPinFill className="h-4 w-4" />
-          マップを開く
+          マップで見る
         </Link>
       </div>
     </div>
