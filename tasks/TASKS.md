@@ -40,6 +40,7 @@
 | UI/UXリデザイン | BottomNav・FAB廃止→MenuDrawer（モバイル）＋SideNav（PC lg以上）の2系統ナビ。DrawerContext共有・AppShellハンバーガー・navItems.ts一元化。`/home`をステータスダッシュボードに再定義。PCマップ横にMapDetailPanel常時表示。signOutで`/login`へページ遷移。Codex 3ラウンド計11件P2すべて対応 | PR #38（77ae814・squashマージ済み 2026-06-23） |
 | 田んぼ選択UI作り直し | 「田んぼを探す」→「田んぼを選ぶ」へ。検索欄削除・固定高さ一覧スクロール・previewField/selectedField分離（スクロールプレビュー＋タップ選択）・シート閉じ時の不具合修正（メニュー消失・地図幅崩れ・viewport resize対応） | PR #39（7f42d42・squashマージ済み 2026-06-24） |
 | マップ操作モデル作り直し＋iOS修正 | discriminated union `Mode` で単一モード state machine 化。2段階田んぼ登録（placing→drawing）。iOS Safari 入力ズーム修正（input 16px化＋blur-before-action）。描画中ブラウザジェスチャー漏れ防止。ピン誤タップ防止（`activatePoint` ガード）。トースト積み重ね復元。Codex 5件中3件対応・2件P3見送り | PR #40（75d4016・squashマージ済み 2026-06-25） |
+| 確認・記録・地図回帰の導線統合 | ホーム「要注意の田んぼ」セクション追加。田んぼ詳細のポイント導線をマップ表示に変更。記録詳細に「マップで見る」リンク追加。マップURLパラメータ対応（`?field=&point=&lat=&lng=`）。状態ラベル統一（正常/要確認/異常/解決済み）。returnToに田んぼ・ピンコンテキスト保持。GPSフォールバック優先（point→lat/lng→field） | PR #48（b3cc32c・squashマージ済み 2026-06-28） |
 
 ---
 
@@ -59,7 +60,7 @@
 | PR-H | DONE | カレンダー家族共有（migration 0005適用・月表示・予定CRUD・BottomNavに「予定」タブ） | PR #29（mainマージ済み） |
 | PR-I | DONE | 未対応異常バナー・記録エクスポート（年次/田んぼ別PDF）・メニューリンク追加 | PR #29（mainマージ済み） |
 | T-048 | TODO | 記録の AI 整理・要約（任意機能） |
-| T-051 | TODO | 記録詳細に「マップで見る」リンク（lat/lng がある時のみ）。`/map?lng=&lat=&zoom=` を MapCanvas が flyTo するパラメータとして受ける |
+| T-051 | DONE | 記録詳細→マップで見る。地点が有効なら地点、地点未紐付けまたは見つからない場合はGPS座標、最後に田んぼへフォールバック | PR #48（b3cc32c） |
 | T-052 | TODO | コメントの編集・削除（各コメントの `IconMore` ボタンが現状ダミー。RLSは `record_comments_update/delete = user_id = auth.uid()` で本人のみ許可済み）|
 | T-053 | TODO | 複数グループの本格対応（loadSchedules 横断・田んぼ/予定ごとのロール）。現状はアクティブグループに統一中 |
 | T-054 | TODO | 記録の soft-delete（`deleted_at` カラム＋RLS）。現状は hard-delete。家族3〜4人運用では復元ニーズが薄く保留 |
@@ -89,6 +90,40 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-28 — 確認・記録・地図回帰の導線統合 PR #48（squashマージ b3cc32c・ブランチ claude/uiux-audit-foundation-suit4i）
+
+Issue #47 対応。現場での確認・記録・地図回帰を1本の導線に統合。
+
+**実装内容（初回コミット 06cbfc0）:**
+
+- ホーム画面に「要注意の田んぼ」セクション追加（ポイントの異常/要確認ステータスを田んぼ別集計、件数順表示）
+- 田んぼ詳細のポイント導線改善（タップ先を `/records/new` → `/map?field=&point=` に変更、「マップを開く」→「マップで見る」に改名）
+- 記録詳細に「マップで見る」リンク追加（fieldId/pointId/lat/lng がある記録にマップ遷移ボタン）
+- マップ画面のURLパラメータ対応（`?field=X&point=Y&lat=Z&lng=W` による初期ナビゲーション、`<Suspense>` 境界追加）
+- 状態ラベル統一（全画面で 正常/要確認/異常/解決済み の4段階に。mapPins: 良好→正常、FieldDetailScreen/recordDetail: 対応済み→解決済み）
+
+**オーナーレビュー指摘2件 → 修正コミット 7e28550:**
+
+1. **returnTo に田んぼ・ピンコンテキスト保持**: MapBottomSheet/MapDetailPanel の記録リンクの `returnTo` を `/map?field={fieldId}&point={pointId}` 形式に変更。記録保存後のマップ復帰時に選択状態が復元される
+2. **GPSフォールバック優先順序**: MapCanvas の初期ナビゲーション優先度を point→field→lat/lng から point→lat/lng→field に変更。ピン未紐付きでもGPS座標があればそこへ移動
+
+**検証結果:**
+
+- `npx tsc --noEmit` ✅ エラーなし
+- `npm run lint` ✅ エラーなし
+- `npm run build` ✅ 全19ページビルド成功
+- Vercel Preview Ready
+- Codex 確認 OK
+
+**実機確認（2026-06-28 iPhone）:**
+
+- ホーム → 要注意の田んぼ → 田んぼ詳細 → 地点/記録 → 地図の導線 ✅
+- 記録詳細 → マップで見る → GPS優先表示 ✅
+- 地点記録 → 保存 → 同じ田んぼ・地点が選択されたマップへの復帰 ✅
+- ステータスラベルの全画面表記 ✅
+
+**変更ファイル（9件）:** `HomeScreen.tsx`, `FieldDetailScreen.tsx`, `records/[id]/page.tsx`, `MapCanvas.tsx`, `MapBottomSheet.tsx`, `MapDetailPanel.tsx`, `map/page.tsx`, `mapPins.ts`, `recordDetail.ts`
 
 ### 2026-06-25 — マップ操作モデル作り直し PR #40 マージ＋iOS修正＋Codexレビュー対応（squashマージ 75d4016・ブランチ claude/ecstatic-lovelace-uhfu02）
 
