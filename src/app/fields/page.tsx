@@ -44,30 +44,36 @@ export default function FieldsPage() {
   useEffect(() => {
     const sb = getSupabase();
     if (sb) {
-      sb.auth.getSession().then(({ data: sess }) => {
+      sb.auth.getSession().then(async ({ data: sess }) => {
         if (!sess.session) return;
-        sb.from("records")
-          .select("field_id, recorded_at")
-          .not("field_id", "is", null)
-          .order("recorded_at", { ascending: false })
-          .then(({ data: rows }) => {
-            if (!rows) return;
-            const lastMap: Record<string, string> = {};
-            for (const r of rows as { field_id: string; recorded_at: string }[]) {
-              if (r.field_id && !lastMap[r.field_id]) {
-                const d = new Date(r.recorded_at);
-                const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-                lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
-              }
-            }
-            setFieldStatuses((prev) => {
-              const next = { ...prev };
-              for (const [fid, date] of Object.entries(lastMap)) {
-                next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
-              }
-              return next;
-            });
-          });
+        type DateRow = { field_id: string; recorded_at: string };
+        const PAGE = 1000;
+        const allRows: DateRow[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data: page } = await sb.from("records")
+            .select("field_id, recorded_at")
+            .not("field_id", "is", null)
+            .order("recorded_at", { ascending: false })
+            .range(from, from + PAGE - 1);
+          if (!page || page.length === 0) break;
+          allRows.push(...(page as DateRow[]));
+          if (page.length < PAGE) break;
+        }
+        const lastMap: Record<string, string> = {};
+        for (const r of allRows) {
+          if (r.field_id && !lastMap[r.field_id]) {
+            const d = new Date(r.recorded_at);
+            const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+            lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+          }
+        }
+        setFieldStatuses((prev) => {
+          const next = { ...prev };
+          for (const [fid, date] of Object.entries(lastMap)) {
+            next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
+          }
+          return next;
+        });
       });
     }
 

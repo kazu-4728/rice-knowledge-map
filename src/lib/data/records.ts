@@ -45,6 +45,9 @@ const POINT_TYPES: readonly FieldPointType[] = [
 ];
 
 function toPointType(r: RecordListRow): FieldPointType {
+  if (r.field_points?.point_type && (POINT_TYPES as readonly string[]).includes(r.field_points.point_type)) {
+    return r.field_points.point_type as FieldPointType;
+  }
   if (r.ai_category && (POINT_TYPES as readonly string[]).includes(r.ai_category)) {
     return r.ai_category as FieldPointType;
   }
