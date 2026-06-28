@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loadRecords } from "../../lib/data/records";
 import { loadFarmData, ensureGroupId } from "../../lib/data/farm";
+import type { FieldPoint } from "../../types";
 import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
@@ -18,9 +19,11 @@ import {
 } from "../../components/ui/icons";
 
 type FieldSummary = { id: string; name: string };
+type AttentionField = { id: string; name: string; issueCount: number; needsCheckCount: number };
 
 export default function HomeScreen() {
   const [fields, setFields] = useState<FieldSummary[]>([]);
+  const [attentionFields, setAttentionFields] = useState<AttentionField[]>([]);
   const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
@@ -51,6 +54,24 @@ export default function HomeScreen() {
         name: String(f.properties?.name ?? ""),
       }));
       setFields(items);
+
+      const fieldNameMap = new Map(items.map((f) => [f.id, f.name]));
+      const attnMap = new Map<string, { issueCount: number; needsCheckCount: number }>();
+      data.points.forEach((p: FieldPoint) => {
+        if (p.status !== "issue" && p.status !== "needs_check") return;
+        if (!p.fieldId) return;
+        const entry = attnMap.get(p.fieldId) ?? { issueCount: 0, needsCheckCount: 0 };
+        if (p.status === "issue") entry.issueCount++;
+        else entry.needsCheckCount++;
+        attnMap.set(p.fieldId, entry);
+      });
+      const attnFields: AttentionField[] = [];
+      attnMap.forEach((counts, fid) => {
+        attnFields.push({ id: fid, name: fieldNameMap.get(fid) ?? "", ...counts });
+      });
+      attnFields.sort((a, b) => (b.issueCount + b.needsCheckCount) - (a.issueCount + a.needsCheckCount));
+      setAttentionFields(attnFields);
+
       setLoaded(true);
     });
 
@@ -100,6 +121,40 @@ export default function HomeScreen() {
           </p>
           <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
         </Link>
+      )}
+
+      {/* 要注意の田んぼ */}
+      {attentionFields.length > 0 && (
+        <section className="rounded-2xl bg-white shadow-sm">
+          <div className="flex items-center gap-2 p-4 pb-2">
+            <IconWarningFill className="h-5 w-5 text-amber-500" />
+            <h2 className="text-base font-bold text-gray-900">要注意の田んぼ</h2>
+          </div>
+          <ul className="px-4 pb-3">
+            {attentionFields.map((af, i) => (
+              <li key={af.id}>
+                <Link
+                  href={`/fields/${encodeURIComponent(af.id)}`}
+                  className={`flex items-center gap-3 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                    <IconWarningFill className="h-4 w-4 text-amber-600" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-900">{af.name || "名前のない田んぼ"}</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {[
+                        af.issueCount > 0 ? `異常${af.issueCount}件` : null,
+                        af.needsCheckCount > 0 ? `要確認${af.needsCheckCount}件` : null,
+                      ].filter(Boolean).join("・")}
+                    </p>
+                  </div>
+                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* クイックアクション */}

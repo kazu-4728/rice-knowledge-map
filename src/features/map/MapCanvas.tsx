@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
   Map as MLMap,
@@ -129,6 +130,7 @@ function polygonCentroid(coords: number[][]): [number, number] {
 
 export default function MapCanvas() {
   const { setDrawerOpen } = useDrawer();
+  const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
@@ -694,6 +696,8 @@ export default function MapCanvas() {
   flyToCurrentLocationRef.current = flyToCurrentLocation;
   const findFieldAtRef = useRef(findFieldAt);
   findFieldAtRef.current = findFieldAt;
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
   /** 指定 id の田んぼへフライ。serverFields / savedFields から重心を計算する */
   const flyToField = (id: string) => {
@@ -863,14 +867,15 @@ export default function MapCanvas() {
         if (!map) return;
         map.resize();
 
-        // 初期表示位置: 自分のデータがあればそこへ、なければ現在地を取得
+        // 初期表示位置: URLパラメータがある場合は後段で処理するため、ここではスキップ
+        const hasNavParams = !!(searchParamsRef.current.get("field") || searchParamsRef.current.get("point") || searchParamsRef.current.get("lat"));
         const coords: [number, number][] = [
           ...farm.points.map((p) => p.lngLat),
           ...farm.fieldsGeoJSON.features.flatMap((f) =>
             f.geometry.type === "Polygon" ? (f.geometry.coordinates[0] as [number, number][]) : []
           ),
         ];
-        if (farm.mode === "live" && coords.length > 0) {
+        if (!hasNavParams && farm.mode === "live" && coords.length > 0) {
           const lngs = coords.map((c) => c[0]);
           const lats = coords.map((c) => c[1]);
           map.fitBounds(
@@ -880,7 +885,7 @@ export default function MapCanvas() {
             ],
             { padding: 60, maxZoom: 16.5, duration: 0 }
           );
-        } else if (farm.mode === "live") {
+        } else if (!hasNavParams && farm.mode === "live") {
           // ログイン済みでまだ田んぼ未登録: 現在地から始める + 登録を促す
           setLiveEmpty(true);
           flyToCurrentLocationRef.current(true);
@@ -1002,6 +1007,49 @@ export default function MapCanvas() {
         // 名前ラベルの生成・編集・削除はラベル同期effectが担当する
         setServerFields(farm.fieldsGeoJSON);
         // fieldList は serverFields/savedFields の変化に追随する useEffect で管理する
+
+        // URL パラメータによる初期ナビゲーション（?field=X&point=Y&lat=Z&lng=W）
+        const sp = searchParamsRef.current;
+        const paramField = sp.get("field");
+        const paramPoint = sp.get("point");
+        const paramLat = sp.get("lat");
+        const paramLng = sp.get("lng");
+
+        if (paramPoint) {
+          const pt = farm.points.find((p) => p.id === paramPoint);
+          if (pt) {
+            setMode({ kind: "point", point: pt });
+            map!.flyTo({ center: pt.lngLat, zoom: Math.max(map!.getZoom(), 16.5), duration: 700 });
+          } else if (paramField) {
+            const feat = farm.fieldsGeoJSON.features.find(
+              (f) => String(f.id ?? f.properties?.id) === paramField
+            );
+            if (feat) {
+              setMode({ kind: "field", field: { id: paramField, name: String(feat.properties?.name ?? "") } });
+              if (feat.geometry.type === "Polygon") {
+                const center = polygonCentroid(feat.geometry.coordinates[0]);
+                map!.flyTo({ center, zoom: Math.max(map!.getZoom(), 15.5), duration: 700 });
+              }
+            }
+          }
+        } else if (paramField) {
+          const feat = farm.fieldsGeoJSON.features.find(
+            (f) => String(f.id ?? f.properties?.id) === paramField
+          );
+          if (feat) {
+            setMode({ kind: "field", field: { id: paramField, name: String(feat.properties?.name ?? "") } });
+            if (feat.geometry.type === "Polygon") {
+              const center = polygonCentroid(feat.geometry.coordinates[0]);
+              map!.flyTo({ center, zoom: Math.max(map!.getZoom(), 15.5), duration: 700 });
+            }
+          }
+        } else if (paramLat && paramLng) {
+          const lat = parseFloat(paramLat);
+          const lng = parseFloat(paramLng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            map!.flyTo({ center: [lng, lat], zoom: 16.5, duration: 700 });
+          }
+        }
       });
     });
 

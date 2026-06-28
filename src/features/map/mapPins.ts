@@ -24,7 +24,7 @@ export const TYPE_LABELS: Record<FieldPointType, string> = {
 };
 
 export const STATUS_LABELS: Record<string, string> = {
-  normal: "良好",
+  normal: "正常",
   needs_check: "要確認",
   issue: "異常",
   resolved: "解決済み",
