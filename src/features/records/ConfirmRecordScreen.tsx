@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
 import { saveRecord } from "../../lib/data/recordSave";
 import { TYPE_LABELS } from "../map/mapPins";
@@ -21,11 +21,19 @@ function formatRecordedAt(iso: string): string {
 }
 
 /** 保存前確認画面。recordDraft の実データを表示して保存する */
+function isValidReturnTo(path: string): boolean {
+  return path.startsWith("/") && !path.startsWith("//") && !path.includes("\\");
+}
+
 export default function ConfirmRecordScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [draft] = useState(() => getRecordDraft());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = rawReturnTo && isValidReturnTo(rawReturnTo) ? rawReturnTo : null;
 
   // リロード等で下書きが消えていたら撮影画面へ戻す
   useEffect(() => {
@@ -34,20 +42,22 @@ export default function ConfirmRecordScreen() {
 
   if (!draft) return null;
 
-  // 「戻る」「修正する」は来た画面（写真 or 音声）へ戻す
-  const backHref = draft.kind === "audio" ? "/records/new?type=audio" : "/records/new";
+  // 「戻る」「修正する」は来た画面（写真 or 音声）へ戻す（returnToも引き継ぐ）
+  const backBase = draft.kind === "audio" ? "/records/new?type=audio" : "/records/new";
+  const backHref = returnTo ? `${backBase}${backBase.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(returnTo)}` : backBase;
 
   const handleSave = async () => {
     if (busy) return;
     setBusy(true);
     setMessage(null);
-    const fieldId = draft.fieldId;
     const result = await saveRecord(draft);
     if (result.status === "saved") {
       clearRecordDraft();
-      markJustSaved();
-      // 田んぼを選んでいれば、その田んぼの詳細に戻る（最近の記録に反映＋トースト）
-      router.replace(fieldId ? `/fields/${encodeURIComponent(fieldId)}` : "/records");
+      const dest = returnTo ?? "/home";
+      if (dest === "/records" || dest.startsWith("/fields/")) {
+        markJustSaved();
+      }
+      router.replace(dest);
       return;
     }
     setBusy(false);

@@ -95,7 +95,7 @@ export default function MapDetailPanel({
             </div>
             <div className="mt-5 space-y-2">
               <Link
-                href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}`}
+                href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}&returnTo=%2Fmap`}
                 className="flex w-full items-center justify-center rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
               >
                 この地点を記録
@@ -134,7 +134,7 @@ export default function MapDetailPanel({
               </p>
             ) : (
               <Link
-                href={`/records/new?field=${encodeURIComponent(selectedField.id)}`}
+                href={`/records/new?field=${encodeURIComponent(selectedField.id)}&returnTo=%2Fmap`}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
               >
                 <IconCamera className="h-5 w-5" />

@@ -185,7 +185,7 @@ export default function RecordsScreen() {
           <p className="text-base font-bold text-gray-900">最初の記録を作りましょう</p>
           <p className="mt-1 text-xs text-gray-500">田んぼの様子を写真で残すと、ここに一覧で並びます</p>
           <Link
-            href="/records/new"
+            href="/records/new?returnTo=%2Frecords"
             className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
           >
             <IconCamera className="h-5 w-5" />

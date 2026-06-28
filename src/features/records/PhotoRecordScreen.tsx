@@ -132,19 +132,25 @@ export default function PhotoRecordScreen() {
       location,
       recordedAt: recordedAtRef.current ?? new Date().toISOString(),
     });
-    router.push("/records/new/confirm");
+    const returnTo = searchParams.get("returnTo");
+    const confirmUrl = returnTo ? `/records/new/confirm?returnTo=${encodeURIComponent(returnTo)}` : "/records/new/confirm";
+    router.push(confirmUrl);
   };
 
   return (
     <div className="space-y-3 px-3 pb-6 pt-3">
       <h1 className="px-1 text-2xl font-bold text-gray-900">写真で記録</h1>
 
-      {needLogin && (
-        <Link href="/login?redirect=%2Frecords%2Fnew" className="block rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-sm font-bold text-gray-900">ログインすると記録を保存できます</p>
-          <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
-        </Link>
-      )}
+      {needLogin && (() => {
+        const qs = searchParams.toString();
+        const dest = qs ? `/records/new?${qs}` : "/records/new";
+        return (
+          <Link href={`/login?redirect=${encodeURIComponent(dest)}`} className="block rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-bold text-gray-900">ログインすると記録を保存できます</p>
+            <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
+          </Link>
+        );
+      })()}
 
       {/* カメラエリア */}
       <input

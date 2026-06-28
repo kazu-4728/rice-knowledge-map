@@ -311,14 +311,14 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         <p className="text-sm font-bold text-gray-900">この田んぼを記録する</p>
         <div className="mt-3 flex gap-3">
           <Link
-            href={`/records/new?field=${encodeURIComponent(fieldId)}`}
+            href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
           >
             <IconCamera className="h-4.5 w-4.5" />
             写真で記録
           </Link>
           <Link
-            href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}`}
+            href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
           >
             <IconMic className="h-4.5 w-4.5" />
@@ -342,7 +342,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               return (
                 <li key={point.id}>
                   <Link
-                    href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}&pointType=${encodeURIComponent(point.type)}`}
+                    href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}&pointType=${encodeURIComponent(point.type)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
                     className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-all hover:bg-gray-50 active:scale-95"
                   >
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>

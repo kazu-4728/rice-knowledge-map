@@ -1326,7 +1326,7 @@ export default function MapCanvas() {
                 <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
                 <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
                   <Link
-                    href="/records/new"
+                    href="/records/new?returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
                     className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
                   >
@@ -1334,7 +1334,7 @@ export default function MapCanvas() {
                     写真で記録
                   </Link>
                   <Link
-                    href="/records/new?type=audio"
+                    href="/records/new?type=audio&returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
                     className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
                   >

@@ -105,7 +105,7 @@ export default function MapBottomSheet({
                   編集
                 </button>
                 <Link
-                  href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}`}
+                  href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}&returnTo=%2Fmap`}
                   className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
                 >
                   この地点を記録
@@ -136,7 +136,7 @@ export default function MapBottomSheet({
                 </p>
               ) : (
                 <Link
-                  href={`/records/new?field=${encodeURIComponent(selectedField.id)}`}
+                  href={`/records/new?field=${encodeURIComponent(selectedField.id)}&returnTo=%2Fmap`}
                   className="flex items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
                 >
                   <IconCamera className="h-5 w-5" />
