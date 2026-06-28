@@ -251,15 +251,19 @@ export default function AudioRecordScreen() {
     <div className="space-y-3 px-3 pb-6 pt-3">
       <h1 className="px-1 text-2xl font-bold text-gray-900">音声で記録</h1>
 
-      {needLogin && (
-        <Link
-          href={`/login?redirect=${encodeURIComponent("/records/new?type=audio")}`}
-          className="block rounded-2xl bg-white p-4 shadow-sm"
-        >
-          <p className="text-sm font-bold text-gray-900">ログインすると記録を保存できます</p>
-          <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
-        </Link>
-      )}
+      {needLogin && (() => {
+        const rt = searchParams.get("returnTo");
+        const dest = rt ? `/records/new?type=audio&returnTo=${encodeURIComponent(rt)}` : "/records/new?type=audio";
+        return (
+          <Link
+            href={`/login?redirect=${encodeURIComponent(dest)}`}
+            className="block rounded-2xl bg-white p-4 shadow-sm"
+          >
+            <p className="text-sm font-bold text-gray-900">ログインすると記録を保存できます</p>
+            <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
+          </Link>
+        );
+      })()}
 
       {/* 録音エリア */}
       <div className="flex flex-col items-center gap-6 rounded-2xl bg-gray-900 py-12">
