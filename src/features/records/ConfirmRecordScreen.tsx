@@ -22,7 +22,7 @@ function formatRecordedAt(iso: string): string {
 
 /** 保存前確認画面。recordDraft の実データを表示して保存する */
 function isValidReturnTo(path: string): boolean {
-  return path.startsWith("/") && !path.includes("://");
+  return path.startsWith("/") && !path.startsWith("//") && !path.includes("\\");
 }
 
 export default function ConfirmRecordScreen() {
