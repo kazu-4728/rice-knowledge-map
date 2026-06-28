@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { loadRecords, isUnresolvedIssue, type RecordsData } from "../../lib/data/records";
+import { loadRecords, isUnresolvedIssue, ISSUE_POINT_TYPES, type RecordsData } from "../../lib/data/records";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -49,6 +49,19 @@ const categoryChip: Record<RecordItem["category"], string> = {
   作業: "bg-green-50 text-green-700",
   異常: "bg-orange-50 text-orange-600",
   音声: "bg-green-50 text-green-700",
+};
+
+const RECORD_STATUS_CHIP: Record<RecordItem["status"], { label: string; cls: string }> = {
+  open: { label: "未対応", cls: "bg-amber-50 text-amber-600 border-amber-200" },
+  needs_check: { label: "要確認", cls: "bg-orange-50 text-orange-600 border-orange-200" },
+  resolved: { label: "解決済み", cls: "bg-gray-50 text-gray-500 border-gray-200" },
+  monitoring: { label: "経過観察", cls: "bg-blue-50 text-blue-600 border-blue-200" },
+};
+
+const POINT_TYPE_SHORT: Record<string, string> = {
+  caution: "注意箇所",
+  levee_damage: "畦崩れ",
+  poor_drainage: "水抜け不良",
 };
 
 function TitleIcon({ record }: { record: RecordItem }) {
@@ -220,7 +233,9 @@ export default function RecordsScreen() {
               <Link
                 key={record.id}
                 href={`/records/${record.id}`}
-                className="flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-sm transition-colors hover:bg-gray-50"
+                className={`flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-sm transition-colors hover:bg-gray-50 ${
+                  isUnresolvedIssue(record) ? "ring-1 ring-amber-200" : ""
+                }`}
               >
                 <span className="w-11 shrink-0 text-sm font-semibold text-gray-700">{record.time}</span>
                 <RecordThumb
@@ -237,16 +252,23 @@ export default function RecordsScreen() {
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
                     <IconPin className="h-3.5 w-3.5" />
-                    {record.fieldName}
-                    {record.fieldArea && `（${record.fieldArea}）`}
+                    <span className="truncate">
+                      {record.fieldName}
+                      {record.fieldArea && `（${record.fieldArea}）`}
+                      {ISSUE_POINT_TYPES.includes(record.pointType) && POINT_TYPE_SHORT[record.pointType]
+                        ? `・${POINT_TYPE_SHORT[record.pointType]}`
+                        : ""}
+                    </span>
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${categoryChip[record.category]}`}>
                     {record.category}
                   </span>
-                  {isUnresolvedIssue(record) && (
-                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-600">未対応</span>
+                  {ISSUE_POINT_TYPES.includes(record.pointType) && (
+                    <span className={`rounded-md border px-2 py-0.5 text-xs font-bold ${RECORD_STATUS_CHIP[record.status].cls}`}>
+                      {RECORD_STATUS_CHIP[record.status].label}
+                    </span>
                   )}
                   <IconChevronRight className="h-4 w-4 text-gray-400" />
                 </div>
