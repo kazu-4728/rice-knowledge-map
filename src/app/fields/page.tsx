@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
-import { loadRecords } from "../../lib/data/records";
 import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus, IconWarningFill } from "../../components/ui/icons";
@@ -43,20 +42,34 @@ export default function FieldsPage() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    loadRecords().then((data) => {
-      if (data.mode !== "live" && data.mode !== "demo") return;
-      const lastMap: Record<string, string> = {};
-      for (const r of data.records) {
-        if (r.fieldId && !lastMap[r.fieldId]) lastMap[r.fieldId] = r.date;
-      }
-      setFieldStatuses((prev) => {
-        const next = { ...prev };
-        for (const [fid, date] of Object.entries(lastMap)) {
-          next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
-        }
-        return next;
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getSession().then(({ data: sess }) => {
+        if (!sess.session) return;
+        sb.from("records")
+          .select("field_id, recorded_at")
+          .not("field_id", "is", null)
+          .order("recorded_at", { ascending: false })
+          .then(({ data: rows }) => {
+            if (!rows) return;
+            const lastMap: Record<string, string> = {};
+            for (const r of rows as { field_id: string; recorded_at: string }[]) {
+              if (r.field_id && !lastMap[r.field_id]) {
+                const d = new Date(r.recorded_at);
+                const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+                lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+              }
+            }
+            setFieldStatuses((prev) => {
+              const next = { ...prev };
+              for (const [fid, date] of Object.entries(lastMap)) {
+                next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
+              }
+              return next;
+            });
+          });
       });
-    });
+    }
 
     loadFarmData().then(async (data) => {
       setMode(data.mode);
@@ -214,9 +227,9 @@ export default function FieldsPage() {
                       ) : null}
                       {fs?.lastRecordDate ? (
                         <span className="text-xs text-gray-400">最終記録: {fs.lastRecordDate}</span>
-                      ) : !hasAttention ? (
+                      ) : (
                         <span className="text-xs text-gray-400">記録なし</span>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                   <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadRecords, isUnresolvedIssue, ISSUE_POINT_TYPES, type RecordsData } from "../../lib/data/records";
+import { TYPE_LABELS } from "../map/mapPins";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -58,11 +59,6 @@ const RECORD_STATUS_CHIP: Record<RecordItem["status"], { label: string; cls: str
   monitoring: { label: "経過観察", cls: "bg-blue-50 text-blue-600 border-blue-200" },
 };
 
-const POINT_TYPE_SHORT: Record<string, string> = {
-  caution: "注意箇所",
-  levee_damage: "畦崩れ",
-  poor_drainage: "水抜け不良",
-};
 
 function TitleIcon({ record }: { record: RecordItem }) {
   if (record.category === "異常") return <IconWarningFill className="h-4.5 w-4.5 shrink-0 text-amber-500" />;
@@ -255,9 +251,11 @@ export default function RecordsScreen() {
                     <span className="truncate">
                       {record.fieldName}
                       {record.fieldArea && `（${record.fieldArea}）`}
-                      {ISSUE_POINT_TYPES.includes(record.pointType) && POINT_TYPE_SHORT[record.pointType]
-                        ? `・${POINT_TYPE_SHORT[record.pointType]}`
-                        : ""}
+                      {record.pointName
+                        ? `・${record.pointName}`
+                        : record.pointId && TYPE_LABELS[record.pointType]
+                          ? `・${TYPE_LABELS[record.pointType]}`
+                          : ""}
                     </span>
                   </p>
                 </div>

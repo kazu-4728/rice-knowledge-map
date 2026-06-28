@@ -32,6 +32,7 @@ const TYPE_TO_CATEGORY: Record<RecordRow["record_type"], RecordItem["category"]>
 
 type RecordListRow = RecordRow & {
   farm_fields: { name: string } | null;
+  field_points: { name: string; point_type: string } | null;
   record_media: { media_type: "image" | "audio"; storage_bucket: string; storage_path: string }[];
   ai_category: string | null;
   latitude: Numeric | null;
@@ -78,7 +79,7 @@ function formatDate(iso: string): { date: string; time: string } {
  * ログイン済みで0件のときは空の実データを返す（呼び出し側が空状態UIを出す）。
  */
 const RECORD_SELECT =
-  "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)";
+  "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), field_points(name, point_type), record_media(media_type, storage_bucket, storage_path)";
 
 export async function loadRecords(opts?: { limit?: number; fieldId?: string; all?: boolean }): Promise<RecordsData> {
   // 一覧は最新100件で十分だが、エクスポート等は全件が必要なため上限を可変にする
@@ -166,6 +167,7 @@ export async function loadRecords(opts?: { limit?: number; fieldId?: string; all
           // 長さはDBに保持していないため表示しない（ダミーの「--:--」を出さない）
           audioDuration: undefined,
           pointId: r.point_id ?? undefined,
+          pointName: r.field_points?.name ?? undefined,
           fieldId: r.field_id ?? undefined,
         } satisfies RecordItem;
       }),
