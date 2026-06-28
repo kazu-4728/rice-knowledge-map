@@ -142,8 +142,8 @@ export default function PhotoRecordScreen() {
       <h1 className="px-1 text-2xl font-bold text-gray-900">写真で記録</h1>
 
       {needLogin && (() => {
-        const rt = searchParams.get("returnTo");
-        const dest = rt ? `/records/new?returnTo=${encodeURIComponent(rt)}` : "/records/new";
+        const qs = searchParams.toString();
+        const dest = qs ? `/records/new?${qs}` : "/records/new";
         return (
           <Link href={`/login?redirect=${encodeURIComponent(dest)}`} className="block rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-gray-900">ログインすると記録を保存できます</p>

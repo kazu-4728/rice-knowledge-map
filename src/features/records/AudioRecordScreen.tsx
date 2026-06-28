@@ -252,8 +252,9 @@ export default function AudioRecordScreen() {
       <h1 className="px-1 text-2xl font-bold text-gray-900">音声で記録</h1>
 
       {needLogin && (() => {
-        const rt = searchParams.get("returnTo");
-        const dest = rt ? `/records/new?type=audio&returnTo=${encodeURIComponent(rt)}` : "/records/new?type=audio";
+        const params = new URLSearchParams(searchParams.toString());
+        if (!params.has("type")) params.set("type", "audio");
+        const dest = `/records/new?${params.toString()}`;
         return (
           <Link
             href={`/login?redirect=${encodeURIComponent(dest)}`}
