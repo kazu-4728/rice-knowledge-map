@@ -1020,6 +1020,12 @@ export default function MapCanvas() {
           if (pt) {
             setMode({ kind: "point", point: pt });
             map!.flyTo({ center: pt.lngLat, zoom: Math.max(map!.getZoom(), 16.5), duration: 700 });
+          } else if (paramLat && paramLng) {
+            const lat = parseFloat(paramLat);
+            const lng = parseFloat(paramLng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              map!.flyTo({ center: [lng, lat], zoom: 16.5, duration: 700 });
+            }
           } else if (paramField) {
             const feat = farm.fieldsGeoJSON.features.find(
               (f) => String(f.id ?? f.properties?.id) === paramField
@@ -1032,6 +1038,12 @@ export default function MapCanvas() {
               }
             }
           }
+        } else if (paramLat && paramLng) {
+          const lat = parseFloat(paramLat);
+          const lng = parseFloat(paramLng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            map!.flyTo({ center: [lng, lat], zoom: 16.5, duration: 700 });
+          }
         } else if (paramField) {
           const feat = farm.fieldsGeoJSON.features.find(
             (f) => String(f.id ?? f.properties?.id) === paramField
@@ -1042,12 +1054,6 @@ export default function MapCanvas() {
               const center = polygonCentroid(feat.geometry.coordinates[0]);
               map!.flyTo({ center, zoom: Math.max(map!.getZoom(), 15.5), duration: 700 });
             }
-          }
-        } else if (paramLat && paramLng) {
-          const lat = parseFloat(paramLat);
-          const lng = parseFloat(paramLng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            map!.flyTo({ center: [lng, lat], zoom: 16.5, duration: 700 });
           }
         }
       });
