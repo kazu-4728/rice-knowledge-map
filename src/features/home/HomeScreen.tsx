@@ -105,14 +105,14 @@ export default function HomeScreen() {
       {/* クイックアクション */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Link
-          href="/records/new"
+          href="/records/new?returnTo=%2Fhome"
           className="flex items-center justify-center gap-2 rounded-2xl bg-green-700 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-800"
         >
           <IconCamera className="h-5 w-5" />
           写真で記録
         </Link>
         <Link
-          href="/records/new?type=audio"
+          href="/records/new?type=audio&returnTo=%2Fhome"
           className="flex items-center justify-center gap-2 rounded-2xl border border-green-700 bg-white py-3.5 text-sm font-bold text-green-700 shadow-sm transition-colors hover:bg-green-50"
         >
           <IconMic className="h-5 w-5" />

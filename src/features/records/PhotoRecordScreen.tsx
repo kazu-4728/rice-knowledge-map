@@ -132,7 +132,9 @@ export default function PhotoRecordScreen() {
       location,
       recordedAt: recordedAtRef.current ?? new Date().toISOString(),
     });
-    router.push("/records/new/confirm");
+    const returnTo = searchParams.get("returnTo");
+    const confirmUrl = returnTo ? `/records/new/confirm?returnTo=${encodeURIComponent(returnTo)}` : "/records/new/confirm";
+    router.push(confirmUrl);
   };
 
   return (

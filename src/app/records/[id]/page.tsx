@@ -143,6 +143,7 @@ export default function RecordDetailPage() {
     if (record.fieldId) params.set("field", record.fieldId);
     if (record.pointId) params.set("point", record.pointId);
     if (record.pointType) params.set("pointType", record.pointType);
+    params.set("returnTo", `/records/${id}`);
     return params.toString();
   })();
 
