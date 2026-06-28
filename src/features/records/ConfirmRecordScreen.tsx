@@ -53,8 +53,11 @@ export default function ConfirmRecordScreen() {
     const result = await saveRecord(draft);
     if (result.status === "saved") {
       clearRecordDraft();
-      markJustSaved();
-      router.replace(returnTo ?? "/home");
+      const dest = returnTo ?? "/home";
+      if (dest === "/records" || dest.startsWith("/fields/")) {
+        markJustSaved();
+      }
+      router.replace(dest);
       return;
     }
     setBusy(false);
