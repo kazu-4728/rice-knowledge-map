@@ -128,7 +128,11 @@ function polygonCentroid(coords: number[][]): [number, number] {
   return [lng, lat];
 }
 
-export default function MapCanvas() {
+type MapCanvasProps = {
+  onModeChange?: (mode: string) => void;
+};
+
+export default function MapCanvas({ onModeChange }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -141,6 +145,8 @@ export default function MapCanvas() {
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const selectedField = mode.kind === "field" ? mode.field : null;
   const selectedPoint = mode.kind === "point" ? mode.point : null;
+
+  useEffect(() => { onModeChange?.(mode.kind); }, [mode.kind, onModeChange]);
 
   const [tileError, setTileError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);

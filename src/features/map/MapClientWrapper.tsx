@@ -11,10 +11,14 @@ const MapCanvas = dynamic(() => import("./MapCanvas"), {
   ),
 });
 
-export default function MapClientWrapper() {
+type Props = {
+  onModeChange?: (mode: string) => void;
+};
+
+export default function MapClientWrapper({ onModeChange }: Props) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <MapCanvas />
+      <MapCanvas onModeChange={onModeChange} />
     </div>
   );
 }
