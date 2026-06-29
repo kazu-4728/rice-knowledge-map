@@ -41,6 +41,7 @@
 | 田んぼ選択UI作り直し | 「田んぼを探す」→「田んぼを選ぶ」へ。検索欄削除・固定高さ一覧スクロール・previewField/selectedField分離（スクロールプレビュー＋タップ選択）・シート閉じ時の不具合修正（メニュー消失・地図幅崩れ・viewport resize対応） | PR #39（7f42d42・squashマージ済み 2026-06-24） |
 | マップ操作モデル作り直し＋iOS修正 | discriminated union `Mode` で単一モード state machine 化。2段階田んぼ登録（placing→drawing）。iOS Safari 入力ズーム修正（input 16px化＋blur-before-action）。描画中ブラウザジェスチャー漏れ防止。ピン誤タップ防止（`activatePoint` ガード）。トースト積み重ね復元。Codex 5件中3件対応・2件P3見送り | PR #40（75d4016・squashマージ済み 2026-06-25） |
 | 確認・記録・地図回帰の導線統合 | ホーム「要注意の田んぼ」セクション追加。田んぼ詳細のポイント導線をマップ表示に変更。記録詳細に「マップで見る」リンク追加。マップURLパラメータ対応（`?field=&point=&lat=&lng=`）。状態ラベル統一（正常/要確認/異常/解決済み）。returnToに田んぼ・ピンコンテキスト保持。GPSフォールバック優先（point→lat/lng→field） | PR #48（b3cc32c・squashマージ済み 2026-06-28） |
+| 記録一覧・田んぼ一覧の状態表示強化 | 記録一覧: field_points JOIN でポイント実名表示、全8種のポイント種別ラベル（入水口〜その他）、全ステータスバッジ、未対応リング。田んぼ一覧: 異常/要確認の件数バッジ、最終記録日/記録なしの常時表示、軽量ページングクエリで100件制限解消。toPointType()でfield_points.point_typeを優先 | PR #50（0df7b03・squashマージ済み 2026-06-29） |
 
 ---
 
@@ -90,6 +91,35 @@
 ---
 
 ## 作業ログ
+
+### 2026-06-29 — 記録一覧・田んぼ一覧の状態表示強化 PR #50（squashマージ 0df7b03・ブランチ claude/uiux-audit-foundation-suit4i）
+
+Issue #49（親 Issue #43 の項目5）対応。記録一覧と田んぼ一覧で状態を一目で判断できるよう強化。
+
+**実装内容（初回コミット 3ff10e8）:**
+
+- 田んぼ一覧: `loadFarmData().points` からピンの異常/要確認を集計しバッジ表示、注意リング（`ring-1 ring-amber-200`）、`IconWarningFill`、最終記録日表示
+- 記録一覧: 全ステータスバッジ（未対応/要確認/解決済み/経過観察）、ポイント種別ラベル（注意箇所/畦崩れ/水抜け不良）、未対応リング
+
+**ユーザーレビュー指摘2点 → 修正コミット 4baec7f:**
+
+1. 記録一覧の地点情報強化: `field_points` テーブルをJOINしポイント実名取得、`TYPE_LABELS`（mapPins.ts）で全8種のポイント種別ラベル表示（入水口〜その他）
+2. 田んぼ一覧: 注意状態の有無にかかわらず「最終記録/記録なし」を必ず表示、`loadRecords()`（100件制限+重いJOIN）を軽量直接Supabaseクエリに置換
+
+**Codexレビュー指摘2件 → 修正コミット 27ae58d:**
+
+| 指摘 | 重要度 | 対応 |
+|---|---|---|
+| 最終記録クエリのPostgREST上限超えページング | P2 | `range()` 指定のページングループ追加 |
+| toPointType()でfield_points.point_typeを優先 | P2 | `r.field_points?.point_type` を `ai_category` より先に参照 |
+
+**検証結果:**
+
+- `npx tsc --noEmit` ✅ / `npm run lint` ✅ / `npm run build` ✅
+- Vercel Preview 3回とも Ready
+- オーナー実機確認済み
+
+**変更ファイル（4件）:** `src/app/fields/page.tsx`, `src/features/records/RecordsScreen.tsx`, `src/lib/data/records.ts`, `src/types/index.ts`
 
 ### 2026-06-28 — 確認・記録・地図回帰の導線統合 PR #48（squashマージ b3cc32c・ブランチ claude/uiux-audit-foundation-suit4i）
 
