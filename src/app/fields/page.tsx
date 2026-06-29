@@ -6,7 +6,7 @@ import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
 import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
-import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus } from "../../components/ui/icons";
+import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus, IconWarningFill } from "../../components/ui/icons";
 import { compressImage } from "../../lib/utils/imageCompress";
 
 type FieldItem = {
@@ -16,6 +16,12 @@ type FieldItem = {
   color: string;
   areaSqm: number | null;
   photoPath: string | null;
+};
+
+type FieldStatus = {
+  issueCount: number;
+  needsCheckCount: number;
+  lastRecordDate: string | null;
 };
 
 async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
@@ -31,10 +37,46 @@ async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): P
 export default function FieldsPage() {
   const [fields, setFields] = useState<FieldItem[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [fieldStatuses, setFieldStatuses] = useState<Record<string, FieldStatus>>({});
   const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
+    const sb = getSupabase();
+    if (sb) {
+      sb.auth.getSession().then(async ({ data: sess }) => {
+        if (!sess.session) return;
+        type DateRow = { field_id: string; recorded_at: string };
+        const PAGE = 1000;
+        const allRows: DateRow[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data: page } = await sb.from("records")
+            .select("field_id, recorded_at")
+            .not("field_id", "is", null)
+            .order("recorded_at", { ascending: false })
+            .range(from, from + PAGE - 1);
+          if (!page || page.length === 0) break;
+          allRows.push(...(page as DateRow[]));
+          if (page.length < PAGE) break;
+        }
+        const lastMap: Record<string, string> = {};
+        for (const r of allRows) {
+          if (r.field_id && !lastMap[r.field_id]) {
+            const d = new Date(r.recorded_at);
+            const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+            lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+          }
+        }
+        setFieldStatuses((prev) => {
+          const next = { ...prev };
+          for (const [fid, date] of Object.entries(lastMap)) {
+            next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
+          }
+          return next;
+        });
+      });
+    }
+
     loadFarmData().then(async (data) => {
       setMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
@@ -46,6 +88,21 @@ export default function FieldsPage() {
         photoPath: f.properties?.photo_path ?? null,
       }));
       setFields(items);
+
+      const statusMap: Record<string, FieldStatus> = {};
+      for (const p of data.points) {
+        if (!p.fieldId) continue;
+        if (!statusMap[p.fieldId]) statusMap[p.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
+        if (p.status === "issue") statusMap[p.fieldId].issueCount++;
+        else if (p.status === "needs_check") statusMap[p.fieldId].needsCheckCount++;
+      }
+      setFieldStatuses((prev) => {
+        const next = { ...prev };
+        for (const [fid, s] of Object.entries(statusMap)) {
+          next[fid] = { ...next[fid], lastRecordDate: next[fid]?.lastRecordDate ?? null, issueCount: s.issueCount, needsCheckCount: s.needsCheckCount };
+        }
+        return next;
+      });
 
       // batch signed URLs for fields with photos
       const paths = items.flatMap((f) => f.photoPath ? [f.photoPath] : []);
@@ -130,8 +187,11 @@ export default function FieldsPage() {
 
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
           <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-            {fields.map((field) => (
-              <div key={field.id} className="relative rounded-2xl bg-white shadow-sm overflow-hidden">
+            {fields.map((field) => {
+              const fs = fieldStatuses[field.id];
+              const hasAttention = fs && (fs.issueCount > 0 || fs.needsCheckCount > 0);
+              return (
+              <div key={field.id} className={`relative rounded-2xl bg-white shadow-sm overflow-hidden ${hasAttention ? "ring-1 ring-amber-200" : ""}`}>
                 <Link
                   href={`/fields/${encodeURIComponent(field.id)}`}
                   className="flex items-center gap-3 p-3 transition-colors hover:bg-gray-50"
@@ -151,13 +211,32 @@ export default function FieldsPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-bold text-gray-900">
-                      {field.name}
+                    <div className="flex items-center gap-1.5">
+                      {hasAttention && <IconWarningFill className="h-4 w-4 shrink-0 text-amber-500" />}
+                      <p className="truncate text-base font-bold text-gray-900">
+                        {field.name}
+                      </p>
                       {formatArea(field.areaSqm) && (
-                        <span className="ml-2 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
+                        <span className="shrink-0 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
                       )}
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-400">タップして詳細を見る</p>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {fs?.issueCount ? (
+                        <span className="rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs font-bold text-red-600">
+                          異常{fs.issueCount}件
+                        </span>
+                      ) : null}
+                      {fs?.needsCheckCount ? (
+                        <span className="rounded-md border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-xs font-bold text-orange-600">
+                          要確認{fs.needsCheckCount}件
+                        </span>
+                      ) : null}
+                      {fs?.lastRecordDate ? (
+                        <span className="text-xs text-gray-400">最終記録: {fs.lastRecordDate}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">記録なし</span>
+                      )}
+                    </div>
                   </div>
                   <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
                 </Link>
@@ -180,7 +259,8 @@ export default function FieldsPage() {
                   </>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 
