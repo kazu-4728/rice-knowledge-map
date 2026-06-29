@@ -1377,18 +1377,18 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
         </div>
       )}
 
-      {/* 記録ボタン（下部中央） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
+      {/* FAB 記録ボタン（右下） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
       {idle && mode.kind === "browse" && (
-        <div className="absolute bottom-24 inset-x-0 z-20 flex justify-center">
+        <div className="absolute bottom-24 right-4 z-20">
           <div className="relative">
             {recordPopOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
-                <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
+                <div className="absolute bottom-full right-0 z-20 mb-3 flex flex-col gap-2">
                   <Link
                     href="/records/new?returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg animate-fab-pop transition-colors hover:bg-green-800"
                   >
                     <IconCamera className="h-5 w-5 shrink-0" />
                     写真で記録
@@ -1396,7 +1396,8 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
                   <Link
                     href="/records/new?type=audio&returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg animate-fab-pop transition-colors hover:bg-gray-50"
+                    style={{ animationDelay: "50ms" }}
                   >
                     <IconMic className="h-5 w-5 shrink-0 text-green-700" />
                     音声メモ
@@ -1406,10 +1407,9 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
             )}
             <button
               onClick={() => setRecordPopOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
+              className={`flex h-14 w-14 items-center justify-center rounded-full bg-green-700 shadow-[0_4px_20px_rgba(22,163,74,0.4)] transition-all hover:bg-green-800 active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
             >
-              <IconCamera className="h-5 w-5" />
-              記録する
+              <IconPlus className="h-7 w-7 text-white transition-transform" />
             </button>
           </div>
         </div>
