@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
-      <body className="bg-gray-200 text-gray-900 antialiased">
+      <body className="bg-background text-foreground antialiased">
         <DrawerProvider>
           <ToastProvider>
             {children}
