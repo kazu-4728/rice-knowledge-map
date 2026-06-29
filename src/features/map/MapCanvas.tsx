@@ -1377,9 +1377,9 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
         </div>
       )}
 
-      {/* 記録ボタン（下部中央） — 通常閲覧のみ */}
+      {/* 記録ボタン（下部中央） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
       {idle && mode.kind === "browse" && (
-        <div className="absolute bottom-6 inset-x-0 z-20 flex justify-center">
+        <div className="absolute bottom-24 inset-x-0 z-20 flex justify-center">
           <div className="relative">
             {recordPopOpen && (
               <>
