@@ -130,9 +130,10 @@ function polygonCentroid(coords: number[][]): [number, number] {
 
 type MapCanvasProps = {
   onModeChange?: (mode: string) => void;
+  hideControls?: boolean;
 };
 
-export default function MapCanvas({ onModeChange }: MapCanvasProps) {
+export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -145,8 +146,6 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const selectedField = mode.kind === "field" ? mode.field : null;
   const selectedPoint = mode.kind === "point" ? mode.point : null;
-
-  useEffect(() => { onModeChange?.(mode.kind); }, [mode.kind, onModeChange]);
 
   const [tileError, setTileError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -197,6 +196,10 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
   const isDrawing = drawState.mode === "drawing";
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
+
+  useEffect(() => {
+    onModeChange?.(isDrawing || isNaming ? "drawing" : mode.kind);
+  }, [mode.kind, isDrawing, isNaming, onModeChange]);
 
   // モードを map click ハンドラ（一度だけ登録）から参照するためのref
   const modeRef = useRef(mode);
@@ -1294,7 +1297,7 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
 
   const idle = !isDrawing && !isNaming;
   const showTopBar = idle && (mode.kind === "browse" || mode.kind === "field" || mode.kind === "point");
-  const showControls = idle && mode.kind !== "picker";
+  const showControls = idle && mode.kind !== "picker" && !hideControls;
   const showDetail = idle && (mode.kind === "field" || mode.kind === "point");
 
   return (
@@ -1349,7 +1352,7 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
 
       {/* 右側コントロール（現在地・ズーム）: picker以外で表示（placing/addPinでも地図操作可） */}
       {showControls && (
-        <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-2">
+        <div className="absolute bottom-44 right-3 z-20 flex flex-col items-center gap-2">
           <button
             onClick={() => flyToCurrentLocation()}
             aria-label="現在地に戻る"
@@ -1378,7 +1381,7 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
       )}
 
       {/* FAB 記録ボタン（右下） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
-      {idle && mode.kind === "browse" && (
+      {idle && mode.kind === "browse" && !hideControls && (
         <div className="absolute bottom-24 right-4 z-20">
           <div className="relative">
             {recordPopOpen && (
@@ -1407,6 +1410,8 @@ export default function MapCanvas({ onModeChange }: MapCanvasProps) {
             )}
             <button
               onClick={() => setRecordPopOpen((v) => !v)}
+              aria-label="記録する"
+              aria-expanded={recordPopOpen}
               className={`flex h-14 w-14 items-center justify-center rounded-full bg-green-700 shadow-[0_4px_20px_rgba(22,163,74,0.4)] transition-all hover:bg-green-800 active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
             >
               <IconPlus className="h-7 w-7 text-white transition-transform" />

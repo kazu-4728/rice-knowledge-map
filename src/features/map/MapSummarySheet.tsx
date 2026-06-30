@@ -5,6 +5,7 @@ import Link from "next/link";
 import { loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import { getSupabase } from "../../lib/supabase/client";
+
 import type { FieldPoint, RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Badge } from "../../components/ui/badge";
@@ -24,9 +25,10 @@ type AttentionField = {
 
 type Props = {
   visible: boolean;
+  onExpandChange?: (expanded: boolean) => void;
 };
 
-export default function MapSummarySheet({ visible }: Props) {
+export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const [fieldCount, setFieldCount] = useState(0);
   const [attentionFields, setAttentionFields] = useState<AttentionField[]>([]);
   const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
@@ -39,19 +41,14 @@ export default function MapSummarySheet({ visible }: Props) {
   useEffect(() => {
     const sb = getSupabase();
     if (sb) {
-      import("../../lib/data/farm").then(({ ensureGroupId }) =>
-        ensureGroupId().then(async (groupId) => {
-          if (!groupId) return;
-          const { count } = await sb
-            .from("records")
-            .select("id", { count: "exact", head: true })
-            .in("status", ["open", "needs_check"])
-            .or(
-              "record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)"
-            );
-          setOpenIssueCount(count ?? 0);
-        })
-      );
+      sb.from("farm_group_members").select("group_id").limit(1).then(({ data: members }) => {
+        if (!members || members.length === 0) return;
+        sb.from("records")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["open", "needs_check"])
+          .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)")
+          .then(({ count }) => setOpenIssueCount(count ?? 0));
+      });
     }
 
     loadFarmData().then((data) => {
@@ -93,17 +90,26 @@ export default function MapSummarySheet({ visible }: Props) {
       setLoaded(true);
     });
 
-    loadRecords().then((data) => {
-      setRecentRecords(data.records.slice(0, 5));
+    loadRecords({ limit: 5 }).then((data) => {
+      setRecentRecords(data.records);
       setThumbUrls(data.thumbUrls);
     });
   }, []);
 
-  const toggleExpand = useCallback(() => setExpanded((v) => !v), []);
+  const toggleExpand = useCallback(() => {
+    setExpanded((v) => {
+      const next = !v;
+      onExpandChange?.(next);
+      return next;
+    });
+  }, [onExpandChange]);
 
   useEffect(() => {
-    if (!visible) setExpanded(false);
-  }, [visible]);
+    if (!visible) {
+      setExpanded(false);
+      onExpandChange?.(false);
+    }
+  }, [visible, onExpandChange]);
 
   if (!visible || !loaded) return null;
 
@@ -121,7 +127,7 @@ export default function MapSummarySheet({ visible }: Props) {
     >
       <div className="mx-auto w-full max-w-md md:max-w-2xl pointer-events-auto">
         <div
-          className={`rounded-t-2xl bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-all duration-300 ${
+          className={`flex flex-col rounded-t-2xl bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-all duration-300 ${
             expanded ? "max-h-[60vh]" : "max-h-[4.5rem]"
           } overflow-hidden`}
         >
@@ -153,7 +159,7 @@ export default function MapSummarySheet({ visible }: Props) {
           </div>
 
           {/* 展開コンテンツ */}
-          <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             {/* 要注意の田んぼ */}
             {attentionFields.length > 0 && (
               <section className="mb-3">
