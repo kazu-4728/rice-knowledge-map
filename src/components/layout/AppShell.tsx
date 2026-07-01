@@ -40,12 +40,12 @@ export default function AppShell({
       >
         {showHeader && (
           <>
-            <header className="relative flex items-center justify-center h-14 bg-white shrink-0 border-b border-gray-100 print:hidden">
-              {backDynamic && <BackButton label={backLabel} />}
+            <header className="relative flex items-center justify-center h-14 bg-green-800 shrink-0 print:hidden">
+              {backDynamic && <BackButton label={backLabel} className="text-white hover:bg-white/10 active:bg-white/15" />}
               {!backDynamic && backHref && (
                 <Link
                   href={backHref}
-                  className="absolute left-2 flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-50 active:bg-green-100"
+                  className="absolute left-2 flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-white hover:bg-white/10 active:bg-white/15"
                 >
                   <IconChevronLeft className="h-4.5 w-4.5" />
                   {backLabel}
@@ -55,13 +55,15 @@ export default function AppShell({
               <button
                 onClick={() => setDrawerOpen(true)}
                 aria-label="メニューを開く"
-                className={`absolute flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden ${backDynamic || backHref ? "right-12" : "left-2"}`}
+                className={`absolute flex h-9 w-9 items-center justify-center rounded-lg text-white hover:bg-white/10 lg:hidden ${backDynamic || backHref ? "right-12" : "left-2"}`}
               >
                 <IconMenu className="h-5.5 w-5.5" />
               </button>
               <div className="flex items-center gap-1.5">
-                <LogoRice className="w-7 h-7" />
-                <span className="text-green-700 font-bold text-lg tracking-tight">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95">
+                  <LogoRice className="w-5 h-5" />
+                </span>
+                <span className="text-white font-bold text-lg tracking-tight">
                   みらい稲作管理
                 </span>
               </div>

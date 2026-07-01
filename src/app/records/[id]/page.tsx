@@ -63,11 +63,11 @@ export default function RecordDetailPage() {
   if (!data) {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+          <h1 className="text-lg font-bold text-white">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center">
           <p className="text-sm text-gray-500">読み込み中…</p>
@@ -79,11 +79,11 @@ export default function RecordDetailPage() {
   if (data.mode === "notfound") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+          <h1 className="text-lg font-bold text-white">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">この記録は見つかりませんでした。</p>
@@ -95,11 +95,11 @@ export default function RecordDetailPage() {
   if (data.mode === "anon") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+          <h1 className="text-lg font-bold text-white">記録詳細</h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="text-sm text-gray-600">記録を見るにはログインが必要です。</p>
@@ -117,11 +117,11 @@ export default function RecordDetailPage() {
   if (data.mode === "error") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+          <h1 className="text-lg font-bold text-white">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">読み込みに失敗しました。通信環境を確認してください。</p>
@@ -203,18 +203,18 @@ export default function RecordDetailPage() {
   return (
     <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
       {/* ヘッダー */}
-      <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-        <button onClick={goBack} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+      <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
+        <button onClick={goBack} aria-label="戻る" className="absolute left-1 p-2.5 text-white">
           <IconChevronLeft className="h-6 w-6" />
         </button>
-        <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
+        <h1 className="text-lg font-bold text-white">記録詳細</h1>
         {canDelete && (
           <button
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="その他の操作"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            className="absolute right-1 p-2.5 text-gray-700"
+            className="absolute right-1 p-2.5 text-white/90"
           >
             <IconMoreVertical className="h-6 w-6" />
           </button>
@@ -414,22 +414,24 @@ export default function RecordDetailPage() {
                   key={comment.id ?? i}
                   className={`flex items-end gap-2 ${comment.isMine ? "flex-row-reverse" : ""}`}
                 >
-                  {!comment.isMine && (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
-                      <IconUserFill className="h-4 w-4 text-green-700" />
-                    </span>
-                  )}
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      comment.isMine ? "bg-gray-200" : "bg-green-100"
+                    }`}
+                  >
+                    <IconUserFill className={`h-4 w-4 ${comment.isMine ? "text-gray-500" : "text-green-700"}`} />
+                  </span>
                   <div className={`flex min-w-0 max-w-[76%] flex-col ${comment.isMine ? "items-end" : "items-start"}`}>
-                    {!comment.isMine && (
-                      <div className="mb-1 flex items-center gap-1 px-1">
-                        <span className="text-xs font-bold text-gray-600">{comment.author}</span>
-                        {comment.isRecorder && (
-                          <span className="rounded border border-green-600 px-1 text-[10px] font-semibold text-green-700">
-                            本人
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="mb-1 flex items-center gap-1 px-1">
+                      <span className="text-xs font-bold text-gray-600">
+                        {comment.isMine ? "あなた" : comment.author}
+                      </span>
+                      {comment.isRecorder && (
+                        <span className="rounded border border-green-600 px-1 text-[10px] font-semibold text-green-700">
+                          本人
+                        </span>
+                      )}
+                    </div>
                     <div
                       className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
                         comment.isMine
