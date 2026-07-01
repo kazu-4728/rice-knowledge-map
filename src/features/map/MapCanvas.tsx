@@ -31,6 +31,7 @@ import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
 import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
+import { computeApproxAreaSqm, distanceMeters } from "../../lib/utils/geo";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import { useDrawer } from "../../components/layout/DrawerContext";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
@@ -48,8 +49,8 @@ import {
 
 const INITIAL_CENTER: [number, number] = [138.8305, 37.4252];
 const INITIAL_ZOOM = 14.4;
-/** なぞり描き中、この画面距離(px)以上動いたら頂点を追加する */
-const TRACE_MIN_DISTANCE_PX = 12;
+/** なぞり描き中、この実距離(m)以上動いたら頂点を追加する（ズームレベルに依存させないため画面pxではなく実距離で判定） */
+const TRACE_MIN_DISTANCE_M = 2.5;
 
 /** タップで選択された田んぼ */
 type SelectedField = { id: string; name: string };
@@ -128,7 +129,12 @@ function polygonCentroid(coords: number[][]): [number, number] {
   return [lng, lat];
 }
 
-export default function MapCanvas() {
+type MapCanvasProps = {
+  onModeChange?: (mode: string) => void;
+  hideControls?: boolean;
+};
+
+export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -191,6 +197,14 @@ export default function MapCanvas() {
   const isDrawing = drawState.mode === "drawing";
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
+  const estimatedAreaSqm =
+    drawState.mode === "drawing" || drawState.mode === "naming"
+      ? computeApproxAreaSqm(drawState.vertices)
+      : null;
+
+  useEffect(() => {
+    onModeChange?.(isDrawing || isNaming ? "drawing" : mode.kind);
+  }, [mode.kind, isDrawing, isNaming, onModeChange]);
 
   // モードを map click ハンドラ（一度だけ登録）から参照するためのref
   const modeRef = useRef(mode);
@@ -1091,7 +1105,7 @@ export default function MapCanvas() {
     canvasContainer.addEventListener("touchmove", preventPageGesture, { passive: false });
 
     let tracing = false;
-    let lastPoint: { x: number; y: number } | null = null;
+    let lastLngLat: [number, number] | null = null;
 
     const start = (e: MapMouseEvent | MapTouchEvent) => {
       // ピンチ操作（2本指）はズームに譲る
@@ -1100,24 +1114,23 @@ export default function MapCanvas() {
         return;
       }
       tracing = true;
-      lastPoint = e.point;
-      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+      lastLngLat = [e.lngLat.lng, e.lngLat.lat];
+      addVertexRef.current(lastLngLat);
     };
     const move = (e: MapMouseEvent | MapTouchEvent) => {
-      if (!tracing || !lastPoint) return;
+      if (!tracing || !lastLngLat) return;
       if ("points" in e && e.points.length > 1) {
         tracing = false;
         return;
       }
-      const dx = e.point.x - lastPoint.x;
-      const dy = e.point.y - lastPoint.y;
-      if (dx * dx + dy * dy < TRACE_MIN_DISTANCE_PX * TRACE_MIN_DISTANCE_PX) return;
-      lastPoint = e.point;
-      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+      const current: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      if (distanceMeters(lastLngLat, current) < TRACE_MIN_DISTANCE_M) return;
+      lastLngLat = current;
+      addVertexRef.current(current);
     };
     const end = () => {
       tracing = false;
-      lastPoint = null;
+      lastLngLat = null;
     };
 
     map.on("mousedown", start);
@@ -1288,7 +1301,7 @@ export default function MapCanvas() {
 
   const idle = !isDrawing && !isNaming;
   const showTopBar = idle && (mode.kind === "browse" || mode.kind === "field" || mode.kind === "point");
-  const showControls = idle && mode.kind !== "picker";
+  const showControls = idle && mode.kind !== "picker" && !hideControls;
   const showDetail = idle && (mode.kind === "field" || mode.kind === "point");
 
   return (
@@ -1343,7 +1356,7 @@ export default function MapCanvas() {
 
       {/* 右側コントロール（現在地・ズーム）: picker以外で表示（placing/addPinでも地図操作可） */}
       {showControls && (
-        <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-2">
+        <div className="absolute bottom-44 right-3 z-20 flex flex-col items-center gap-2">
           <button
             onClick={() => flyToCurrentLocation()}
             aria-label="現在地に戻る"
@@ -1371,18 +1384,18 @@ export default function MapCanvas() {
         </div>
       )}
 
-      {/* 記録ボタン（下部中央） — 通常閲覧のみ */}
-      {idle && mode.kind === "browse" && (
-        <div className="absolute bottom-6 inset-x-0 z-20 flex justify-center">
+      {/* FAB 記録ボタン（右下） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
+      {idle && mode.kind === "browse" && !hideControls && (
+        <div className="absolute bottom-24 right-4 z-20">
           <div className="relative">
             {recordPopOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
-                <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col gap-2">
+                <div className="absolute bottom-full right-0 z-20 mb-3 flex flex-col gap-2">
                   <Link
                     href="/records/new?returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg transition-colors hover:bg-green-800"
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg animate-fab-pop transition-colors hover:bg-green-800"
                   >
                     <IconCamera className="h-5 w-5 shrink-0" />
                     写真で記録
@@ -1390,7 +1403,8 @@ export default function MapCanvas() {
                   <Link
                     href="/records/new?type=audio&returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg transition-colors hover:bg-gray-50"
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg animate-fab-pop transition-colors hover:bg-gray-50"
+                    style={{ animationDelay: "50ms" }}
                   >
                     <IconMic className="h-5 w-5 shrink-0 text-green-700" />
                     音声メモ
@@ -1400,10 +1414,11 @@ export default function MapCanvas() {
             )}
             <button
               onClick={() => setRecordPopOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-full bg-green-700 px-5 py-3 text-sm font-bold text-white shadow-xl transition-colors hover:bg-green-800 active:bg-green-900"
+              aria-label="記録する"
+              aria-expanded={recordPopOpen}
+              className={`flex h-14 w-14 items-center justify-center rounded-full bg-green-700 shadow-[0_4px_20px_rgba(22,163,74,0.4)] transition-all hover:bg-green-800 active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
             >
-              <IconCamera className="h-5 w-5" />
-              記録する
+              <IconPlus className="h-7 w-7 text-white transition-transform" />
             </button>
           </div>
         </div>
@@ -1474,6 +1489,7 @@ export default function MapCanvas() {
       {isDrawing && (
         <FieldDrawOverlay
           vertexCount={vertexCount}
+          areaSqm={estimatedAreaSqm}
           onFinish={finishDraw}
           onReposition={repositionDraw}
           onCancel={returnToBrowse}
@@ -1487,6 +1503,7 @@ export default function MapCanvas() {
           title={redrawTarget ? "描き直した田んぼの名前" : "田んぼの名前を入力"}
           value={pendingName}
           onChange={setPendingName}
+          areaSqm={estimatedAreaSqm}
           onSave={handleSaveField}
           onCancel={returnToBrowse}
         />

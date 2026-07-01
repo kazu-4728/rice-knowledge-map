@@ -8,6 +8,8 @@ import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus, IconWarningFill } from "../../components/ui/icons";
 import { compressImage } from "../../lib/utils/imageCompress";
+import { formatAreaSqm } from "../../lib/utils/geo";
+import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 
 type FieldItem = {
   id: string;
@@ -134,10 +136,10 @@ export default function FieldsPage() {
     setFields((prev) => prev.map((f) => f.id === field.id ? { ...f, photoPath: path } : f));
   };
 
+  const [areaUnit, cycleAreaUnit] = useAreaUnit();
   const formatArea = (sqm: number | null) => {
     if (sqm === null) return null;
-    if (sqm >= 10000) return `${(sqm / 10000).toFixed(2)}ha`;
-    return `${sqm.toFixed(0)}㎡`;
+    return formatAreaSqm(sqm, areaUnit);
   };
 
   return (
@@ -217,7 +219,15 @@ export default function FieldsPage() {
                         {field.name}
                       </p>
                       {formatArea(field.areaSqm) && (
-                        <span className="shrink-0 text-sm font-medium text-gray-500">{formatArea(field.areaSqm)}</span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); } }}
+                          className="shrink-0 border-b border-dotted border-gray-300 text-sm font-medium text-gray-500 active:opacity-60"
+                        >
+                          {formatArea(field.areaSqm)}
+                        </span>
                       )}
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5">

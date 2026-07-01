@@ -48,17 +48,19 @@ export default function MenuDrawer({ open, onClose }: Props) {
         className={`fixed left-0 top-0 z-50 flex h-dvh w-72 flex-col bg-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* header */}
-        <div className="flex h-14 items-center justify-between border-b border-gray-100 px-4">
+        <div className="flex h-14 items-center justify-between bg-green-800 px-4">
           <div className="flex items-center gap-1.5">
-            <LogoRice className="h-7 w-7" />
-            <span className="text-base font-bold tracking-tight text-green-700">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95">
+              <LogoRice className="h-5 w-5" />
+            </span>
+            <span className="text-base font-bold tracking-tight text-white">
               みらい稲作管理
             </span>
           </div>
           <button
             onClick={onClose}
             aria-label="メニューを閉じる"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
           >
             <IconClose className="h-5 w-5" />
           </button>

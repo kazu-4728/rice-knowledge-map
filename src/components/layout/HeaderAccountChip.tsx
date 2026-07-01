@@ -14,7 +14,7 @@ export default function HeaderAccountChip({ hasBack }: { hasBack?: boolean }) {
     return (
       <Link
         href="/login"
-        className="absolute right-3 rounded-full bg-green-700 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
+        className="absolute right-3 rounded-full bg-white px-3.5 py-1.5 text-sm font-bold text-green-800 transition-colors hover:bg-green-50"
       >
         ログイン
       </Link>
@@ -25,7 +25,7 @@ export default function HeaderAccountChip({ hasBack }: { hasBack?: boolean }) {
     <Link
       href="/menu"
       aria-label="アカウント"
-      className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200 lg:hidden"
+      className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 lg:hidden"
     >
       <IconUserFill className="h-5 w-5" />
     </Link>

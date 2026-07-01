@@ -3,6 +3,7 @@ import type { FieldPoint } from "../../types";
 import type { FarmFieldRow, FieldPointRow } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { fieldGeoJSON, fieldPoints } from "../../data/dummy";
+import { computeApproxAreaSqm } from "../utils/geo";
 
 const FIELD_COLORS = ["#3B82F6", "#EAB308", "#22C55E", "#A855F7", "#F97316", "#EC4899"];
 
@@ -191,6 +192,7 @@ export async function saveFieldPolygon(
         boundary_geojson: { type: "Polygon", coordinates: [ring] },
         center_latitude: centerLat,
         center_longitude: centerLng,
+        area_sqm: computeApproxAreaSqm(vertices),
         created_by: user.id,
       })
       .select("id")
@@ -232,6 +234,7 @@ export async function updateField(
       patch.boundary_geojson = { type: "Polygon", coordinates: [ring] };
       patch.center_longitude = vertices.reduce((s, v) => s + v[0], 0) / vertices.length;
       patch.center_latitude = vertices.reduce((s, v) => s + v[1], 0) / vertices.length;
+      patch.area_sqm = computeApproxAreaSqm(vertices);
     }
 
     // RLSで弾かれた更新はエラーにならず0件成功になるため、結果行で判定する
