@@ -39,19 +39,32 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const sb = getSupabase();
-    if (sb) {
-      sb.from("farm_group_members").select("group_id").limit(1).then(({ data: members }) => {
-        if (!members || members.length === 0) return;
-        sb.from("records")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["open", "needs_check"])
-          .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)")
-          .then(({ count }) => setOpenIssueCount(count ?? 0));
-      });
-    }
 
-    loadFarmData().then((data) => {
+    // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
+    const loadIssueRecords = async (): Promise<{ fieldId: string | null; isIssue: boolean }[]> => {
+      if (!sb) return [];
+      const { data: members } = await sb.from("farm_group_members").select("group_id").limit(1);
+      if (!members || members.length === 0) return [];
+      const { data } = await sb
+        .from("records")
+        .select("field_id, record_type")
+        .in("status", ["open", "needs_check"])
+        .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
+      return (data ?? []).map((r) => ({
+        fieldId: (r.field_id as string | null) ?? null,
+        isIssue: r.record_type === "issue",
+      }));
+    };
+
+    Promise.all([loadFarmData(), loadIssueRecords()]).then(([data, issueRecords]) => {
+      if (cancelled) return;
+      setOpenIssueCount(issueRecords.length);
+
+      // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
+      if (data.mode === "error") return;
+
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -74,6 +87,17 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
         else entry.needsCheckCount++;
         attnMap.set(p.fieldId, entry);
       });
+      // ピンのステータス変更を伴わない「記録のみ」の異常も反映する
+      issueRecords.forEach(({ fieldId, isIssue }) => {
+        if (!fieldId) return;
+        const entry = attnMap.get(fieldId) ?? {
+          issueCount: 0,
+          needsCheckCount: 0,
+        };
+        if (isIssue) entry.issueCount++;
+        else entry.needsCheckCount++;
+        attnMap.set(fieldId, entry);
+      });
       const attnFields: AttentionField[] = [];
       attnMap.forEach((counts, fid) => {
         attnFields.push({
@@ -91,9 +115,14 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     });
 
     loadRecords({ limit: 5 }).then((data) => {
+      if (cancelled) return;
       setRecentRecords(data.records);
       setThumbUrls(data.thumbUrls);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const toggleExpand = useCallback(() => {
