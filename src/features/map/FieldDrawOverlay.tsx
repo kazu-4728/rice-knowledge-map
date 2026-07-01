@@ -1,7 +1,10 @@
 "use client";
 
+import { formatAreaSqm } from "../../lib/utils/geo";
+
 type Props = {
   vertexCount: number;
+  areaSqm: number | null;
   onFinish: () => void;
   onCancel: () => void;
   onUndo: () => void;
@@ -9,7 +12,7 @@ type Props = {
   onReposition: () => void;
 };
 
-export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUndo, onReposition }: Props) {
+export default function FieldDrawOverlay({ vertexCount, areaSqm, onFinish, onCancel, onUndo, onReposition }: Props) {
   const canFinish = vertexCount >= 3;
 
   return (
@@ -29,6 +32,7 @@ export default function FieldDrawOverlay({ vertexCount, onFinish, onCancel, onUn
               <p className="text-xs mt-0.5 text-blue-100">
                 指でなぞるか、タップで点を打って輪郭を描く — {vertexCount} 点
                 {vertexCount < 3 && `（あと ${3 - vertexCount} 点で完成できます）`}
+                {canFinish && areaSqm != null && `／推定面積 約${formatAreaSqm(areaSqm)}`}
               </p>
             </div>
             <button

@@ -31,6 +31,7 @@ import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
 import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
+import { computeApproxAreaSqm } from "../../lib/utils/geo";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import { useDrawer } from "../../components/layout/DrawerContext";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
@@ -196,6 +197,10 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
   const isDrawing = drawState.mode === "drawing";
   const isNaming = drawState.mode === "naming";
   const vertexCount = drawState.mode === "drawing" ? drawState.vertices.length : 0;
+  const estimatedAreaSqm =
+    drawState.mode === "drawing" || drawState.mode === "naming"
+      ? computeApproxAreaSqm(drawState.vertices)
+      : null;
 
   useEffect(() => {
     onModeChange?.(isDrawing || isNaming ? "drawing" : mode.kind);
@@ -1485,6 +1490,7 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
       {isDrawing && (
         <FieldDrawOverlay
           vertexCount={vertexCount}
+          areaSqm={estimatedAreaSqm}
           onFinish={finishDraw}
           onReposition={repositionDraw}
           onCancel={returnToBrowse}
@@ -1498,6 +1504,7 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
           title={redrawTarget ? "描き直した田んぼの名前" : "田んぼの名前を入力"}
           value={pendingName}
           onChange={setPendingName}
+          areaSqm={estimatedAreaSqm}
           onSave={handleSaveField}
           onCancel={returnToBrowse}
         />
