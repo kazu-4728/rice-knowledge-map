@@ -7,6 +7,8 @@ import { loadRecords, isUnresolvedIssue } from "../../lib/data/records";
 import { consumeJustSaved } from "../records/recordDraft";
 import { getSupabase } from "../../lib/supabase/client";
 import { compressImage } from "../../lib/utils/imageCompress";
+import { formatAreaSqm } from "../../lib/utils/geo";
+import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -115,10 +117,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     });
   }, [fieldId]);
 
+  const [areaUnit, cycleAreaUnit] = useAreaUnit();
   const formatArea = (sqm: number | null) => {
     if (sqm === null) return null;
-    if (sqm >= 10000) return `${(sqm / 10000).toFixed(2)}ha`;
-    return `${sqm.toFixed(0)}㎡`;
+    return formatAreaSqm(sqm, areaUnit);
   };
 
   const handlePhotoSelect = async (file: File) => {
@@ -189,7 +191,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h1 className="text-xl font-bold text-white drop-shadow">{fieldName || "名前のない田んぼ"}</h1>
           {areaSqm !== null && (
-            <p className="mt-0.5 text-sm text-white/80">{formatArea(areaSqm)}</p>
+            <button
+              onClick={cycleAreaUnit}
+              className="mt-0.5 border-b border-dotted border-white/50 text-sm text-white/80 active:opacity-70"
+            >
+              {formatArea(areaSqm)}
+            </button>
           )}
         </div>
 
@@ -274,7 +281,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="grid grid-cols-4 divide-x divide-gray-100">
           <div className="px-1 text-center">
-            <p className="text-lg font-bold text-gray-900">{formatArea(areaSqm) ?? "—"}</p>
+            {areaSqm !== null ? (
+              <button onClick={cycleAreaUnit} className="text-lg font-bold text-gray-900 active:opacity-70">
+                {formatArea(areaSqm)}
+              </button>
+            ) : (
+              <p className="text-lg font-bold text-gray-900">—</p>
+            )}
             <p className="mt-0.5 text-[11px] text-gray-500">面積</p>
           </div>
           <div className="px-1 text-center">

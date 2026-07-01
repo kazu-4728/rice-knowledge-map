@@ -28,7 +28,40 @@ export function computeApproxAreaSqm(vertices: [number, number][]): number {
   return Math.abs(sum) / 2;
 }
 
-export function formatAreaSqm(sqm: number): string {
-  if (sqm >= 10000) return `${(sqm / 10000).toFixed(2)}ha`;
-  return `${sqm.toFixed(0)}㎡`;
+/** 2点間の実距離（ハーバサイン公式、メートル） */
+export function distanceMeters(a: [number, number], b: [number, number]): number {
+  const [lng1, lat1] = a;
+  const [lng2, lat2] = b;
+  const dPhi = toRad(lat2 - lat1);
+  const dLambda = toRad(lng2 - lng1);
+  const sinDPhi = Math.sin(dPhi / 2);
+  const sinDLambda = Math.sin(dLambda / 2);
+  const h =
+    sinDPhi * sinDPhi +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * sinDLambda * sinDLambda;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// 1坪 = 400/121 ㎡（尺貫法とメートル法の法定換算値）。1反 = 300坪。
+const TSUBO_SQM = 400 / 121;
+const TAN_SQM = TSUBO_SQM * 300;
+
+export type AreaUnit = "ha" | "tan" | "sqm";
+
+export const AREA_UNIT_ORDER: AreaUnit[] = ["ha", "tan", "sqm"];
+
+const AREA_UNIT_INFO: Record<AreaUnit, { sqmPerUnit: number; label: string; decimals: number }> = {
+  ha: { sqmPerUnit: 10000, label: "ha", decimals: 2 },
+  tan: { sqmPerUnit: TAN_SQM, label: "反", decimals: 2 },
+  sqm: { sqmPerUnit: 1, label: "㎡", decimals: 0 },
+};
+
+export function formatAreaSqm(sqm: number, unit: AreaUnit = "ha"): string {
+  const info = AREA_UNIT_INFO[unit];
+  return `${(sqm / info.sqmPerUnit).toFixed(info.decimals)}${info.label}`;
+}
+
+export function nextAreaUnit(unit: AreaUnit): AreaUnit {
+  const i = AREA_UNIT_ORDER.indexOf(unit);
+  return AREA_UNIT_ORDER[(i + 1) % AREA_UNIT_ORDER.length];
 }

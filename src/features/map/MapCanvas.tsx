@@ -31,7 +31,7 @@ import FieldNameDialog from "./FieldNameDialog";
 import AddPinSheet from "./AddPinSheet";
 import PointEditDialog from "./PointEditDialog";
 import { useFieldDraw } from "./useFieldDraw";
-import { computeApproxAreaSqm } from "../../lib/utils/geo";
+import { computeApproxAreaSqm, distanceMeters } from "../../lib/utils/geo";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import { useDrawer } from "../../components/layout/DrawerContext";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
@@ -49,8 +49,8 @@ import {
 
 const INITIAL_CENTER: [number, number] = [138.8305, 37.4252];
 const INITIAL_ZOOM = 14.4;
-/** なぞり描き中、この画面距離(px)以上動いたら頂点を追加する */
-const TRACE_MIN_DISTANCE_PX = 12;
+/** なぞり描き中、この実距離(m)以上動いたら頂点を追加する（ズームレベルに依存させないため画面pxではなく実距離で判定） */
+const TRACE_MIN_DISTANCE_M = 2.5;
 
 /** タップで選択された田んぼ */
 type SelectedField = { id: string; name: string };
@@ -1105,7 +1105,7 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
     canvasContainer.addEventListener("touchmove", preventPageGesture, { passive: false });
 
     let tracing = false;
-    let lastPoint: { x: number; y: number } | null = null;
+    let lastLngLat: [number, number] | null = null;
 
     const start = (e: MapMouseEvent | MapTouchEvent) => {
       // ピンチ操作（2本指）はズームに譲る
@@ -1114,24 +1114,23 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
         return;
       }
       tracing = true;
-      lastPoint = e.point;
-      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+      lastLngLat = [e.lngLat.lng, e.lngLat.lat];
+      addVertexRef.current(lastLngLat);
     };
     const move = (e: MapMouseEvent | MapTouchEvent) => {
-      if (!tracing || !lastPoint) return;
+      if (!tracing || !lastLngLat) return;
       if ("points" in e && e.points.length > 1) {
         tracing = false;
         return;
       }
-      const dx = e.point.x - lastPoint.x;
-      const dy = e.point.y - lastPoint.y;
-      if (dx * dx + dy * dy < TRACE_MIN_DISTANCE_PX * TRACE_MIN_DISTANCE_PX) return;
-      lastPoint = e.point;
-      addVertexRef.current([e.lngLat.lng, e.lngLat.lat]);
+      const current: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      if (distanceMeters(lastLngLat, current) < TRACE_MIN_DISTANCE_M) return;
+      lastLngLat = current;
+      addVertexRef.current(current);
     };
     const end = () => {
       tracing = false;
-      lastPoint = null;
+      lastLngLat = null;
     };
 
     map.on("mousedown", start);

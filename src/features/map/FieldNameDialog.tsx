@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { formatAreaSqm } from "../../lib/utils/geo";
+import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 
 type Props = {
   value: string;
@@ -24,6 +25,7 @@ export default function FieldNameDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
+  const [areaUnit, cycleAreaUnit] = useAreaUnit();
 
   useEffect(() => {
     // ダイアログ表示時にフォーカス
@@ -65,9 +67,12 @@ export default function FieldNameDialog({
         </div>
         <p className="text-xs text-gray-500 mb-3">後から変更できます</p>
         {areaSqm != null && (
-          <p className="text-xs font-semibold text-green-700 mb-3 -mt-1">
-            推定面積 約{formatAreaSqm(areaSqm)}
-          </p>
+          <button
+            onClick={cycleAreaUnit}
+            className="mb-3 -mt-1 block rounded border-b border-dotted border-green-300 text-xs font-semibold text-green-700 active:opacity-70"
+          >
+            推定面積 約{formatAreaSqm(areaSqm, areaUnit)}（タップで単位切替）
+          </button>
         )}
 
         <input
