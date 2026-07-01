@@ -326,7 +326,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 openRecords.length > 0 ? `未対応の異常記録${openRecords.length}件` : null,
               ].filter(Boolean).join(" ・ ")}があります
             </p>
-            <p className="mt-0.5 text-xs text-amber-600">「記録」タブや下の「ポイントの状態」で確認してください</p>
+            <p className="mt-0.5 text-xs text-amber-600">「記録」タブ、または「概要」タブの「ポイントの状態」で確認してください</p>
           </div>
         </div>
       ) : points.length > 0 ? (
@@ -359,10 +359,14 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       )}
 
       {/* タブ */}
-      <div className="flex gap-6 border-b border-gray-200 px-1">
+      <div className="flex gap-6 border-b border-gray-200 px-1" role="tablist" aria-label="田んぼ詳細の表示切り替え">
         {TABS.map((tab) => (
           <button
             key={tab.key}
+            id={`field-tab-${tab.key}`}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            aria-controls={`field-tabpanel-${tab.key}`}
             onClick={() => setActiveTab(tab.key)}
             className={`relative pb-2.5 text-sm font-bold transition-colors ${
               activeTab === tab.key ? "text-green-800" : "text-gray-400"
@@ -378,7 +382,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
       {/* 概要タブ: ポイントの状態 */}
       {activeTab === "overview" && (
-        <>
+        <div role="tabpanel" id="field-tabpanel-overview" aria-labelledby="field-tab-overview">
           {points.length > 0 ? (
             <section className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
@@ -419,12 +423,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">マップで入水口・異常箇所などを登録できます</p>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 記録タブ: 写真主体のタイムライン */}
       {activeTab === "records" && (
-        <>
+        <div role="tabpanel" id="field-tabpanel-records" aria-labelledby="field-tab-records">
           {records.length > 0 ? (
             <div className="space-y-3">
               {records.map((record) => (
@@ -457,12 +461,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 写真タブ: ギャラリー */}
       {activeTab === "photos" && (
-        <>
+        <div role="tabpanel" id="field-tabpanel-photos" aria-labelledby="field-tab-photos">
           {photoRecords.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {photoRecords.map((record) => (
@@ -489,7 +493,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加できます</p>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 二次導線 */}
