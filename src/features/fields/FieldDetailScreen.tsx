@@ -12,6 +12,8 @@ import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { Card, CardContent } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
@@ -50,6 +52,23 @@ const CATEGORY_CHIP: Record<RecordItem["category"], string> = {
   音声: "bg-teal-50 text-teal-600",
 };
 
+/** タイムラインカードのカテゴリ帯色（写真上に重ねるバッジ用、視認性のため白文字前提の濃色） */
+const CATEGORY_BADGE: Record<RecordItem["category"], string> = {
+  水管理: "border-transparent bg-blue-600 text-white",
+  作業: "border-transparent bg-green-700 text-white",
+  異常: "border-transparent bg-orange-600 text-white",
+  音声: "border-transparent bg-teal-600 text-white",
+};
+
+/** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
+const STATUS_BADGE: Partial<Record<RecordItem["status"], { label: string; cls: string }>> = {
+  open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
+  needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
+};
+
+/** 記録タブで一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
+const RECORDS_PAGE_SIZE = 20;
+
 async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -59,6 +78,13 @@ async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): P
   if (error) { console.warn("[field-detail] upload failed", error); return null; }
   return path;
 }
+
+type TabKey = "overview" | "records" | "photos";
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "overview", label: "概要" },
+  { key: "records", label: "記録" },
+  { key: "photos", label: "写真" },
+];
 
 type Props = { fieldId: string };
 
@@ -75,6 +101,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
   useEffect(() => {
@@ -232,52 +260,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
-      {attention.length > 0 || openRecords.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
-            <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-amber-800">
-              {[
-                attention.length > 0 ? `要対応のポイント${attention.length}件` : null,
-                openRecords.length > 0 ? `未対応の異常記録${openRecords.length}件` : null,
-              ].filter(Boolean).join(" ・ ")}があります
-            </p>
-            <p className="mt-0.5 text-xs text-amber-600">下の「ポイントの状態」や記録で確認してください</p>
-          </div>
-        </div>
-      ) : points.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
-            <IconPinFill className="h-4.5 w-4.5 text-green-700" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-green-800">
-              {points.every((p) => p.status === "normal") ? "異常なし・順調です" : "要対応はありません"}
-            </p>
-            <p className="mt-0.5 text-xs text-green-600">
-              {points.every((p) => p.status === "normal")
-                ? `登録ポイント${points.length}件はすべて正常です`
-                : "要対応のポイントはありません（対応済みを含む）"}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <Link href="/map" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm active:scale-98 transition-transform">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-            <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-          </div>
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-        </Link>
-      )}
-
-      {/* この田んぼの概要 — 実データの集計 */}
+      {/* この田んぼの概要（統計） */}
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="grid grid-cols-4 divide-x divide-gray-100">
           <div className="px-1 text-center">
@@ -340,132 +323,215 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
       </section>
 
-      {/* ポイントの状態（要対応を上に） */}
-      {points.length > 0 && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <IconPinFill className="h-5 w-5 text-green-700" />
-            <h2 className="text-sm font-bold text-gray-900">ポイントの状態</h2>
-            <span className="ml-auto text-xs text-gray-400">{points.length}件</span>
+      {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
+      {attention.length > 0 || openRecords.length > 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-amber-800">
+              {[
+                attention.length > 0 ? `要対応のポイント${attention.length}件` : null,
+                openRecords.length > 0 ? `未対応の異常記録${openRecords.length}件` : null,
+              ].filter(Boolean).join(" ・ ")}があります
+            </p>
+            <p className="mt-0.5 text-xs text-amber-600">「記録」タブ、または「概要」タブの「ポイントの状態」で確認してください</p>
           </div>
-          <ul className="space-y-2">
-            {sortedPoints.map((point) => {
-              const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
-              const status = POINT_STATUS_META[point.status];
-              return (
-                <li key={point.id}>
-                  <Link
-                    href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                    className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-all hover:bg-gray-50 active:scale-95"
-                  >
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
-                      {meta.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                      <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
-                    </div>
-                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
-                      {status.label}
-                    </span>
-                    <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        </div>
+      ) : points.length > 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+            <IconPinFill className="h-4.5 w-4.5 text-green-700" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-green-800">
+              {points.every((p) => p.status === "normal") ? "異常なし・順調です" : "要対応はありません"}
+            </p>
+            <p className="mt-0.5 text-xs text-green-600">
+              {points.every((p) => p.status === "normal")
+                ? `登録ポイント${points.length}件はすべて正常です`
+                : "要対応のポイントはありません（対応済みを含む）"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <Link href="/map" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm active:scale-98 transition-transform">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
+            <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
+          </div>
+          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        </Link>
       )}
 
-      {/* 写真の記録（ギャラリー） */}
-      {photoRecords.length > 0 && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <IconCamera className="h-5 w-5 text-green-700" />
-            <h2 className="text-sm font-bold text-gray-900">写真の記録</h2>
-            <span className="ml-auto text-xs text-gray-400">{photoRecords.length}件</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {photoRecords.slice(0, 6).map((record) => (
-              <Link
-                key={record.id}
-                href={`/records/${record.id}`}
-                className="group relative aspect-square overflow-hidden rounded-xl active:scale-95 transition-transform"
-              >
-                <RecordThumb
-                  media="photo"
-                  variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                  thumbUrl={thumbUrls[record.id]}
-                  className="h-full w-full"
-                />
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1">
-                  <span className="block truncate text-[10px] font-semibold text-white">{record.time}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {/* タブ */}
+      <div className="flex gap-6 border-b border-gray-200 px-1" role="tablist" aria-label="田んぼ詳細の表示切り替え">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            id={`field-tab-${tab.key}`}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            aria-controls={`field-tabpanel-${tab.key}`}
+            onClick={() => setActiveTab(tab.key)}
+            className={`relative pb-2.5 text-sm font-bold transition-colors ${
+              activeTab === tab.key ? "text-green-800" : "text-gray-400"
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.key && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-green-800" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* 概要タブ: ポイントの状態 */}
+      {activeTab === "overview" && (
+        <div role="tabpanel" id="field-tabpanel-overview" aria-labelledby="field-tab-overview">
+          {points.length > 0 ? (
+            <section className="rounded-2xl bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <IconPinFill className="h-5 w-5 text-green-700" />
+                <h2 className="text-sm font-bold text-gray-900">ポイントの状態</h2>
+                <span className="ml-auto text-xs text-gray-400">{points.length}件</span>
+              </div>
+              <ul className="space-y-2">
+                {sortedPoints.map((point) => {
+                  const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
+                  const status = POINT_STATUS_META[point.status];
+                  return (
+                    <li key={point.id}>
+                      <Link
+                        href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
+                        className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 transition-all hover:bg-gray-50 active:scale-95"
+                      >
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+                          {meta.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                          <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+                          {status.label}
+                        </span>
+                        <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : (
+            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+              <p className="text-sm text-gray-500">まだポイントが登録されていません</p>
+              <p className="mt-1 text-xs text-gray-400">マップで入水口・異常箇所などを登録できます</p>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* この田んぼの最近の記録（3件） */}
-      {records.length > 0 && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-900">最近の記録</h2>
-            <Link href={`/records?field=${encodeURIComponent(fieldId)}`} className="flex items-center text-xs font-semibold text-green-700">
-              すべて見る <IconChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <ul>
-            {records.slice(0, 3).map((record, i) => (
-              <li key={record.id}>
+      {/* 記録タブ: 写真主体のタイムライン（大量記録時に一括描画しないようページング） */}
+      {activeTab === "records" && (
+        <div role="tabpanel" id="field-tabpanel-records" aria-labelledby="field-tab-records">
+          {records.length > 0 ? (
+            <>
+              <div className="space-y-3">
+                {records.slice(0, recordsShown).map((record) => {
+                  const statusBadge = STATUS_BADGE[record.status];
+                  return (
+                    <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
+                      <Card className="overflow-hidden">
+                        <div className="relative h-40">
+                          <RecordThumb
+                            media={record.media}
+                            variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+                            duration={record.audioDuration}
+                            thumbUrl={thumbUrls[record.id]}
+                            className="h-full w-full"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+                          <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+                            {record.category}
+                          </Badge>
+                          {statusBadge && (
+                            <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+                              {statusBadge.label}
+                            </Badge>
+                          )}
+                        </div>
+                        <CardContent className="px-4 py-3">
+                          <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+                          <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+              {recordsShown < records.length && (
+                <button
+                  onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
+                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 shadow-sm active:bg-gray-50"
+                >
+                  もっと見る（残り{records.length - recordsShown}件）
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+              <p className="text-sm text-gray-500">まだ記録がありません</p>
+              <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 写真タブ: ギャラリー */}
+      {activeTab === "photos" && (
+        <div role="tabpanel" id="field-tabpanel-photos" aria-labelledby="field-tab-photos">
+          {photoRecords.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {photoRecords.map((record) => (
                 <Link
+                  key={record.id}
                   href={`/records/${record.id}`}
-                  className={`flex items-center gap-3 py-2.5 active:scale-95 transition-transform ${i > 0 ? "border-t border-gray-100" : ""}`}
+                  className="group relative aspect-square overflow-hidden rounded-xl active:scale-95 transition-transform"
                 >
                   <RecordThumb
-                    media={record.media}
+                    media="photo"
                     variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                    duration={record.audioDuration}
                     thumbUrl={thumbUrls[record.id]}
-                    className="h-12 w-16 shrink-0 rounded-lg"
+                    className="h-full w-full"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                    <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
-                  </div>
-                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1">
+                    <span className="block truncate text-[10px] font-semibold text-white">{record.time}</span>
+                  </span>
                 </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {records.length === 0 && (
-        <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-sm text-gray-500">まだ記録がありません</p>
-          <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+              <p className="text-sm text-gray-500">まだ写真がありません</p>
+              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加できます</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* 二次導線 */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link
-          href={`/records?field=${encodeURIComponent(fieldId)}`}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 active:scale-95 transition-transform shadow-sm"
-        >
-          記録一覧
-          <IconChevronRight className="h-4 w-4 text-gray-400" />
-        </Link>
-        <Link
-          href={`/map?field=${encodeURIComponent(fieldId)}`}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
-        >
-          <IconPinFill className="h-4 w-4" />
-          マップで見る
-        </Link>
-      </div>
+      <Link
+        href={`/map?field=${encodeURIComponent(fieldId)}`}
+        className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
+      >
+        <IconPinFill className="h-4 w-4" />
+        マップで見る
+      </Link>
     </div>
   );
 }
