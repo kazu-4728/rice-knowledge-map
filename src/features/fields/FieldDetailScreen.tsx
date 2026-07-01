@@ -60,6 +60,15 @@ const CATEGORY_BADGE: Record<RecordItem["category"], string> = {
   音声: "border-transparent bg-teal-600 text-white",
 };
 
+/** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
+const STATUS_BADGE: Partial<Record<RecordItem["status"], { label: string; cls: string }>> = {
+  open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
+  needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
+};
+
+/** 記録タブで一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
+const RECORDS_PAGE_SIZE = 20;
+
 async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -93,6 +102,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
   useEffect(() => {
@@ -426,35 +436,53 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
       )}
 
-      {/* 記録タブ: 写真主体のタイムライン */}
+      {/* 記録タブ: 写真主体のタイムライン（大量記録時に一括描画しないようページング） */}
       {activeTab === "records" && (
         <div role="tabpanel" id="field-tabpanel-records" aria-labelledby="field-tab-records">
           {records.length > 0 ? (
-            <div className="space-y-3">
-              {records.map((record) => (
-                <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
-                  <Card className="overflow-hidden">
-                    <div className="relative h-40">
-                      <RecordThumb
-                        media={record.media}
-                        variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                        duration={record.audioDuration}
-                        thumbUrl={thumbUrls[record.id]}
-                        className="h-full w-full"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
-                      <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
-                        {record.category}
-                      </Badge>
-                    </div>
-                    <CardContent className="px-4 py-3">
-                      <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+            <>
+              <div className="space-y-3">
+                {records.slice(0, recordsShown).map((record) => {
+                  const statusBadge = STATUS_BADGE[record.status];
+                  return (
+                    <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
+                      <Card className="overflow-hidden">
+                        <div className="relative h-40">
+                          <RecordThumb
+                            media={record.media}
+                            variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+                            duration={record.audioDuration}
+                            thumbUrl={thumbUrls[record.id]}
+                            className="h-full w-full"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+                          <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+                            {record.category}
+                          </Badge>
+                          {statusBadge && (
+                            <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+                              {statusBadge.label}
+                            </Badge>
+                          )}
+                        </div>
+                        <CardContent className="px-4 py-3">
+                          <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+                          <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+              {recordsShown < records.length && (
+                <button
+                  onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
+                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 shadow-sm active:bg-gray-50"
+                >
+                  もっと見る（残り{records.length - recordsShown}件）
+                </button>
+              )}
+            </>
           ) : (
             <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
               <p className="text-sm text-gray-500">まだ記録がありません</p>
