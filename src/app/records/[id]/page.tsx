@@ -12,7 +12,6 @@ import {
   IconCommentFill,
   IconMap,
   IconMic,
-  IconMore,
   IconMoreVertical,
   IconPinFill,
   IconPlus,
@@ -409,36 +408,42 @@ export default function RecordDetailPage() {
           )}
 
           {record.comments.length > 0 ? (
-            <ul className="mt-3 space-y-1">
+            <div className="mt-3 flex flex-col gap-3">
               {record.comments.map((comment, i) => (
-                <li
+                <div
                   key={comment.id ?? i}
-                  className={`flex gap-3 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+                  className={`flex items-end gap-2 ${comment.isMine ? "flex-row-reverse" : ""}`}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
-                    <IconUserFill className="h-5 w-5 text-green-700" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-gray-900">{comment.author}</span>
-                      {comment.isRecorder && (
-                        <>
-                          <span className="text-xs text-gray-500">（記録者）</span>
-                          <span className="rounded border border-green-600 px-1.5 py-px text-[10px] font-semibold text-green-700">
+                  {!comment.isMine && (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                      <IconUserFill className="h-4 w-4 text-green-700" />
+                    </span>
+                  )}
+                  <div className={`flex min-w-0 max-w-[76%] flex-col ${comment.isMine ? "items-end" : "items-start"}`}>
+                    {!comment.isMine && (
+                      <div className="mb-1 flex items-center gap-1 px-1">
+                        <span className="text-xs font-bold text-gray-600">{comment.author}</span>
+                        {comment.isRecorder && (
+                          <span className="rounded border border-green-600 px-1 text-[10px] font-semibold text-green-700">
                             本人
                           </span>
-                        </>
-                      )}
+                        )}
+                      </div>
+                    )}
+                    <div
+                      className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
+                        comment.isMine
+                          ? "rounded-br-md bg-green-600 text-white"
+                          : "rounded-bl-md bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {comment.text}
                     </div>
-                    <p className="mt-1 text-sm leading-relaxed text-gray-800">{comment.text}</p>
-                    <p className="mt-1.5 text-xs text-gray-400">{comment.timestamp}</p>
+                    <span className="mt-1 px-1 text-[11px] text-gray-400">{comment.timestamp}</span>
                   </div>
-                  <button aria-label="コメントの操作" className="shrink-0 self-start p-1 text-gray-400">
-                    <IconMore className="h-5 w-5" />
-                  </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
             <p className="mt-3 text-sm text-gray-400">まだコメントはありません</p>
           )}

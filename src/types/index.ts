@@ -72,6 +72,8 @@ export type RecordComment = {
   id?: string;
   author: string;
   isRecorder?: boolean;
+  /** ログイン中の自分自身が投稿したコメントか（吹き出しの左右振り分けに使用） */
+  isMine?: boolean;
   text: string;
   timestamp: string;
 };

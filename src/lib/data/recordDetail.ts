@@ -156,6 +156,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
       author: c.profiles?.display_name || "メンバー",
       // コメント投稿者が記録者本人かどうか（ログインユーザー本人かどうかではない）
       isRecorder: c.user_id === row.recorded_by,
+      isMine: c.user_id === userId,
       text: c.comment,
       timestamp: formatCommentTime(c.created_at),
     }));

@@ -224,7 +224,7 @@ export const sampleRecordDetail: RecordDetail = {
   longitude: null,
   comments: [
     { author: "お父さん", isRecorder: true, text: "今朝の確認記録です。念のため夕方にも見に行きます。", timestamp: "5月24日 07:45" },
-    { author: "お母さん", text: "ありがとう！夕方にもう一度確認しておくね。", timestamp: "5月24日 08:12" },
+    { author: "お母さん", isMine: true, text: "ありがとう！夕方にもう一度確認しておくね。", timestamp: "5月24日 08:12" },
     { author: "お兄ちゃん", text: "夕方に見てきたよ！特に問題なし。対応済みにしておくね。", timestamp: "5月24日 17:32" },
   ],
 };
