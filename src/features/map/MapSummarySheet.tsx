@@ -12,10 +12,10 @@ import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import {
-  IconChat,
   IconChevronRight,
   IconFieldGrid,
   IconHome,
+  IconPencil,
   IconPin,
   IconWarningFill,
 } from "../../components/ui/icons";
@@ -346,7 +346,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                     href="/records"
                     className="flex items-center gap-0.5 text-xs font-bold text-emerald-300"
                   >
-                    トークで見る
+                    すべて見る
                     <IconChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -388,10 +388,10 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
               </section>
             )}
 
-            {/* 3空間へのクイックリンク */}
+            {/* 3空間へのクイックリンク（「記録」はPR-2で統合トークルーム /talk に置き換え予定） */}
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
-                { href: "/records", label: "トーク", Icon: IconChat },
+                { href: "/records", label: "記録", Icon: IconPencil },
                 { href: "/home", label: "管理", Icon: IconHome },
                 { href: "/fields", label: "田んぼ一覧", Icon: IconFieldGrid },
               ].map(({ href, label, Icon }) => (

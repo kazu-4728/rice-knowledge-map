@@ -1,23 +1,24 @@
 import {
   IconCalendar,
-  IconChat,
   IconDocDown,
   IconFieldGrid,
   IconGear,
   IconHome,
   IconMap,
+  IconPencil,
   IconSprout,
 } from "../ui/icons";
 
 /**
  * 田んぼOSの3空間+設定（主要ナビ4系統）
  * - マップ: 開く場所（地図が起点）
- * - トーク: 話す場所（記録とコメントのタイムライン。PR-2で統合トークルーム化）
+ * - 記録: PR-2で専用ページ `/talk`（家族の統合トークルーム1本）を新設し「トーク」に置き換える予定。
+ *   それまで既存の記録一覧を「トーク」と呼ぶと誤解を生むため、暫定的に「記録」表記とする
  * - 管理: 見わたす場所（状況・カレンダー・エクスポート）
  */
 export const NAV_ITEMS = [
   { href: "/map", label: "マップ", Icon: IconMap },
-  { href: "/records", label: "トーク", Icon: IconChat },
+  { href: "/records", label: "記録", Icon: IconPencil },
   { href: "/home", label: "管理", Icon: IconHome },
   { href: "/menu", label: "設定", Icon: IconGear },
 ] as const;
