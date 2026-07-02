@@ -136,6 +136,20 @@ body {
 }
 .animate-fab-glow { animation: fab-glow 2.6s ease-in-out infinite; }
 
+/* ランディング: 浮遊チップ・地平線グロー */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.animate-float-y { animation: float-y 4.5s ease-in-out infinite; }
+.animate-float-y-slow { animation: float-y 6s ease-in-out infinite; }
+
+@keyframes horizon-glow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+.animate-horizon-glow { animation: horizon-glow 7s ease-in-out infinite; }
+
 /* --- 田んぼOS: 「今日の田んぼ」ストーリー --- */
 @keyframes story-progress { from { width: 0% } to { width: 100% } }
 .animate-story-progress { animation: story-progress linear both; }
@@ -172,5 +186,6 @@ body {
   .animate-fab-pop, .animate-toast-in, .animate-toast-out,
   .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c,
   .animate-fab-glow, .animate-story-card-in, .animate-story-rise,
-  .animate-story-progress { animation: none; }
+  .animate-story-progress, .animate-float-y, .animate-float-y-slow,
+  .animate-horizon-glow { animation: none; }
 }
