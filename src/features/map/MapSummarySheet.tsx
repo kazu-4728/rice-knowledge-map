@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { loadRecords } from "../../lib/data/records";
+import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
-import { getSupabase } from "../../lib/supabase/client";
 import { getSeasonPhase } from "../../lib/season";
 
 import type { FieldPoint, RecordItem } from "../../types";
@@ -58,25 +57,9 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    const sb = getSupabase();
 
     // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
-    const loadIssueRecords = async (): Promise<{ fieldId: string | null; isIssue: boolean }[]> => {
-      if (!sb) return [];
-      const { data: members } = await sb.from("farm_group_members").select("group_id").limit(1);
-      if (!members || members.length === 0) return [];
-      const { data } = await sb
-        .from("records")
-        .select("field_id, record_type")
-        .in("status", ["open", "needs_check"])
-        .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
-      return (data ?? []).map((r) => ({
-        fieldId: (r.field_id as string | null) ?? null,
-        isIssue: r.record_type === "issue",
-      }));
-    };
-
-    Promise.all([loadFarmData(), loadIssueRecords()]).then(([data, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, issueRecords]) => {
       if (cancelled) return;
       setOpenIssueCount(issueRecords.length);
 

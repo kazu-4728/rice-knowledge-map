@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { loadWeather, type WeatherData } from "../../lib/data/weather";
 import { loadFarmData } from "../../lib/data/farm";
-import { loadRecords } from "../../lib/data/records";
+import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
 import { getSeasonPhase, getGreeting, formatDateLabel } from "../../lib/season";
 import type { RecordItem } from "../../types";
 import { PaddyPhoto, RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -23,6 +23,7 @@ const STORAGE_KEY = "tanbo-story-shown";
 const CARD_DURATION_MS = 6000;
 
 type AttentionSummary = { count: number; names: string[] };
+type CardKey = "greeting" | "attention" | "record" | "start";
 
 function todayKey(): string {
   const d = new Date();
@@ -31,7 +32,8 @@ function todayKey(): string {
 
 export default function TodayStory() {
   const [visible, setVisible] = useState(false);
-  const [index, setIndex] = useState(0);
+  // 数値indexではなくカードのキーで現在位置を持つ（非同期でカードが差し込まれても現在のカードが変わらない）
+  const [currentKey, setCurrentKey] = useState<CardKey>("greeting");
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [attention, setAttention] = useState<AttentionSummary | null>(null);
   const [latestRecord, setLatestRecord] = useState<RecordItem | null>(null);
@@ -50,7 +52,8 @@ export default function TodayStory() {
     loadWeather().then((w) => {
       if (!cancelled) setWeather(w);
     }).catch(() => {});
-    loadFarmData().then((farm) => {
+    // ピン状態の異常/要確認 + ピン変更を伴わない「記録のみ」の異常の両方を数える（MapSummarySheetと同じ考え方）
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([farm, issueRecords]) => {
       if (cancelled || farm.mode === "error") return;
       const fieldNames = new Map(
         farm.fieldsGeoJSON.features.map((f) => [
@@ -61,11 +64,17 @@ export default function TodayStory() {
       const flagged = farm.points.filter(
         (p) => p.status === "issue" || p.status === "needs_check"
       );
-      if (flagged.length > 0) {
-        const names = [...new Set(flagged.map((p) => fieldNames.get(p.fieldId) || p.name))]
+      const count = flagged.length + issueRecords.length;
+      if (count > 0) {
+        const names = [
+          ...new Set([
+            ...flagged.map((p) => fieldNames.get(p.fieldId) || p.name),
+            ...issueRecords.map((r) => (r.fieldId ? fieldNames.get(r.fieldId) ?? "" : "")),
+          ]),
+        ]
           .filter(Boolean)
           .slice(0, 3);
-        setAttention({ count: flagged.length, names });
+        setAttention({ count, names });
       }
     }).catch(() => {});
     loadRecords({ limit: 1 }).then((data) => {
@@ -83,12 +92,14 @@ export default function TodayStory() {
 
   // カード構成（データが届いた分だけ増える）
   const cards = useMemo(() => {
-    const list: Array<"greeting" | "attention" | "record" | "start"> = ["greeting"];
+    const list: CardKey[] = ["greeting"];
     if (attention) list.push("attention");
     if (latestRecord) list.push("record");
     list.push("start");
     return list;
   }, [attention, latestRecord]);
+
+  const index = Math.max(0, cards.indexOf(currentKey));
 
   const close = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -96,18 +107,18 @@ export default function TodayStory() {
   }, []);
 
   const next = useCallback(() => {
-    setIndex((i) => {
-      if (i + 1 >= cards.length) {
-        close();
-        return i;
-      }
-      return i + 1;
-    });
-  }, [cards.length, close]);
+    const i = cards.indexOf(currentKey);
+    if (i + 1 >= cards.length) {
+      close();
+      return;
+    }
+    setCurrentKey(cards[i + 1]);
+  }, [cards, currentKey, close]);
 
   const prev = useCallback(() => {
-    setIndex((i) => Math.max(0, i - 1));
-  }, []);
+    const i = cards.indexOf(currentKey);
+    if (i > 0) setCurrentKey(cards[i - 1]);
+  }, [cards, currentKey]);
 
   // 自動送り
   useEffect(() => {
@@ -117,11 +128,11 @@ export default function TodayStory() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [visible, index, cards.length, next]);
+  }, [visible, next]);
 
   if (!visible) return null;
 
-  const card = cards[Math.min(index, cards.length - 1)];
+  const card = currentKey;
 
   return (
     <div
