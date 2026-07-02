@@ -257,7 +257,7 @@ export default function TalkScreen() {
         </div>
       </div>
 
-      <TransceiverOverlay state={transceiver.state} elapsed={transceiver.elapsed} />
+      <TransceiverOverlay transceiver={transceiver} />
     </div>
   );
 }

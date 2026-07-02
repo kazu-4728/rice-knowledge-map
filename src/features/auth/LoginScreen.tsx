@@ -34,6 +34,16 @@ function LoginScreenInner() {
     if (!loading && session) router.replace(redirect);
   }, [loading, session, redirect, router]);
 
+  // スマホの戻るボタンで bfcache から復元されると上のeffectが再実行されず、
+  // ログイン済みなのにログイン画面が表示されたままになる。復元時に再リダイレクトする
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && session) router.replace(redirect);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [session, redirect, router]);
+
   const handleGoogle = async () => {
     setBusy(true);
     setMessage(null);

@@ -1490,7 +1490,7 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
       )}
 
       {/* FAB長押しの録音オーバーレイ */}
-      <TransceiverOverlay state={transceiver.state} elapsed={transceiver.elapsed} />
+      <TransceiverOverlay transceiver={transceiver} />
 
       {/* 田んぼ選択シート（登録田んぼ一覧） */}
       {idle && mode.kind === "picker" && (

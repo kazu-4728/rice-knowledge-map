@@ -194,7 +194,7 @@ export function useTransceiver(opts: {
     if (recorderRef.current?.state === "recording") {
       stopRequestedRef.current = "send";
       recorderRef.current.stop();
-    } else {
+    } else if (startingRef.current) {
       // getUserMedia 待ちの間に離された
       stopRequestedRef.current = "send";
     }
@@ -204,24 +204,41 @@ export function useTransceiver(opts: {
     if (recorderRef.current?.state === "recording") {
       stopRequestedRef.current = "cancel";
       recorderRef.current.stop();
-    } else {
+    } else if (startingRef.current) {
       stopRequestedRef.current = "cancel";
+    } else {
       cleanup();
       setState("idle");
     }
   }, [cleanup]);
+
+  // 実機のフェイルセーフ: マイク許可ダイアログや長押しジェスチャでボタン側の pointerup が
+  // 失われると「離しても録音が止まらない」状態になる。録音中は window の pointerup を
+  // バックアップとして拾い（＝画面のどこをタップしても送信）、ページが隠れたら破棄する
+  useEffect(() => {
+    if (state !== "recording") return;
+    const onUp = () => stopAndSend();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") cancel();
+    };
+    window.addEventListener("pointerup", onUp);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pointerup", onUp);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [state, stopAndSend, cancel]);
 
   return { state, elapsed, start, stopAndSend, cancel };
 }
 
 /** 録音中／送信中のフルスクリーンオーバーレイ */
 export function TransceiverOverlay({
-  state,
-  elapsed,
+  transceiver,
 }: {
-  state: TransceiverState;
-  elapsed: number;
+  transceiver: Pick<ReturnType<typeof useTransceiver>, "state" | "elapsed" | "stopAndSend" | "cancel">;
 }) {
+  const { state, elapsed, stopAndSend, cancel } = transceiver;
   if (state === "idle") return null;
   return (
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -238,6 +255,26 @@ export function TransceiverOverlay({
             {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
           </p>
           <p className="mt-2 text-sm font-semibold text-white/80">録音中… 指を離すと送信します</p>
+          {/* pointerupが届かなかった場合の脱出手段（許可ダイアログ・長押しジェスチャ対策） */}
+          <div className="mt-8 flex gap-3">
+            <button
+              onPointerDownCapture={(e) => {
+                // windowのpointerupバックアップ（=送信）より先にキャンセルを確定させる
+                e.stopPropagation();
+                cancel();
+              }}
+              onClick={cancel}
+              className="rounded-full border border-white/30 px-6 py-3 text-sm font-bold text-white/85"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={stopAndSend}
+              className="rounded-full bg-emerald-500 px-6 py-3 text-sm font-bold text-white"
+            >
+              送信する
+            </button>
+          </div>
         </>
       ) : (
         <>
