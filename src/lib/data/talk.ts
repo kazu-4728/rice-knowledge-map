@@ -167,20 +167,26 @@ export async function loadTalkTimeline(opts?: {
     }
     const photoUrls = new Map<string, string>();
     if (imagePaths.length > 0) {
-      const { data: signed } = await sb.storage.from("images").createSignedUrls(imagePaths.map((t) => t.path), 3600);
+      const { data: signed, error: signError } = await sb.storage
+        .from("images")
+        .createSignedUrls(imagePaths.map((t) => t.path), 3600);
+      if (signError) console.warn("[talk] image sign urls failed", signError);
       signed?.forEach((s, i) => {
         if (s.signedUrl && !s.error) photoUrls.set(imagePaths[i].recordId, s.signedUrl);
       });
     }
     const audioUrls = new Map<string, string>();
     if (audioPaths.length > 0) {
-      const { data: signed } = await sb.storage.from("audio").createSignedUrls(audioPaths.map((t) => t.path), 3600);
+      const { data: signed, error: signError } = await sb.storage
+        .from("audio")
+        .createSignedUrls(audioPaths.map((t) => t.path), 3600);
+      if (signError) console.warn("[talk] audio sign urls failed", signError);
       signed?.forEach((s, i) => {
         if (s.signedUrl && !s.error) audioUrls.set(audioPaths[i].recordId, s.signedUrl);
       });
     }
 
-    const messages: TalkMessage[] = [
+    const merged: TalkMessage[] = [
       ...records.map((r): TalkMessage => {
         const photoCount = r.record_media?.filter((m) => m.media_type === "image").length ?? 0;
         return {
@@ -216,12 +222,18 @@ export async function loadTalkTimeline(opts?: {
         fieldName: c.records?.farm_fields?.name ?? null,
         text: c.comment,
       })),
-    ].sort((a, b) => new Date(a.atISO).getTime() - new Date(b.atISO).getTime());
+    ].sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime());
+
+    // 2つのクエリはそれぞれ PAGE_SIZE 件で打ち切られているため、そのまま全件返すと
+    // 「古い記録は載っているのに、その間のコメントがページ外」というタイムラインの欠落が起きる。
+    // 新しい順に全体で PAGE_SIZE 件へ切り詰め、境界より古い分は次ページ（before=最古のatISO）で取得する
+    const page = merged.slice(0, PAGE_SIZE);
+    const trimmed = merged.length > page.length;
 
     return {
       mode: "live",
-      messages,
-      hasMore: records.length === PAGE_SIZE || comments.length === PAGE_SIZE,
+      messages: page.reverse(),
+      hasMore: trimmed || records.length === PAGE_SIZE || comments.length === PAGE_SIZE,
     };
   } catch (err) {
     console.warn("[talk] load error", err);
@@ -238,6 +250,10 @@ export async function sendTalkText(
   text: string,
   fieldId: string | null
 ): Promise<{ error: string | null }> {
+  // データ層としても空メッセージを防御的に弾く（空のtitle/noteのrecordsを作らない）
+  const trimmed = text.trim();
+  if (!trimmed) return { error: "メッセージを入力してください" };
+
   const sb = getSupabase();
   if (!sb) return { error: "デモ環境では送信できません" };
 
@@ -248,7 +264,6 @@ export async function sendTalkText(
   const groupId = await ensureGroupId();
   if (!groupId) return { error: "グループが見つかりません" };
 
-  const trimmed = text.trim();
   const firstLine = trimmed.split("\n")[0];
   const title = firstLine.length > 30 ? `${firstLine.slice(0, 30)}…` : firstLine;
 
