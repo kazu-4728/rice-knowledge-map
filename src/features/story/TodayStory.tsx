@@ -40,7 +40,7 @@ export default function TodayStory() {
 
   // 表示判定（1日1回。?story=1 で強制表示）
   useEffect(() => {
-    const force = window.location.search.includes("story=1");
+    const force = new URLSearchParams(window.location.search).get("story") === "1";
     const shown = localStorage.getItem(STORAGE_KEY) === todayKey();
     if (!force && shown) return;
     setVisible(true);

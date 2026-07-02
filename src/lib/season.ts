@@ -66,8 +66,14 @@ const PHASES: PhaseDef[] = [
 ];
 
 function dayOfYear(d: Date): number {
-  const start = new Date(d.getFullYear(), 0, 1);
-  return Math.floor((d.getTime() - start.getTime()) / 86400000);
+  // ローカルの年月日をUTCに写して差分を取る（DSTのある地域でも日付境界がズレない）
+  const day = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const start = Date.UTC(d.getFullYear(), 0, 1);
+  return Math.floor((day - start) / 86400000);
+}
+
+function daysInYear(year: number): number {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
 }
 
 function phaseStartDay(year: number, def: PhaseDef): number {
@@ -81,7 +87,8 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
 
   // フェーズ境界（day of year）を求める。年初〜田起こし前は前年の農閑期扱い
   let current = PHASES[PHASES.length - 1]; // offseason
-  let currentStart = phaseStartDay(year, PHASES[PHASES.length - 1]) - 365; // 前年11月開始
+  let currentStart =
+    phaseStartDay(year - 1, PHASES[PHASES.length - 1]) - daysInYear(year - 1); // 前年11月開始（当年day-of-year座標）
   let nextStart = phaseStartDay(year, PHASES[0]);
 
   for (let i = 0; i < PHASES.length; i++) {
@@ -98,10 +105,17 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
   const span = Math.max(1, nextStart - currentStart);
   const progress = Math.min(1, Math.max(0, (today - currentStart) / span));
 
-  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする
-  const seasonStart = phaseStartDay(year, PHASES[0]);
-  const sinceStart = today >= seasonStart ? today - seasonStart : today + 365 - seasonStart;
-  const yearProgress = Math.min(1, Math.max(0, sinceStart / 365));
+  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする（うるう年は年日数を動的に算出）
+  const seasonStartThisYear = phaseStartDay(year, PHASES[0]);
+  let seasonYear = year;
+  let sinceStart: number;
+  if (today >= seasonStartThisYear) {
+    sinceStart = today - seasonStartThisYear;
+  } else {
+    seasonYear = year - 1;
+    sinceStart = today + daysInYear(seasonYear) - phaseStartDay(seasonYear, PHASES[0]);
+  }
+  const yearProgress = Math.min(1, Math.max(0, sinceStart / daysInYear(seasonYear)));
 
   return {
     key: current.key,

@@ -171,5 +171,6 @@ body {
   .animate-ken-burns-up, .animate-rise, .animate-sink,
   .animate-fab-pop, .animate-toast-in, .animate-toast-out,
   .animate-splash-kb-a, .animate-splash-kb-b, .animate-splash-kb-c,
-  .animate-fab-glow, .animate-story-card-in, .animate-story-rise { animation: none; }
+  .animate-fab-glow, .animate-story-card-in, .animate-story-rise,
+  .animate-story-progress { animation: none; }
 }
