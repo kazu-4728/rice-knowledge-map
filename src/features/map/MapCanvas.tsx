@@ -107,7 +107,7 @@ function addFieldLabel(
   const el = document.createElement("div");
   el.textContent = name;
   el.className =
-    "rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-gray-900 shadow-md pointer-events-none whitespace-nowrap";
+    "rounded-lg glass-dark px-2.5 py-1 text-xs font-bold text-white shadow-md pointer-events-none whitespace-nowrap";
   return new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
 }
 
@@ -910,17 +910,24 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
           type: "geojson",
           data: farm.fieldsGeoJSON,
         });
+        // 発光風スタイル: 塗りは薄く・縁はフィールド色そのままを太めに（暗い航空写真上でネオン調に見える）
         map.addLayer({
           id: "fields-fill",
           type: "fill",
           source: "fields",
-          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.45 },
+          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.3 },
+        });
+        map.addLayer({
+          id: "fields-glow",
+          type: "line",
+          source: "fields",
+          paint: { "line-color": ["get", "color"], "line-width": 7, "line-opacity": 0.35, "line-blur": 4 },
         });
         map.addLayer({
           id: "fields-outline",
           type: "line",
           source: "fields",
-          paint: { "line-color": "#ffffff", "line-width": 2.5 },
+          paint: { "line-color": ["get", "color"], "line-width": 2.5 },
         });
 
         // ── ユーザー描画済みポリゴン ──────────────────
@@ -932,13 +939,19 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
           id: "user-fields-fill",
           type: "fill",
           source: "user-fields",
-          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.45 },
+          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.3 },
+        });
+        map.addLayer({
+          id: "user-fields-glow",
+          type: "line",
+          source: "user-fields",
+          paint: { "line-color": ["get", "color"], "line-width": 7, "line-opacity": 0.35, "line-blur": 4 },
         });
         map.addLayer({
           id: "user-fields-outline",
           type: "line",
           source: "user-fields",
-          paint: { "line-color": "#ffffff", "line-width": 2.5 },
+          paint: { "line-color": ["get", "color"], "line-width": 2.5 },
         });
 
         // ── プレビュー中の田んぼの強調表示（アンバー） ──────
@@ -1319,27 +1332,29 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
         </div>
       )}
 
-      {/* 上部ボタン: ≡ + 田んぼを選ぶ + 凡例（通常閲覧・田んぼ詳細・ピン詳細） */}
+      {/* 上部: Googleマップ式フローティング検索ピル + 凡例（ダークガラス） */}
       {showTopBar && (
-        <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between gap-2 pointer-events-none">
+          <div className="flex min-w-0 flex-1 items-center rounded-full glass-dark-strong shadow-lg pointer-events-auto">
             {/* mobile ≡ button (hidden on lg+ where SideNav is visible) */}
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="メニューを開く"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50 lg:hidden"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:text-white lg:hidden"
             >
               <IconMenu className="h-5.5 w-5.5" />
             </button>
             <button
               onClick={openPicker}
-              className="flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white active:bg-gray-50"
+              className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full pr-4 text-left max-lg:pl-0.5 lg:pl-4"
             >
-              <IconListBullet className="h-4.5 w-4.5 text-gray-500" />
-              田んぼを選ぶ
+              <IconListBullet className="h-5 w-5 shrink-0 text-emerald-300" />
+              <span className="truncate text-sm font-semibold text-white/90">
+                田んぼをさがす
+              </span>
             </button>
           </div>
-          <div className="pointer-events-auto space-y-2 rounded-xl bg-white/90 px-2.5 py-2.5 shadow-md backdrop-blur-sm">
+          <div className="pointer-events-auto shrink-0 space-y-2 rounded-2xl glass-dark px-2.5 py-2.5 shadow-lg">
             {[
               { type: "inlet" as const, label: "入水口" },
               { type: "outlet" as const, label: "出水口" },
@@ -1347,7 +1362,7 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
             ].map((item) => (
               <div key={item.type} className="flex items-center gap-1.5">
                 <IconPinFill className="h-5 w-5" style={{ color: PIN_COLORS[item.type] }} />
-                <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                <span className="text-xs font-medium text-white/85">{item.label}</span>
               </div>
             ))}
           </div>
@@ -1360,23 +1375,23 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
           <button
             onClick={() => flyToCurrentLocation()}
             aria-label="現在地に戻る"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+            className="flex h-11 w-11 items-center justify-center rounded-full glass-dark text-white shadow-lg transition-colors hover:text-emerald-300"
           >
             <IconLocate className="h-5.5 w-5.5" />
           </button>
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md">
+          <div className="flex flex-col overflow-hidden rounded-2xl glass-dark shadow-lg">
             <button
               onClick={() => mapRef.current?.zoomIn()}
               aria-label="拡大"
-              className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
+              className="flex h-11 w-11 items-center justify-center text-white hover:text-emerald-300"
             >
               <IconPlus className="h-5 w-5" />
             </button>
-            <div className="mx-2 h-px bg-gray-200" />
+            <div className="mx-2 h-px bg-white/15" />
             <button
               onClick={() => mapRef.current?.zoomOut()}
               aria-label="縮小"
-              className="flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-50"
+              className="flex h-11 w-11 items-center justify-center text-white hover:text-emerald-300"
             >
               <IconMinus className="h-5 w-5" />
             </button>
@@ -1384,30 +1399,39 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
         </div>
       )}
 
-      {/* FAB 記録ボタン（右下） — 通常閲覧のみ。MapSummarySheet(~72px)の上に配置 */}
+      {/* FAB 記録ボタン（右下） — 通常閲覧のみ。ラベル付き展開メニューで「何ができるか」を明示する */}
       {idle && mode.kind === "browse" && !hideControls && (
-        <div className="absolute bottom-24 right-4 z-20">
+        <div className="absolute bottom-28 right-4 z-20">
           <div className="relative">
             {recordPopOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setRecordPopOpen(false)} />
-                <div className="absolute bottom-full right-0 z-20 mb-3 flex flex-col gap-2">
+                <div className="fixed inset-0 z-10 bg-black/30" onClick={() => setRecordPopOpen(false)} />
+                <div className="absolute bottom-full right-0 z-20 mb-3 flex flex-col items-end gap-2">
                   <Link
                     href="/records/new?returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-green-700 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-lg animate-fab-pop transition-colors hover:bg-green-800"
+                    className="flex items-center gap-3 whitespace-nowrap rounded-full bg-emerald-500 py-3 pl-4 pr-5 text-base font-bold text-white shadow-lg animate-fab-pop transition-colors hover:bg-emerald-600"
                   >
-                    <IconCamera className="h-5 w-5 shrink-0" />
+                    <IconCamera className="h-5.5 w-5.5 shrink-0" />
                     写真で記録
                   </Link>
                   <Link
                     href="/records/new?type=audio&returnTo=%2Fmap"
                     onClick={() => setRecordPopOpen(false)}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2.5 pl-3 pr-4 text-sm font-semibold text-gray-700 shadow-lg animate-fab-pop transition-colors hover:bg-gray-50"
-                    style={{ animationDelay: "50ms" }}
+                    className="flex items-center gap-3 whitespace-nowrap rounded-full glass-dark-strong py-3 pl-4 pr-5 text-base font-bold text-white shadow-lg animate-fab-pop"
+                    style={{ animationDelay: "40ms" }}
                   >
-                    <IconMic className="h-5 w-5 shrink-0 text-green-700" />
-                    音声メモ
+                    <IconMic className="h-5.5 w-5.5 shrink-0 text-emerald-300" />
+                    話して記録
+                  </Link>
+                  <Link
+                    href="/records/new?pointType=caution&returnTo=%2Fmap"
+                    onClick={() => setRecordPopOpen(false)}
+                    className="flex items-center gap-3 whitespace-nowrap rounded-full glass-dark-strong py-3 pl-4 pr-5 text-base font-bold text-white shadow-lg animate-fab-pop"
+                    style={{ animationDelay: "80ms" }}
+                  >
+                    <IconWarningFill className="h-5.5 w-5.5 shrink-0 text-amber-400" />
+                    異常を報告
                   </Link>
                 </div>
               </>
@@ -1416,9 +1440,9 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               onClick={() => setRecordPopOpen((v) => !v)}
               aria-label="記録する"
               aria-expanded={recordPopOpen}
-              className={`flex h-14 w-14 items-center justify-center rounded-full bg-green-700 shadow-[0_4px_20px_rgba(22,163,74,0.4)] transition-all hover:bg-green-800 active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
+              className={`flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-700 animate-fab-glow transition-all active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
             >
-              <IconPlus className="h-7 w-7 text-white transition-transform" />
+              <IconPlus className="h-8 w-8 text-white transition-transform" />
             </button>
           </div>
         </div>

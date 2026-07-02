@@ -317,6 +317,14 @@ export function IconCloudCheck(props: IconProps) {
   );
 }
 
+export function IconChat(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 3.5c5 0 9 3.4 9 7.7s-4 7.7-9 7.7c-.8 0-1.6-.1-2.3-.3L5 20.5l.9-3.3c-1.8-1.4-2.9-3.4-2.9-5.7 0-4.3 4-8 9-8Z" />
+    </Base>
+  );
+}
+
 export function IconCommentFill(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
