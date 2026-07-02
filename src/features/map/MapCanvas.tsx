@@ -1467,7 +1467,14 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               onPointerUp={() => {
                 if (fabHoldTimerRef.current) clearTimeout(fabHoldTimerRef.current);
                 fabHoldTimerRef.current = null;
-                if (fabHoldActiveRef.current) transceiver.stopAndSend();
+                if (fabHoldActiveRef.current) {
+                  transceiver.stopAndSend();
+                  // 直後の合成clickは抑止しつつ、clickが発火しない環境でも
+                  // フラグが残留して次のタップが無反応にならないよう時間差でリセット
+                  setTimeout(() => {
+                    fabHoldActiveRef.current = false;
+                  }, 400);
+                }
               }}
               onPointerCancel={() => {
                 if (fabHoldTimerRef.current) clearTimeout(fabHoldTimerRef.current);

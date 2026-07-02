@@ -113,9 +113,9 @@ export function useTransceiver(opts: {
     async (blob: Blob | null) => {
       const duration = Date.now() - startedAtRef.current;
       cleanup();
-      if (!blob || duration < MIN_DURATION_MS) {
+      if (!blob || blob.size === 0 || duration < MIN_DURATION_MS) {
         setState("idle");
-        if (duration < MIN_DURATION_MS) onError("録音が短すぎたため送信しませんでした（長押しで話してください）");
+        if (blob && duration < MIN_DURATION_MS) onError("録音が短すぎたため送信しませんでした（長押しで話してください）");
         return;
       }
       setState("saving");
@@ -206,7 +206,9 @@ export function useTransceiver(opts: {
       recorderRef.current.stop();
     } else if (startingRef.current) {
       stopRequestedRef.current = "cancel";
-    } else {
+    } else if (!stopRequestedRef.current) {
+      // stop要求の処理待ち（recorder.stop()〜onstopの間）にここでcleanupすると
+      // chunksが消えて空の音声が保存されるため、要求が残っている間はonstopに委ねる
       cleanup();
       setState("idle");
     }
