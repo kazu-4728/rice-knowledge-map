@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadRecords } from "../../lib/data/records";
+import { motion } from "motion/react";
+import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
-import { getSupabase } from "../../lib/supabase/client";
+import { getSeasonPhase } from "../../lib/season";
 
 import type { FieldPoint, RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
-import { Badge } from "../../components/ui/badge";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { Skeleton } from "../../components/ui/skeleton";
 import {
   IconChevronRight,
   IconFieldGrid,
+  IconHome,
+  IconPencil,
   IconPin,
   IconWarningFill,
 } from "../../components/ui/icons";
@@ -23,11 +27,24 @@ type AttentionField = {
   needsCheckCount: number;
 };
 
+type NextAction = {
+  key: string;
+  emoji: string;
+  label: string;
+  sub?: string;
+  href: string;
+  tone: "alert" | "normal";
+};
+
 type Props = {
   visible: boolean;
   onExpandChange?: (expanded: boolean) => void;
 };
 
+/**
+ * マップ下部のダークガラス・サマリーシート（田んぼOS レイヤー2+6）
+ * 折りたたみ時はピークバー、展開時はネクストアクション+状態サマリー+最近の記録。
+ */
 export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const [fieldCount, setFieldCount] = useState(0);
   const [attentionFields, setAttentionFields] = useState<AttentionField[]>([]);
@@ -36,34 +53,21 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const sheetRef = useRef<HTMLDivElement>(null);
+  const [errored, setErrored] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    const sb = getSupabase();
 
     // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
-    const loadIssueRecords = async (): Promise<{ fieldId: string | null; isIssue: boolean }[]> => {
-      if (!sb) return [];
-      const { data: members } = await sb.from("farm_group_members").select("group_id").limit(1);
-      if (!members || members.length === 0) return [];
-      const { data } = await sb
-        .from("records")
-        .select("field_id, record_type")
-        .in("status", ["open", "needs_check"])
-        .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
-      return (data ?? []).map((r) => ({
-        fieldId: (r.field_id as string | null) ?? null,
-        isIssue: r.record_type === "issue",
-      }));
-    };
-
-    Promise.all([loadFarmData(), loadIssueRecords()]).then(([data, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, issueRecords]) => {
       if (cancelled) return;
       setOpenIssueCount(issueRecords.length);
 
       // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
-      if (data.mode === "error") return;
+      if (data.mode === "error") {
+        setErrored(true);
+        return;
+      }
 
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
@@ -140,87 +144,190 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     }
   }, [visible, onExpandChange]);
 
-  if (!visible || !loaded) return null;
+  const season = useMemo(() => getSeasonPhase(), []);
 
-  const issueLabel =
-    openIssueCount !== null && openIssueCount > 0
-      ? `注意 ${openIssueCount}件`
-      : null;
+  // 信号色の合計（大型タイポのサマリー用）
+  const totals = useMemo(() => {
+    let issue = 0;
+    let needsCheck = 0;
+    attentionFields.forEach((f) => {
+      issue += f.issueCount;
+      needsCheck += f.needsCheckCount;
+    });
+    return { issue, needsCheck };
+  }, [attentionFields]);
+
+  // ネクストアクション（レイヤー6: 次に何をすべきかを常に示す）
+  const nextActions = useMemo((): NextAction[] => {
+    const actions: NextAction[] = [];
+    if (openIssueCount !== null && openIssueCount > 0) {
+      const top = attentionFields[0];
+      actions.push({
+        key: "issues",
+        emoji: "⚠️",
+        label: `未対応を確認する（${openIssueCount}件）`,
+        sub: top?.name ? `まずは「${top.name}」から` : undefined,
+        href: "/records?status=open",
+        tone: "alert",
+      });
+    }
+    const latest = recentRecords[0];
+    const today = new Date();
+    const hasTodayRecord =
+      !!latest &&
+      new Date(latest.recordedAt).toDateString() === today.toDateString();
+    if (!hasTodayRecord) {
+      actions.push({
+        key: "today-record",
+        emoji: "📷",
+        label: "今日の記録を残す",
+        sub: `${season.emoji} ${season.label}: ${season.action}`,
+        href: "/records/new?returnTo=%2Fmap",
+        tone: "normal",
+      });
+    } else {
+      actions.push({
+        key: "season",
+        emoji: season.emoji,
+        label: season.action,
+        sub: `いまは「${season.label}」の時期`,
+        href: "/records/new?returnTo=%2Fmap",
+        tone: "normal",
+      });
+    }
+    return actions.slice(0, 2);
+  }, [openIssueCount, attentionFields, recentRecords, season]);
+
+  if (!visible || errored) return null;
 
   return (
-    <div
-      ref={sheetRef}
-      className={`absolute inset-x-0 bottom-0 z-10 pointer-events-none transition-transform duration-300 ease-out ${
-        expanded ? "translate-y-0" : ""
-      }`}
-    >
+    <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none">
       <div className="mx-auto w-full max-w-md md:max-w-2xl pointer-events-auto">
-        <div
-          className={`flex flex-col rounded-t-2xl bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-all duration-300 ${
-            expanded ? "max-h-[60vh]" : "max-h-[4.5rem]"
+        <motion.div
+          layout
+          transition={{ type: "spring", stiffness: 320, damping: 32 }}
+          className={`flex flex-col rounded-t-3xl glass-dark-strong shadow-[0_-8px_32px_rgba(0,0,0,0.45)] ${
+            expanded ? "max-h-[72dvh]" : "max-h-[5.25rem]"
           } overflow-hidden`}
         >
           {/* ピークヘッダー（常時表示） */}
           <button
             onClick={toggleExpand}
-            className="flex w-full items-center gap-3 px-4 py-3"
+            aria-expanded={expanded}
+            className="w-full shrink-0 pt-2.5"
           >
-            <div className="mx-auto h-1 w-10 shrink-0 rounded-full bg-gray-300" />
+            <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
+            <div className="flex items-center gap-3 px-5 py-3">
+              {!loaded ? (
+                <>
+                  <Skeleton className="h-7 w-24 bg-white/15" />
+                  <Skeleton className="h-5 w-16 bg-white/10" />
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold leading-none text-white">
+                    {fieldCount}
+                    <span className="ml-1 text-sm font-semibold text-white/70">枚の田んぼ</span>
+                  </span>
+                  {totals.issue + totals.needsCheck > 0 ? (
+                    <StatusBadge
+                      status={totals.issue > 0 ? "issue" : "needs_check"}
+                      label={`気になる ${totals.issue + totals.needsCheck}`}
+                      dark
+                    />
+                  ) : (
+                    <StatusBadge status="normal" label="すべて順調" dark />
+                  )}
+                </>
+              )}
+              <IconChevronRight
+                className={`ml-auto h-5 w-5 shrink-0 text-white/60 transition-transform duration-200 ${
+                  expanded ? "rotate-90" : "-rotate-90"
+                }`}
+              />
+            </div>
           </button>
-          <div
-            onClick={toggleExpand}
-            className="flex cursor-pointer items-center gap-3 px-4 pb-3 -mt-1"
-          >
-            <IconFieldGrid className="h-5 w-5 shrink-0 text-green-700" />
-            <span className="text-sm font-bold text-gray-900">
-              マイ田んぼ {fieldCount}枚
-            </span>
-            {issueLabel && (
-              <Badge variant="warning" className="text-[11px]">
-                {issueLabel}
-              </Badge>
-            )}
-            <IconChevronRight
-              className={`ml-auto h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${
-                expanded ? "-rotate-90" : "rotate-90"
-              }`}
-            />
-          </div>
 
-          {/* 展開コンテンツ */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {/* 展開コンテンツ（折りたたみ時は描画しない: ピークバーからのはみ出し防止） */}
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] ${expanded ? "" : "hidden"}`}
+          >
+            {/* ネクストアクション（次に何をすべきか） */}
+            <section className="mb-4">
+              <h3 className="pb-2 text-xs font-bold uppercase tracking-wider text-white/50">
+                次にやること
+              </h3>
+              <ul className="space-y-2">
+                {nextActions.map((a) => (
+                  <li key={a.key}>
+                    <Link
+                      href={a.href}
+                      className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-transform active:scale-[0.98] ${
+                        a.tone === "alert"
+                          ? "border-red-400/40 bg-red-500/15"
+                          : "border-emerald-400/30 bg-emerald-500/10"
+                      }`}
+                    >
+                      <span className="text-2xl">{a.emoji}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-base font-bold text-white">
+                          {a.label}
+                        </span>
+                        {a.sub && (
+                          <span className="mt-0.5 block truncate text-xs text-white/65">
+                            {a.sub}
+                          </span>
+                        )}
+                      </span>
+                      <IconChevronRight className="h-5 w-5 shrink-0 text-white/50" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {/* 状態サマリー（大型タイポ・信号色） */}
+            <section className="mb-4 grid grid-cols-3 gap-2">
+              {[
+                { label: "田んぼ", value: fieldCount, unit: "枚", color: "text-white" },
+                { label: "異常", value: totals.issue, unit: "件", color: totals.issue > 0 ? "text-red-400" : "text-white/40" },
+                { label: "要確認", value: totals.needsCheck, unit: "件", color: totals.needsCheck > 0 ? "text-amber-300" : "text-white/40" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl bg-white/5 px-3 py-3 text-center">
+                  <p className={`text-3xl font-bold leading-none ${s.color}`}>
+                    {s.value}
+                    <span className="ml-0.5 text-xs font-semibold text-white/50">{s.unit}</span>
+                  </p>
+                  <p className="mt-1.5 text-[11px] font-semibold text-white/60">{s.label}</p>
+                </div>
+              ))}
+            </section>
+
             {/* 要注意の田んぼ */}
             {attentionFields.length > 0 && (
-              <section className="mb-3">
+              <section className="mb-4">
                 <div className="flex items-center gap-1.5 pb-2">
-                  <IconWarningFill className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-xs font-bold text-gray-700">
+                  <IconWarningFill className="h-4 w-4 text-amber-400" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">
                     要注意の田んぼ
                   </h3>
                 </div>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {attentionFields.slice(0, 3).map((af) => (
                     <li key={af.id}>
                       <Link
                         href={`/fields/${encodeURIComponent(af.id)}`}
-                        className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 transition-colors active:bg-amber-100"
+                        className="flex items-center gap-2.5 rounded-2xl bg-white/5 px-3.5 py-3 transition-colors active:bg-white/10"
                       >
-                        <IconWarningFill className="h-4 w-4 shrink-0 text-amber-500" />
-                        <span className="flex-1 truncate text-sm font-semibold text-gray-900">
+                        <span className="flex-1 truncate text-sm font-bold text-white">
                           {af.name || "名前のない田んぼ"}
                         </span>
-                        <span className="text-xs text-amber-600">
-                          {[
-                            af.issueCount > 0
-                              ? `異常${af.issueCount}`
-                              : null,
-                            af.needsCheckCount > 0
-                              ? `要確認${af.needsCheckCount}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join("・")}
-                        </span>
+                        {af.issueCount > 0 && (
+                          <StatusBadge status="issue" label={`異常${af.issueCount}`} dark />
+                        )}
+                        {af.needsCheckCount > 0 && (
+                          <StatusBadge status="needs_check" label={`要確認${af.needsCheckCount}`} dark />
+                        )}
                       </Link>
                     </li>
                   ))}
@@ -232,14 +339,14 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
             {recentRecords.length > 0 && (
               <section>
                 <div className="flex items-center justify-between pb-2">
-                  <h3 className="text-xs font-bold text-gray-700">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">
                     最近の記録
                   </h3>
                   <Link
                     href="/records"
-                    className="flex items-center gap-0.5 text-xs font-semibold text-green-700"
+                    className="flex items-center gap-0.5 text-xs font-bold text-emerald-300"
                   >
-                    すべて
+                    すべて見る
                     <IconChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -248,7 +355,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                     <li key={record.id}>
                       <Link
                         href={`/records/${record.id}`}
-                        className="flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors active:bg-gray-50"
+                        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors active:bg-white/10"
                       >
                         <RecordThumb
                           media={record.media}
@@ -261,16 +368,16 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                           }
                           duration={record.audioDuration}
                           thumbUrl={thumbUrls[record.id]}
-                          className="h-10 w-14 shrink-0 rounded-lg"
+                          className="h-11 w-16 shrink-0 rounded-xl"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-gray-900">
+                          <p className="truncate text-sm font-bold text-white">
                             {record.title}
                           </p>
-                          <p className="flex items-center gap-1 text-[11px] text-gray-500">
+                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-white/60">
                             <IconPin className="h-3 w-3" />
                             {record.fieldName}
-                            <span className="text-gray-300">|</span>
+                            <span className="text-white/30">|</span>
                             {record.time}
                           </p>
                         </div>
@@ -281,23 +388,25 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
               </section>
             )}
 
-            {/* クイックリンク */}
-            <div className="mt-3 flex gap-2">
-              <Link
-                href="/home"
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors active:bg-gray-50"
-              >
-                状況を見る
-              </Link>
-              <Link
-                href="/fields"
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors active:bg-gray-50"
-              >
-                田んぼ一覧
-              </Link>
+            {/* 3空間へのクイックリンク（「記録」はPR-2で統合トークルーム /talk に置き換え予定） */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { href: "/records", label: "記録", Icon: IconPencil },
+                { href: "/home", label: "管理", Icon: IconHome },
+                { href: "/fields", label: "田んぼ一覧", Icon: IconFieldGrid },
+              ].map(({ href, label, Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/5 py-3 text-xs font-bold text-white/85 transition-colors active:bg-white/10"
+                >
+                  <Icon className="h-5.5 w-5.5 text-emerald-300" />
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

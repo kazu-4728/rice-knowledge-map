@@ -68,6 +68,27 @@ export function isUnresolvedIssue(r: RecordItem): boolean {
   return ISSUE_POINT_TYPES.includes(r.pointType) && (r.status === "open" || r.status === "needs_check");
 }
 
+/**
+ * 未対応（open/needs_check）の異常系レコードを取得する。
+ * ピンのステータス変更を伴わない「記録のみ」の異常も拾うための共通クエリ
+ * （MapSummarySheet と TodayStory の集計で使用）。未ログイン・未設定時は空配列。
+ */
+export async function loadOpenIssueRecords(): Promise<{ fieldId: string | null; isIssue: boolean }[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data: members } = await sb.from("farm_group_members").select("group_id").limit(1);
+  if (!members || members.length === 0) return [];
+  const { data } = await sb
+    .from("records")
+    .select("field_id, record_type")
+    .in("status", ["open", "needs_check"])
+    .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
+  return (data ?? []).map((r) => ({
+    fieldId: (r.field_id as string | null) ?? null,
+    isIssue: r.record_type === "issue",
+  }));
+}
+
 function formatDate(iso: string): { date: string; time: string } {
   const d = new Date(iso);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];

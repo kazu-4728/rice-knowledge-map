@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../../features/auth/useAuth";
-import { NAV_ITEMS, isNavActive } from "./navItems";
+import { NAV_ITEMS, SUB_NAV_ITEMS, isNavActive } from "./navItems";
 import {
   IconClose,
   IconUser,
@@ -74,10 +74,32 @@ export default function MenuDrawer({ open, onClose }: Props) {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold transition-colors ${
                   active
                     ? "bg-green-50 text-green-700"
-                    : "text-gray-700 hover:bg-gray-50"
+                    : "text-gray-800 hover:bg-gray-50"
+                }`}
+              >
+                <Icon
+                  className="h-6 w-6 shrink-0"
+                  strokeWidth={active ? 2.1 : 1.8}
+                />
+                {label}
+              </Link>
+            );
+          })}
+
+          <p className="px-3 pb-1 pt-4 text-[11px] font-bold text-gray-400">その他</p>
+          {SUB_NAV_ITEMS.map(({ href, label, Icon }) => {
+            const active = isNavActive(href, pathname);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                  active
+                    ? "bg-green-50 text-green-700"
+                    : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 <Icon

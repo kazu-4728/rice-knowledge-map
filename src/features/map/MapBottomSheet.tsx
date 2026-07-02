@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { FieldPoint } from "../../types";
 import { PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import {
   IconCalendar,
   IconCamera,
@@ -12,13 +13,6 @@ import {
   IconPin,
   IconPinFill,
 } from "../../components/ui/icons";
-
-const STATUS_CHIP: Record<string, string> = {
-  normal: "border-green-600 text-green-700 bg-green-50",
-  needs_check: "border-orange-400 text-orange-600 bg-orange-50",
-  issue: "border-red-400 text-red-600 bg-red-50",
-  resolved: "border-gray-300 text-gray-500 bg-gray-50",
-};
 
 export type FieldListItem = {
   id: string;
@@ -59,8 +53,8 @@ export default function MapBottomSheet({
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none">
       <div className="mx-auto w-full max-w-md md:max-w-2xl pointer-events-auto">
-        <div className="rounded-t-3xl bg-white/96 backdrop-blur-md px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.18)]">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        <div className="rounded-t-3xl glass-dark-strong px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.45)]">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/30" />
 
           {/* ── ピン詳細 ── */}
           {selectedPoint && (
@@ -70,18 +64,17 @@ export default function MapBottomSheet({
                   className="h-5 w-5 shrink-0"
                   style={{ color: PIN_COLORS[selectedPoint.type] }}
                 />
-                <h2 className="flex-1 truncate text-base font-bold text-gray-900">{selectedPoint.name}</h2>
-                <span
-                  className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-semibold ${
-                    STATUS_CHIP[selectedPoint.status] ?? STATUS_CHIP.resolved
-                  }`}
-                >
-                  {STATUS_LABELS[selectedPoint.status] ?? selectedPoint.status}
-                </span>
+                <h2 className="flex-1 truncate text-lg font-bold text-white">{selectedPoint.name}</h2>
+                <StatusBadge
+                  status={(selectedPoint.status as StatusKey) ?? "monitoring"}
+                  label={STATUS_LABELS[selectedPoint.status] ?? selectedPoint.status}
+                  dark
+                  className="shrink-0"
+                />
               </div>
-              <div className="mb-3 space-y-1 text-sm text-gray-500">
+              <div className="mb-3 space-y-1 text-sm text-white/70">
                 <p className="flex items-center gap-2">
-                  <IconCalendar className="h-4 w-4 shrink-0 text-gray-400" />
+                  <IconCalendar className="h-4 w-4 shrink-0 text-white/50" />
                   最終記録: {selectedPoint.lastRecord}
                 </p>
                 {selectedPoint.waterLevel && (
@@ -94,19 +87,19 @@ export default function MapBottomSheet({
               <div className="flex gap-2">
                 <Link
                   href={`/records?point=${encodeURIComponent(selectedPoint.id)}`}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                  className="rounded-xl border border-white/20 px-4 py-3 text-sm font-bold text-white/90 transition-colors hover:bg-white/10"
                 >
                   詳細
                 </Link>
                 <button
                   onClick={() => onEditPin(selectedPoint)}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                  className="rounded-xl border border-white/20 px-4 py-3 text-sm font-bold text-white/90 transition-colors hover:bg-white/10"
                 >
                   編集
                 </button>
                 <Link
                   href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}&returnTo=${encodeURIComponent(`/map?field=${selectedPoint.fieldId}&point=${selectedPoint.id}`)}`}
-                  className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-green-800"
+                  className="flex-1 rounded-xl bg-emerald-500 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-emerald-600"
                 >
                   この地点を記録
                 </Link>
@@ -118,26 +111,26 @@ export default function MapBottomSheet({
           {!selectedPoint && selectedField && (
             <>
               <div className="mb-3 flex items-center gap-2">
-                <span className="h-3 w-3 shrink-0 rounded-sm bg-green-600 shadow-sm" />
-                <h2 className="flex-1 truncate text-base font-bold text-gray-900">
+                <span className="h-3 w-3 shrink-0 rounded-sm bg-emerald-400 shadow-sm" />
+                <h2 className="flex-1 truncate text-lg font-bold text-white">
                   {selectedField.name || "名前のない田んぼ"}
                 </h2>
                 <button
                   onClick={onFieldClose}
-                  className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                  className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
                 >
                   閉じる
                 </button>
               </div>
 
               {selectedField.id.startsWith("user-field-") ? (
-                <p className="rounded-xl bg-gray-100 px-4 py-3.5 text-center text-sm text-gray-500">
+                <p className="rounded-xl bg-white/10 px-4 py-3.5 text-center text-sm text-white/70">
                   保存後に記録できます
                 </p>
               ) : (
                 <Link
                   href={`/records/new?field=${encodeURIComponent(selectedField.id)}&returnTo=${encodeURIComponent(`/map?field=${selectedField.id}`)}`}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-base font-bold text-white transition-colors hover:bg-emerald-600"
                 >
                   <IconCamera className="h-5 w-5" />
                   この田んぼに記録する
@@ -148,7 +141,7 @@ export default function MapBottomSheet({
                 {!selectedField.id.startsWith("user-field-") && (
                   <Link
                     href={`/fields/${encodeURIComponent(selectedField.id)}`}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 py-3 text-sm font-semibold text-white/90 transition-colors hover:bg-white/10"
                   >
                     詳細を見る
                     <IconChevronRight className="h-4 w-4" />
@@ -160,16 +153,16 @@ export default function MapBottomSheet({
                       selectedField.id.startsWith("user-field-") ? null : selectedField.id
                     )
                   }
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 py-3 text-sm font-semibold text-white/90 transition-colors hover:bg-white/10"
                 >
-                  <IconPin className="h-4 w-4 text-green-700" />
+                  <IconPin className="h-4 w-4 text-emerald-300" />
                   ピン追加
                 </button>
               </div>
 
               <button
                 onClick={() => setShowEdit((v) => !v)}
-                className="mt-2 flex w-full items-center justify-center gap-1 py-2 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-600"
+                className="mt-2 flex w-full items-center justify-center gap-1 py-2 text-xs font-semibold text-white/50 transition-colors hover:text-white/80"
               >
                 {showEdit ? "閉じる" : "名前変更・描き直し・削除"}
                 <IconChevronRight
@@ -180,19 +173,19 @@ export default function MapBottomSheet({
                 <div className="mt-1 flex gap-2">
                   <button
                     onClick={() => { setShowEdit(false); onRenameField(); }}
-                    className="flex-1 rounded-xl border border-gray-200 bg-gray-50 py-2.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100"
+                    className="flex-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10"
                   >
                     名前変更
                   </button>
                   <button
                     onClick={() => { setShowEdit(false); onRedrawField(); }}
-                    className="flex-1 rounded-xl border border-gray-200 bg-gray-50 py-2.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100"
+                    className="flex-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10"
                   >
                     描き直す
                   </button>
                   <button
                     onClick={() => { setShowEdit(false); onDeleteField(); }}
-                    className="flex-1 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
+                    className="flex-1 rounded-xl border border-red-400/40 bg-red-500/15 py-2.5 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/25"
                   >
                     削除
                   </button>

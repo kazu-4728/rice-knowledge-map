@@ -78,11 +78,11 @@ export default function PhotoRecordScreen() {
       const rawPointType = searchParams.get("pointType");
       const pointTypeParam: FieldPointType | null = rawPointType && VALID_POINT_TYPES.has(rawPointType) ? rawPointType as FieldPointType : null;
       if (fieldParam) setSelectedFieldId(fieldParam);
+      // pointType は地点の有無に関わらず初期選択する（例: FABの「異常を報告」は pointType=caution 単独で来る）
+      if (pointTypeParam) setPointType(pointTypeParam);
       if (pointParam) {
         setPointId(pointParam);
-        if (pointTypeParam) {
-          setPointType(pointTypeParam);
-        } else {
+        if (!pointTypeParam) {
           // pointType が URL にない場合（例: MapBottomSheet の古いリンク）は farm data から推論
           loadFarmData().then((farm) => {
             const pt = farm.points.find((p) => p.id === pointParam);

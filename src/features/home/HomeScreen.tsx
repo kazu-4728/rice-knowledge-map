@@ -84,7 +84,7 @@ export default function HomeScreen() {
 
   return (
     <div className="space-y-4 px-3 pb-8 pt-3">
-      <h1 className="px-1 text-2xl font-bold text-gray-900">状況</h1>
+      <h1 className="px-1 text-2xl font-bold text-gray-900">管理</h1>
 
       {/* 未対応の異常 */}
       {openIssueCount !== null && openIssueCount > 0 && (
@@ -187,6 +187,23 @@ export default function HomeScreen() {
           <IconFieldGrid className="h-5 w-5 text-green-700" />
           田んぼ
         </Link>
+      </div>
+
+      {/* 管理メニュー（ナビ4系統化に伴い、二次導線をここに集約） */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { href: "/calendar", label: "カレンダー" },
+          { href: "/export", label: "エクスポート" },
+          { href: "/guide", label: "使い方" },
+        ].map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="flex items-center justify-center rounded-2xl bg-white py-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+          >
+            {label}
+          </Link>
+        ))}
       </div>
 
       {/* 最近の記録 */}
