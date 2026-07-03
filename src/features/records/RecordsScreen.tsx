@@ -10,6 +10,7 @@ import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
 import {
   IconCamera,
@@ -185,13 +186,12 @@ export default function RecordsScreen() {
         <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-base font-bold text-gray-900">最初の記録を作りましょう</p>
           <p className="mt-1 text-xs text-gray-500">田んぼの様子を写真で残すと、ここに一覧で並びます</p>
-          <Link
-            href="/records/new?returnTo=%2Frecords"
-            className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
-          >
-            <IconCamera className="h-5 w-5" />
-            写真で記録する
-          </Link>
+          <Button asChild variant="primary" size="lg" className="mt-4">
+            <Link href="/records/new?returnTo=%2Frecords">
+              <IconCamera className="h-5 w-5" />
+              写真で記録する
+            </Link>
+          </Button>
         </div>
       )}
 
@@ -236,7 +236,7 @@ export default function RecordsScreen() {
                 : undefined;
               return (
                 <Link key={record.id} href={`/records/${record.id}`} className="block transition-transform active:scale-[0.99]">
-                  <Card className={`overflow-hidden ${isUnresolvedIssue(record) ? "ring-2 ring-amber-300" : ""}`}>
+                  <Card accent={isUnresolvedIssue(record) ? "issue" : undefined} className="overflow-hidden">
                     <div className="relative h-36">
                       <RecordThumb
                         media={record.media}

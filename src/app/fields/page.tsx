@@ -9,6 +9,7 @@ import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
+import { Card } from "../../components/ui/card";
 import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { compressImage } from "../../lib/utils/imageCompress";
 import { formatAreaSqm } from "../../lib/utils/geo";
@@ -204,11 +205,10 @@ export default function FieldsPage() {
               const fs = fieldStatuses[field.id];
               const hasAttention = fs && (fs.issueCount > 0 || fs.needsCheckCount > 0);
               return (
-              <div
+              <Card
                 key={field.id}
-                className={`relative overflow-hidden rounded-2xl bg-white shadow-sm transition-transform active:scale-[0.99] ${
-                  hasAttention ? "ring-2 ring-amber-300" : ""
-                }`}
+                accent={fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : undefined}
+                className="relative overflow-hidden transition-transform active:scale-[0.99]"
               >
                 <Link href={`/fields/${encodeURIComponent(field.id)}`} className="block">
                   {/* 写真が主役のヒーロー部（Googleマップの場所カード風） */}
@@ -275,7 +275,7 @@ export default function FieldsPage() {
                     />
                   </>
                 )}
-              </div>
+              </Card>
             );
             })}
           </div>

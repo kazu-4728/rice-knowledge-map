@@ -12,6 +12,8 @@ import SeasonTimelineBar from "../../components/ui/SeasonTimelineBar";
 import SectionHeading from "../../components/ui/SectionHeading";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   IconCamera,
   IconChevronRight,
@@ -115,13 +117,12 @@ export default function HomeScreen() {
             <p className="mt-0.5 text-sm text-gray-600">{season.hint}</p>
           </div>
         </div>
-        <Link
-          href="/records/new?returnTo=%2Fhome"
-          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-green-700 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-800"
-        >
-          {season.action}
-          <IconChevronRight className="h-4 w-4" />
-        </Link>
+        <Button asChild variant="primary" className="mt-3 w-full">
+          <Link href="/records/new?returnTo=%2Fhome">
+            {season.action}
+            <IconChevronRight className="h-4 w-4" />
+          </Link>
+        </Button>
         <div className="mt-4">
           <SeasonTimelineBar />
         </div>
@@ -129,28 +130,27 @@ export default function HomeScreen() {
 
       {/* 未対応の異常（未ログイン時は実データが取得できていないため出さない） */}
       {!isAnon && openIssueCount !== null && openIssueCount > 0 && (
-        <Link
-          href="/records?status=open"
-          className="flex items-center gap-3 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-4 shadow-sm transition-transform active:scale-98"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
-            <IconWarningFill className="h-5 w-5 text-amber-600" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-amber-800">
-              未対応の異常が{openIssueCount}件あります
-            </p>
-            <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
-          </div>
-          <StatusBadge status="open" label={`${openIssueCount}件`} />
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
+        <Link href="/records?status=open" className="block active:scale-98 transition-transform">
+          <Card accent="open" className="flex items-center gap-3 bg-amber-50 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <IconWarningFill className="h-5 w-5 text-amber-600" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-800">
+                未対応の異常が{openIssueCount}件あります
+              </p>
+              <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
+            </div>
+            <StatusBadge status="open" label={`${openIssueCount}件`} />
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
+          </Card>
         </Link>
       )}
       {!isAnon && openIssueCount === 0 && totalCounts.issue === 0 && totalCounts.needsCheck === 0 && (
-        <div className="flex items-center gap-2 rounded-2xl bg-green-50 p-4">
+        <Card accent="normal" className="flex items-center gap-2 bg-green-50 p-4">
           <StatusBadge status="normal" />
           <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
-        </div>
+        </Card>
       )}
       {!isAnon && !loadError && openIssueCount === null && (
         <Skeleton className="h-14 w-full rounded-2xl" />
@@ -220,36 +220,32 @@ export default function HomeScreen() {
         </section>
       )}
 
-      {/* クイックアクション */}
+      {/* クイックアクション（緑塗り=最優先/緑枠=第二/グレー枠=第三、の3層を維持） */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Link
-          href="/records/new?returnTo=%2Fhome"
-          className="flex items-center justify-center gap-2 rounded-2xl bg-green-700 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-800"
-        >
-          <IconCamera className="h-5 w-5" />
-          写真で記録
-        </Link>
-        <Link
-          href="/talk"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-green-700 bg-white py-3.5 text-sm font-bold text-green-700 shadow-sm transition-colors hover:bg-green-50"
-        >
-          <IconChat className="h-5 w-5" />
-          トーク
-        </Link>
-        <Link
-          href="/map"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-        >
-          <IconMap className="h-5 w-5 text-green-700" />
-          マップ
-        </Link>
-        <Link
-          href="/fields"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-        >
-          <IconFieldGrid className="h-5 w-5 text-green-700" />
-          田んぼ
-        </Link>
+        <Button asChild variant="primary">
+          <Link href="/records/new?returnTo=%2Fhome">
+            <IconCamera className="h-5 w-5" />
+            写真で記録
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/talk">
+            <IconChat className="h-5 w-5" />
+            トーク
+          </Link>
+        </Button>
+        <Button asChild variant="tertiary">
+          <Link href="/map">
+            <IconMap className="h-5 w-5 text-green-700" />
+            マップ
+          </Link>
+        </Button>
+        <Button asChild variant="tertiary">
+          <Link href="/fields">
+            <IconFieldGrid className="h-5 w-5 text-green-700" />
+            田んぼ
+          </Link>
+        </Button>
       </div>
 
       {/* 管理メニュー（ナビ4系統化に伴い、二次導線をここに集約） */}
@@ -259,13 +255,9 @@ export default function HomeScreen() {
           { href: "/export", label: "エクスポート" },
           { href: "/guide", label: "使い方" },
         ].map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="flex items-center justify-center rounded-2xl bg-white py-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-          >
-            {label}
-          </Link>
+          <Button key={href} asChild variant="tertiary" className="border-0 shadow-sm">
+            <Link href={href}>{label}</Link>
+          </Button>
         ))}
       </div>
 

@@ -14,6 +14,7 @@ import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
 import SectionHeading from "../../components/ui/SectionHeading";
 import type { FieldPoint, RecordItem } from "../../types";
@@ -445,26 +446,24 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <SectionHeading level={3}>この田んぼを記録する</SectionHeading>
         <div className="mt-3 flex gap-3">
-          <Link
-            href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
-          >
-            <IconCamera className="h-4.5 w-4.5" />
-            写真で記録
-          </Link>
-          <Link
-            href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
-          >
-            <IconMic className="h-4.5 w-4.5" />
-            音声メモ
-          </Link>
+          <Button asChild variant="primary" className="flex-1">
+            <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+              <IconCamera className="h-4.5 w-4.5" />
+              写真で記録
+            </Link>
+          </Button>
+          <Button asChild variant="secondary" className="flex-1">
+            <Link href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+              <IconMic className="h-4.5 w-4.5" />
+              音声メモ
+            </Link>
+          </Button>
         </div>
       </section>
 
       {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
       {attention.length > 0 || openRecords.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-3.5 shadow-sm">
+        <Card accent="issue" className="flex items-center gap-3 bg-amber-50 p-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
           </span>
@@ -477,9 +476,9 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             </p>
             <p className="mt-0.5 text-xs text-amber-600">「記録」タブ、または「概要」タブの「ポイントの状態」で確認してください</p>
           </div>
-        </div>
+        </Card>
       ) : points.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm">
+        <Card accent="normal" className="flex items-center gap-3 bg-green-50 p-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
             <IconPinFill className="h-4.5 w-4.5 text-green-700" />
           </span>
@@ -493,17 +492,19 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 : "要対応のポイントはありません（対応済みを含む）"}
             </p>
           </div>
-        </div>
+        </Card>
       ) : (
-        <Link href="/map" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm active:scale-98 transition-transform">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-            <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-          </div>
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        <Link href="/map" className="block active:scale-98 transition-transform">
+          <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+              <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
+              <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
+            </div>
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+          </Card>
         </Link>
       )}
 
@@ -652,13 +653,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       )}
 
       {/* 二次導線 */}
-      <Link
-        href={`/map?field=${encodeURIComponent(fieldId)}`}
-        className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
-      >
-        <IconPinFill className="h-4 w-4" />
-        マップで見る
-      </Link>
+      <Button asChild variant="secondary" className="w-full">
+        <Link href={`/map?field=${encodeURIComponent(fieldId)}`}>
+          <IconPinFill className="h-4 w-4" />
+          マップで見る
+        </Link>
+      </Button>
     </div>
   );
 }
