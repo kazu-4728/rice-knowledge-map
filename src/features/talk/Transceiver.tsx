@@ -215,19 +215,24 @@ export function useTransceiver(opts: {
       recorderRef.current.stop();
     } else if (startingRef.current) {
       stopRequestedRef.current = "cancel";
-    } else if (!stopRequestedRef.current) {
+    } else if (!stopRequestedRef.current && streamRef.current) {
       // stop要求の処理待ち（recorder.stop()〜onstopの間）にここでcleanupすると
-      // chunksが消えて空の音声が保存されるため、要求が残っている間はonstopに委ねる
+      // chunksが消えて空の音声が保存されるため、要求が残っている間はonstopに委ねる。
+      // streamRef が無い場合（録音中でも許可待ちでもない＝アイドル or 送信中）は
+      // 何もしない。visibilitychangeリスナーを常時登録しているため、送信中
+      // （GPS判定・アップロード中）にバックグラウンド化しても、進行中の送信を
+      // 中断したように見せてオーバーレイだけ消してしまわないためのガード
       cleanup();
       setState("idle");
     }
   }, [cleanup]);
 
   // 実機のフェイルセーフ: マイク許可ダイアログや長押しジェスチャでボタン側の pointerup が
-  // 失われると「離しても録音が止まらない」状態になる。録音中は window の pointerup を
-  // バックアップとして拾い（＝画面のどこをタップしても送信）、ページが隠れたら破棄する
+  // 失われると「離しても録音が止まらない」状態になる。許可待ち（getUserMedia解決前）の間に
+  // 離された場合も同様に取りこぼすため、"recording" に限定せず常時 window の pointerup を
+  // バックアップとして拾う（＝画面のどこをタップしても送信）。stopAndSend/cancel は録音中
+  // または許可待ち中でなければ何もしない安全なno-opなので、常時登録しても副作用はない
   useEffect(() => {
-    if (state !== "recording") return;
     const onUp = () => stopAndSend();
     const onVisibility = () => {
       if (document.visibilityState === "hidden") cancel();
@@ -238,7 +243,7 @@ export function useTransceiver(opts: {
       window.removeEventListener("pointerup", onUp);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [state, stopAndSend, cancel]);
+  }, [stopAndSend, cancel]);
 
   return { state, elapsed, start, stopAndSend, cancel };
 }

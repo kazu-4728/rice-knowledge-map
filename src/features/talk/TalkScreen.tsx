@@ -35,11 +35,15 @@ export default function TalkScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
+  const reloadTokenRef = useRef(0);
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
   const reload = useCallback(async (fieldId: string | null) => {
+    const token = ++reloadTokenRef.current;
     const data = await loadTalkTimeline(fieldId ? { fieldId } : undefined);
+    if (token !== reloadTokenRef.current) return; // 待っている間に新しいreloadが発行された
     if (data.mode === "anon" || data.mode === "error") {
       setMode(data.mode);
       return;
@@ -79,11 +83,14 @@ export default function TalkScreen() {
     setLoadingOlder(true);
     const el = listRef.current;
     const prevHeight = el?.scrollHeight ?? 0;
+    // reload と同じトークンを共有する。応答が届くまでの間に田んぼチップが切り替わった場合、
+    // 古い絞り込みの結果が現在の絞り込みへ混入するのを防ぐ
+    const token = ++reloadTokenRef.current;
     const data = await loadTalkTimeline({
       fieldId: filterId ?? undefined,
       before: messages[0].atISO,
     });
-    if (data.mode === "live" || data.mode === "demo") {
+    if (token === reloadTokenRef.current && (data.mode === "live" || data.mode === "demo")) {
       stickToBottomRef.current = false;
       setMessages((prev) => {
         const seen = new Set(prev.map((m) => m.key));

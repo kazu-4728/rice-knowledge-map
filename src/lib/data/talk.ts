@@ -237,16 +237,31 @@ export async function loadTalkTimeline(opts?: {
       })),
     ].sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime());
 
-    // 2つのクエリはそれぞれ PAGE_SIZE 件で打ち切られているため、そのまま全件返すと
-    // 「古い記録は載っているのに、その間のコメントがページ外」というタイムラインの欠落が起きる。
-    // 新しい順に全体で PAGE_SIZE 件へ切り詰め、境界より古い分は次ページ（before=最古のatISO）で取得する
-    const page = merged.slice(0, PAGE_SIZE);
-    const trimmed = merged.length > page.length;
+    // records/comments はそれぞれ独立に PAGE_SIZE 件で打ち切っているため、単純に
+    // マージ後の上位 PAGE_SIZE 件を切り詰めるだけでは「密な方のソースの陰に隠れて、
+    // 疎な方のソースの古いアイテムが安全に補完されない」ケースが起きる
+    // （例: コメントが密に30件取れると、records側は全件取得済みでも一部が
+    // 表示から漏れ、次ページの取得漏れにつながりうる）。
+    // 各ソースの「打ち切り境界（そのソースがPAGE_SIZEに達し、まだ続きがある場合の
+    // 最古取得日時）」のうち、より新しい方（＝取得が浅い方）を安全境界とし、
+    // 安全境界より新しいアイテムだけを「両ソースとも漏れなく取得済み」として扱う
+    const recordsBoundary = records.length === PAGE_SIZE ? records[records.length - 1].recorded_at : null;
+    const commentsBoundary = comments.length === PAGE_SIZE ? comments[comments.length - 1].created_at : null;
+    const boundaries = [recordsBoundary, commentsBoundary].filter((b): b is string => b !== null);
+    const safeBoundaryTime =
+      boundaries.length > 0 ? Math.max(...boundaries.map((b) => new Date(b).getTime())) : null;
+    const safeMerged =
+      safeBoundaryTime !== null
+        ? merged.filter((m) => new Date(m.atISO).getTime() > safeBoundaryTime)
+        : merged;
+
+    const page = safeMerged.slice(0, PAGE_SIZE);
+    const trimmedForDisplay = safeMerged.length > page.length;
 
     return {
       mode: "live",
       messages: page.reverse(),
-      hasMore: trimmed || records.length === PAGE_SIZE || comments.length === PAGE_SIZE,
+      hasMore: trimmedForDisplay || recordsBoundary !== null || commentsBoundary !== null,
     };
   } catch (err) {
     console.warn("[talk] load error", err);
