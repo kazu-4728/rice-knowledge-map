@@ -31,15 +31,18 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
 
   const handlePointerDown = (e: React.PointerEvent) => {
     draggingRef.current = true;
-    (e.target as Element).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     updateFromClientX(e.clientX);
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!draggingRef.current) return;
     updateFromClientX(e.clientX);
   };
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     draggingRef.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
   };
 
   return (

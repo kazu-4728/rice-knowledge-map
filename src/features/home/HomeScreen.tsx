@@ -74,6 +74,9 @@ export default function HomeScreen() {
       setAttentionFields(attnFields);
 
       setLoaded(true);
+    }).catch(() => {
+      setLoadError(true);
+      setLoaded(true);
     });
 
     loadRecords().then((data) => {
@@ -122,8 +125,8 @@ export default function HomeScreen() {
         </div>
       </section>
 
-      {/* 未対応の異常 */}
-      {openIssueCount !== null && openIssueCount > 0 && (
+      {/* 未対応の異常（未ログイン時は実データが取得できていないため出さない） */}
+      {!isAnon && openIssueCount !== null && openIssueCount > 0 && (
         <Link
           href="/records?status=open"
           className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition-transform active:scale-98"
@@ -141,13 +144,13 @@ export default function HomeScreen() {
           <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
         </Link>
       )}
-      {openIssueCount === 0 && (
+      {!isAnon && openIssueCount === 0 && (
         <div className="flex items-center gap-2 rounded-2xl bg-green-50 p-4">
           <StatusBadge status="normal" />
           <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
         </div>
       )}
-      {openIssueCount === null && (
+      {!isAnon && !loadError && openIssueCount === null && (
         <Skeleton className="h-14 w-full rounded-2xl" />
       )}
 
