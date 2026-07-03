@@ -1,5 +1,5 @@
 import { getSupabase } from "../supabase/client";
-import { ensureGroupId } from "./farm";
+import { resolveGroupIdForField } from "./farm";
 import type { RecordDraft } from "../../features/records/recordDraft";
 
 export type SaveRecordResult =
@@ -43,7 +43,10 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
     const user = sessionData.session?.user;
     if (!user) return { status: "demo" };
 
-    const groupId = await ensureGroupId();
+    // 田んぼが属する実際のグループを使う（複数グループ所属時、記録先の田んぼが
+    // 「最初のグループ」以外だと records.group_id must match farm_fields.group_id の
+    // 整合性トリガーに弾かれるため）
+    const groupId = await resolveGroupIdForField(draft.fieldId);
     if (!groupId) return { status: "error", step: "group" };
 
     const recordType =
@@ -58,6 +61,7 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
         field_id: draft.fieldId,
         point_id: draft.pointId ?? null,
         record_type: recordType,
+        ...(draft.status ? { status: draft.status } : {}),
         title: buildTitle(draft),
         note: draft.memo.trim() || null,
         // 選んだポイント種別そのもの（inlet/outlet/weed/caution）。record_typeは分類が粗く

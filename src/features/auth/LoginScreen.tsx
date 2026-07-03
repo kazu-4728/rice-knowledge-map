@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "./useAuth";
+import { getSupabase } from "../../lib/supabase/client";
 import { IconCheck, LogoRice } from "../../components/ui/icons";
 
 // Googleログインは Supabase 側のプロバイダ設定（Google CloudのOAuthクライアント）が
@@ -33,6 +34,23 @@ function LoginScreenInner() {
   useEffect(() => {
     if (!loading && session) router.replace(redirect);
   }, [loading, session, redirect, router]);
+
+  // スマホの戻るボタンで bfcache から復元されると useAuth の useEffect（deps=[]）は
+  // 再実行されず、クロージャの session はログイン前の古い値のまま残る。ログインページに
+  // 入った直後にOAuth/メールリンクへ遷移したケースでは特に顕著なため、復元時は
+  // 古い session に頼らず Supabase へ直接問い合わせて最新状態を確認する
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const sb = getSupabase();
+      if (!sb) return;
+      sb.auth.getSession().then(({ data }) => {
+        if (data.session) router.replace(redirect);
+      });
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [redirect, router]);
 
   const handleGoogle = async () => {
     setBusy(true);

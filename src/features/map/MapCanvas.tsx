@@ -34,6 +34,8 @@ import { useFieldDraw } from "./useFieldDraw";
 import { computeApproxAreaSqm, distanceMeters } from "../../lib/utils/geo";
 import { pinSVG, TYPE_LABELS, PIN_COLORS, STATUS_LABELS } from "./mapPins";
 import { useDrawer } from "../../components/layout/DrawerContext";
+import { useToast } from "../../components/ui/Toast";
+import { useTransceiver, TransceiverOverlay } from "../talk/Transceiver";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
 import {
   IconCamera,
@@ -43,6 +45,7 @@ import {
   IconMinus,
   IconPinFill,
   IconPlus,
+  IconChat,
   IconListBullet,
   IconWarningFill,
 } from "../../components/ui/icons";
@@ -170,6 +173,15 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
   const [fieldStats, setFieldStats] = useState<Map<string, { pendingCount: number; lastRecord: string }>>(new Map());
   /** 記録ボタンのポップオーバー */
   const [recordPopOpen, setRecordPopOpen] = useState(false);
+  // FAB長押しの音声トランシーバー（押して話す→離すとGPSで田んぼ判定して送信）
+  const { showToast } = useToast();
+  const transceiver = useTransceiver({
+    onSaved: (fieldName) =>
+      showToast(fieldName ? `🌾 ${fieldName} に音声を送信しました` : "音声を送信しました"),
+    onError: (message) => showToast(message, "error"),
+  });
+  const fabHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fabHoldActiveRef = useRef(false);
   const locationMarkerRef = useRef<Marker | null>(null);
   const fieldLabelsRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -1354,6 +1366,14 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               </span>
             </button>
           </div>
+          {/* トークへの常設導線（ドロワーを開かなくても届くように） */}
+          <Link
+            href="/talk"
+            aria-label="家族のトークを開く"
+            className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-dark-strong text-emerald-300 shadow-lg"
+          >
+            <IconChat className="h-5.5 w-5.5" />
+          </Link>
           <div className="pointer-events-auto shrink-0 space-y-2 rounded-2xl glass-dark px-2.5 py-2.5 shadow-lg">
             {[
               { type: "inlet" as const, label: "入水口" },
@@ -1437,16 +1457,56 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               </>
             )}
             <button
-              onClick={() => setRecordPopOpen((v) => !v)}
-              aria-label="記録する"
+              onClick={() => {
+                // 長押しトランシーバー発火後のclickはメニューを開かない
+                if (fabHoldActiveRef.current) {
+                  fabHoldActiveRef.current = false;
+                  return;
+                }
+                setRecordPopOpen((v) => !v);
+              }}
+              onPointerDown={(e) => {
+                if (recordPopOpen) return;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                fabHoldTimerRef.current = setTimeout(() => {
+                  fabHoldActiveRef.current = true;
+                  void transceiver.start();
+                }, 400);
+              }}
+              onPointerUp={() => {
+                if (fabHoldTimerRef.current) clearTimeout(fabHoldTimerRef.current);
+                fabHoldTimerRef.current = null;
+                if (fabHoldActiveRef.current) {
+                  transceiver.stopAndSend();
+                  // 直後の合成clickは抑止しつつ、clickが発火しない環境でも
+                  // フラグが残留して次のタップが無反応にならないよう時間差でリセット
+                  setTimeout(() => {
+                    fabHoldActiveRef.current = false;
+                  }, 400);
+                }
+              }}
+              onPointerCancel={() => {
+                if (fabHoldTimerRef.current) clearTimeout(fabHoldTimerRef.current);
+                fabHoldTimerRef.current = null;
+                if (fabHoldActiveRef.current) {
+                  fabHoldActiveRef.current = false;
+                  transceiver.cancel();
+                }
+              }}
+              onContextMenu={(e) => e.preventDefault()}
+              aria-label="タップで記録メニュー・長押しで話して記録"
               aria-expanded={recordPopOpen}
-              className={`flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-700 animate-fab-glow transition-all active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
+              className={`flex h-16 w-16 select-none items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-700 animate-fab-glow transition-all active:scale-95 ${recordPopOpen ? "rotate-45" : ""}`}
+              style={{ touchAction: "none", WebkitUserSelect: "none" }}
             >
               <IconPlus className="h-8 w-8 text-white transition-transform" />
             </button>
           </div>
         </div>
       )}
+
+      {/* FAB長押しの録音オーバーレイ */}
+      <TransceiverOverlay transceiver={transceiver} />
 
       {/* 田んぼ選択シート（登録田んぼ一覧） */}
       {idle && mode.kind === "picker" && (

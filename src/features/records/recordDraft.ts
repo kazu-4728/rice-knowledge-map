@@ -21,6 +21,8 @@ export type RecordDraft = {
   location: { lng: number; lat: number } | null;
   /** ISO文字列 */
   recordedAt: string;
+  /** 省略時はDBの既定値('open')。異常判定に関与しない記録（トーク音声メモ等）は明示的に上書きする */
+  status?: "open" | "needs_check" | "resolved" | "monitoring";
 };
 
 let draft: RecordDraft | null = null;

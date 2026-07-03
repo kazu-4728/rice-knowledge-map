@@ -155,6 +155,23 @@ export async function ensureGroupId(): Promise<string | null> {
   return data as string;
 }
 
+/**
+ * records の group_id を決める。fieldId があれば田んぼが実際に属するグループを使う
+ * （複数グループに所属するユーザーが「最初のグループ」以外の田んぼを選んだ場合、
+ * records.group_id must match farm_fields.group_id の整合性トリガーに弾かれるため）。
+ * fieldId が無い/田んぼが見つからない場合は ensureGroupId() にフォールバックする。
+ */
+export async function resolveGroupIdForField(fieldId: string | null): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  if (fieldId) {
+    const { data } = await sb.from("farm_fields").select("group_id").eq("id", fieldId).maybeSingle();
+    if (data?.group_id) return data.group_id as string;
+  }
+  return ensureGroupId();
+}
+
 export type SaveFieldResult = "saved" | "demo" | "error";
 
 /**
