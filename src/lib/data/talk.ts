@@ -30,8 +30,12 @@ export type TalkMessage = {
   audioUrl?: string;
   status?: "open" | "needs_check" | "resolved" | "monitoring";
   isIssue?: boolean;
+  /** この記録に付いたコメント数（スレッドの存在を示す） */
+  commentCount?: number;
   // kind === "comment"
   text?: string;
+  /** 返信先の記録タイトル（引用表示用） */
+  recordTitle?: string;
 };
 
 export type TalkData =
@@ -62,10 +66,10 @@ function demoMessages(): TalkMessage[] {
     dateLabel: dateLabel(m.atISO),
   });
   return [
-    mk({ key: "r-demo1", kind: "record", recordId: "record-a1", author: "父", isMine: false, atISO: at(60 * 26), fieldId: "field-a", fieldName: "A田", title: "取水口の確認", note: "水量は問題なし", photoCount: 1, status: "resolved" }),
-    mk({ key: "c-demo1", kind: "comment", recordId: "record-a1", author: "あなた", isMine: true, atISO: at(60 * 25), fieldId: "field-a", fieldName: "A田", text: "確認ありがとう👍" }),
-    mk({ key: "r-demo2", kind: "record", recordId: "record-b1", author: "母", isMine: false, atISO: at(60 * 5), fieldId: "field-b", fieldName: "B田", title: "畦に崩れあり", note: "南側の畦。早めに見てほしい", photoCount: 2, status: "open", isIssue: true }),
-    mk({ key: "c-demo2", kind: "comment", recordId: "record-b1", author: "あなた", isMine: true, atISO: at(60 * 4), fieldId: "field-b", fieldName: "B田", text: "了解。夕方見てくる" }),
+    mk({ key: "r-demo1", kind: "record", recordId: "record-a1", author: "父", isMine: false, atISO: at(60 * 26), fieldId: "field-a", fieldName: "A田", title: "取水口の確認", note: "水量は問題なし", photoCount: 1, status: "resolved", commentCount: 1 }),
+    mk({ key: "c-demo1", kind: "comment", recordId: "record-a1", author: "あなた", isMine: true, atISO: at(60 * 25), fieldId: "field-a", fieldName: "A田", text: "確認ありがとう👍", recordTitle: "取水口の確認" }),
+    mk({ key: "r-demo2", kind: "record", recordId: "record-b1", author: "母", isMine: false, atISO: at(60 * 5), fieldId: "field-b", fieldName: "B田", title: "畦に崩れあり", note: "南側の畦。早めに見てほしい", photoCount: 2, status: "open", isIssue: true, commentCount: 1 }),
+    mk({ key: "c-demo2", kind: "comment", recordId: "record-b1", author: "あなた", isMine: true, atISO: at(60 * 4), fieldId: "field-b", fieldName: "B田", text: "了解。夕方見てくる", recordTitle: "畦に崩れあり" }),
     mk({ key: "r-demo3", kind: "record", recordId: "record-c1", author: "あなた", isMine: true, atISO: at(30), fieldId: "field-c", fieldName: "C田", title: "音声メモ", status: "monitoring" }),
   ];
 }
@@ -82,6 +86,7 @@ type RecordRow = {
   profiles: { display_name: string | null } | null;
   farm_fields: { name: string | null } | null;
   record_media: { media_type: string; storage_bucket: string; storage_path: string }[] | null;
+  record_comments: { count: number }[] | null;
 };
 
 type CommentRow = {
@@ -91,7 +96,7 @@ type CommentRow = {
   comment: string;
   created_at: string;
   profiles: { display_name: string | null } | null;
-  records: { field_id: string | null; farm_fields: { name: string | null } | null } | null;
+  records: { field_id: string | null; title: string | null; farm_fields: { name: string | null } | null } | null;
 };
 
 const VALID_STATUSES = new Set(["open", "needs_check", "resolved", "monitoring"]);
@@ -123,7 +128,7 @@ export async function loadTalkTimeline(opts?: {
     let recQ = sb
       .from("records")
       .select(
-        "id, field_id, record_type, status, title, note, recorded_by, recorded_at, profiles(display_name), farm_fields(name), record_media(media_type, storage_bucket, storage_path)"
+        "id, field_id, record_type, status, title, note, recorded_by, recorded_at, profiles(display_name), farm_fields(name), record_media(media_type, storage_bucket, storage_path), record_comments(count)"
       )
       .order("recorded_at", { ascending: false })
       .limit(PAGE_SIZE);
@@ -142,7 +147,7 @@ export async function loadTalkTimeline(opts?: {
       let comQ = sb
         .from("record_comments")
         .select(
-          "id, record_id, user_id, comment, created_at, profiles(display_name), records!inner(field_id, farm_fields(name))"
+          "id, record_id, user_id, comment, created_at, profiles(display_name), records!inner(field_id, title, farm_fields(name))"
         )
         .order("created_at", { ascending: false })
         .limit(PAGE_SIZE);
@@ -207,6 +212,7 @@ export async function loadTalkTimeline(opts?: {
           audioUrl: audioUrls.get(r.id),
           status: VALID_STATUSES.has(r.status) ? (r.status as TalkMessage["status"]) : undefined,
           isIssue: r.record_type === "issue",
+          commentCount: r.record_comments?.[0]?.count || undefined,
         };
       }),
       ...comments.map((c): TalkMessage => ({
@@ -221,6 +227,7 @@ export async function loadTalkTimeline(opts?: {
         fieldId: c.records?.field_id ?? null,
         fieldName: c.records?.farm_fields?.name ?? null,
         text: c.comment,
+        recordTitle: c.records?.title || undefined,
       })),
     ].sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime());
 
@@ -239,6 +246,27 @@ export async function loadTalkTimeline(opts?: {
     console.warn("[talk] load error", err);
     return { mode: "error" };
   }
+}
+
+/**
+ * 自分のコメントを削除する。RLSにより本人のコメントのみ削除できる
+ * （record_comments_delete = user_id = auth.uid()）。
+ */
+export async function deleteComment(commentId: string): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  if (!sb) return { error: "デモ環境では削除できません" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { error: "ログインが必要です" };
+
+  const { data, error } = await sb
+    .from("record_comments")
+    .delete()
+    .eq("id", commentId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "削除できませんでした（本人のコメントのみ削除できます）" };
+  return { error: null };
 }
 
 /**

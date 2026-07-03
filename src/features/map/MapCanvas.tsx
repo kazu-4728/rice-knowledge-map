@@ -45,6 +45,7 @@ import {
   IconMinus,
   IconPinFill,
   IconPlus,
+  IconChat,
   IconListBullet,
   IconWarningFill,
 } from "../../components/ui/icons";
@@ -1365,6 +1366,14 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               </span>
             </button>
           </div>
+          {/* トークへの常設導線（ドロワーを開かなくても届くように） */}
+          <Link
+            href="/talk"
+            aria-label="家族のトークを開く"
+            className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-dark-strong text-emerald-300 shadow-lg"
+          >
+            <IconChat className="h-5.5 w-5.5" />
+          </Link>
           <div className="pointer-events-auto shrink-0 space-y-2 rounded-2xl glass-dark px-2.5 py-2.5 shadow-lg">
             {[
               { type: "inlet" as const, label: "入水口" },

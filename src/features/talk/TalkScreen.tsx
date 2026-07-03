@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { loadTalkTimeline, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { deleteComment, loadTalkTimeline, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { deleteRecord } from "../../lib/data/recordDetail";
 import { loadFarmData } from "../../lib/data/farm";
 import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
@@ -111,6 +112,32 @@ export default function TalkScreen() {
     await reload(filterId);
   }, [text, sending, filterId, reload, showToast]);
 
+  // 自分のコメント／メディアなしの「ひとこと」記録のみ削除できる（写真・音声の削除は記録詳細から）
+  const handleDelete = useCallback(
+    async (m: TalkMessage) => {
+      if (!window.confirm("このメッセージを削除しますか？")) return;
+      if (m.kind === "comment") {
+        const { error } = await deleteComment(m.key.replace(/^c-/, ""));
+        if (error) {
+          showToast(error, "error");
+          return;
+        }
+      } else {
+        const result = await deleteRecord(m.recordId);
+        if (result.status !== "deleted") {
+          showToast(
+            result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
+            "error"
+          );
+          return;
+        }
+      }
+      showToast("削除しました");
+      await reload(filterId);
+    },
+    [filterId, reload, showToast]
+  );
+
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
       showToast(fieldName ? `🌾 ${fieldName} に送信しました` : "音声を送信しました");
@@ -211,6 +238,11 @@ export default function TalkScreen() {
                 showAuthor={!m.isMine && (i === 0 || messages[i - 1].author !== m.author || messages[i - 1].dateLabel !== m.dateLabel)}
                 onOpen={() => router.push(`/records/${m.recordId}`)}
                 onFieldTap={(id) => setFilterId(id)}
+                onDelete={
+                  m.isMine && (m.kind === "comment" || (!m.photoUrl && !m.audioUrl))
+                    ? () => handleDelete(m)
+                    : undefined
+                }
               />
             ))}
           </>
@@ -268,12 +300,15 @@ function MessageRow({
   showAuthor,
   onOpen,
   onFieldTap,
+  onDelete,
 }: {
   message: TalkMessage;
   showDate: boolean;
   showAuthor: boolean;
   onOpen: () => void;
   onFieldTap: (fieldId: string) => void;
+  /** 自分のコメント/ひとことのみ削除可能（undefinedなら非表示） */
+  onDelete?: () => void;
 }) {
   const fieldChip = m.fieldId && m.fieldName && (
     <button
@@ -302,7 +337,20 @@ function MessageRow({
             {showAuthor && <MemberAvatar name={m.author} />}
           </span>
         )}
-        {m.isMine && <span className="mb-0.5 shrink-0 text-[9px] text-gray-400">{m.timeLabel}</span>}
+        {m.isMine && (
+          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-0.5">
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                aria-label="このメッセージを削除"
+                className="rounded px-1 text-[11px] leading-none text-gray-400 active:text-red-500"
+              >
+                ⋮
+              </button>
+            )}
+            <span className="text-[9px] text-gray-400">{m.timeLabel}</span>
+          </span>
+        )}
 
         <div className={`max-w-[76%] ${m.isMine ? "items-end" : ""}`}>
           {showAuthor && (
@@ -318,7 +366,18 @@ function MessageRow({
                   : "rounded-bl-sm bg-white text-gray-800"
               }`}
             >
-              {!m.isMine && fieldChip && <span className="mr-1.5">{fieldChip}</span>}
+              {/* 返信先の記録を引用表示（どのメッセージへの返信かを明示。タップで元記録=スレッドへ） */}
+              {m.recordTitle && (
+                <span
+                  className={`mb-1 block truncate border-l-2 pl-2 text-[11px] ${
+                    m.isMine ? "border-white/50 text-white/80" : "border-emerald-400 text-gray-500"
+                  }`}
+                >
+                  ↩ {m.fieldName ? `${m.fieldName}・` : ""}
+                  {m.recordTitle}
+                </span>
+              )}
+              {!m.isMine && !m.recordTitle && fieldChip && <span className="mr-1.5">{fieldChip}</span>}
               {m.text}
             </button>
           ) : (
@@ -355,6 +414,12 @@ function MessageRow({
                   )}
                   {m.photoCount != null && m.photoCount > 1 && (
                     <span className="text-[10px] text-gray-400">📷 {m.photoCount}枚</span>
+                  )}
+                  {/* スレッドの存在を明示（返信の履歴は元記録に集約されている） */}
+                  {m.commentCount != null && m.commentCount > 0 && (
+                    <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
+                      💬 返信{m.commentCount}件
+                    </span>
                   )}
                 </div>
               </div>
