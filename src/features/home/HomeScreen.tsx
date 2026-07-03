@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { loadRecords } from "../../lib/data/records";
 import { loadFarmData, ensureGroupId } from "../../lib/data/farm";
@@ -8,6 +8,10 @@ import type { FieldPoint } from "../../types";
 import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
+import { getSeasonPhase } from "../../lib/season";
+import SeasonTimelineBar from "../../components/ui/SeasonTimelineBar";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { Skeleton } from "../../components/ui/skeleton";
 import {
   IconCamera,
   IconChevronRight,
@@ -82,9 +86,44 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const season = useMemo(() => getSeasonPhase(), []);
+  const totalCounts = useMemo(() => {
+    let issue = 0;
+    let needsCheck = 0;
+    attentionFields.forEach((f) => {
+      issue += f.issueCount;
+      needsCheck += f.needsCheckCount;
+    });
+    return { issue, needsCheck };
+  }, [attentionFields]);
+
   return (
     <div className="space-y-4 px-3 pb-8 pt-3">
-      <h1 className="px-1 text-2xl font-bold text-gray-900">管理</h1>
+      <div className="px-1">
+        <h1 className="text-2xl font-bold text-gray-900">管理</h1>
+        <p className="mt-0.5 text-sm text-gray-500">田んぼ全体を見わたす場所</p>
+      </div>
+
+      {/* 農事暦シーズンエンジン: 今の時期と年間の位置づけ */}
+      <section className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="text-4xl leading-none">{season.emoji}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold text-gray-900">{season.label}</p>
+            <p className="mt-0.5 text-sm text-gray-600">{season.hint}</p>
+          </div>
+        </div>
+        <Link
+          href="/records/new?returnTo=%2Fhome"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-green-700 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-800"
+        >
+          {season.action}
+          <IconChevronRight className="h-4 w-4" />
+        </Link>
+        <div className="mt-4">
+          <SeasonTimelineBar />
+        </div>
+      </section>
 
       {/* 未対応の異常 */}
       {openIssueCount !== null && openIssueCount > 0 && (
@@ -101,13 +140,18 @@ export default function HomeScreen() {
             </p>
             <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
           </div>
+          <StatusBadge status="open" label={`${openIssueCount}件`} />
           <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
         </Link>
       )}
       {openIssueCount === 0 && (
-        <div className="rounded-2xl bg-green-50 p-4">
+        <div className="flex items-center gap-2 rounded-2xl bg-green-50 p-4">
+          <StatusBadge status="normal" />
           <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
         </div>
+      )}
+      {openIssueCount === null && (
+        <Skeleton className="h-14 w-full rounded-2xl" />
       )}
 
       {/* ログイン促進 */}
@@ -121,6 +165,28 @@ export default function HomeScreen() {
           </p>
           <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
         </Link>
+      )}
+
+      {/* 信号色の統計サマリー（見わたす場所らしく、全体の量感を大きく見せる） */}
+      {loaded && !isAnon && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className="text-3xl font-bold leading-none text-gray-900">{fields.length}</p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">田んぼ</p>
+          </div>
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className={`text-3xl font-bold leading-none ${totalCounts.issue > 0 ? "text-red-600" : "text-gray-300"}`}>
+              {totalCounts.issue}
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">異常</p>
+          </div>
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className={`text-3xl font-bold leading-none ${totalCounts.needsCheck > 0 ? "text-amber-600" : "text-gray-300"}`}>
+              {totalCounts.needsCheck}
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">要確認</p>
+          </div>
+        </div>
       )}
 
       {/* 要注意の田んぼ */}
@@ -142,12 +208,10 @@ export default function HomeScreen() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-gray-900">{af.name || "名前のない田んぼ"}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {[
-                        af.issueCount > 0 ? `異常${af.issueCount}件` : null,
-                        af.needsCheckCount > 0 ? `要確認${af.needsCheckCount}件` : null,
-                      ].filter(Boolean).join("・")}
-                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {af.issueCount > 0 && <StatusBadge status="issue" label={`異常${af.issueCount}`} />}
+                      {af.needsCheckCount > 0 && <StatusBadge status="needs_check" label={`要確認${af.needsCheckCount}`} />}
+                    </div>
                   </div>
                   <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
                 </Link>
@@ -219,15 +283,20 @@ export default function HomeScreen() {
           </Link>
         </div>
         {recentRecords.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-gray-400">
-            {recordsMode === "loading"
-              ? "読み込み中…"
-              : recordsMode === "anon"
+          recordsMode === "loading" ? (
+            <div className="space-y-2 px-4 pb-4">
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          ) : (
+            <p className="px-4 pb-4 text-sm text-gray-400">
+              {recordsMode === "anon"
                 ? "ログインすると記録が表示されます"
                 : recordsMode === "error"
                   ? "記録を読み込めませんでした"
                   : "まだ記録がありません"}
-          </p>
+            </p>
+          )
         ) : (
           <ul className="px-4 pb-3">
             {recentRecords.map((record, i) => (
@@ -294,7 +363,11 @@ export default function HomeScreen() {
             </Link>
           </div>
           {!loaded ? (
-            <p className="px-4 pb-4 text-sm text-gray-400">読み込み中…</p>
+            <div className="space-y-2 px-4 pb-4">
+              <Skeleton className="h-6 w-24 rounded" />
+              <Skeleton className="h-6 w-full rounded" />
+              <Skeleton className="h-6 w-full rounded" />
+            </div>
           ) : loadError ? (
             <div className="px-4 pb-4">
               <p className="text-sm text-gray-500">

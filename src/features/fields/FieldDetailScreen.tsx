@@ -14,11 +14,13 @@ import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
   IconChevronRight,
   IconDropFill,
+  IconFieldGrid,
   IconMic,
   IconPinFill,
   IconSprout,
@@ -83,8 +85,88 @@ type TabKey = "overview" | "records" | "photos";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "概要" },
   { key: "records", label: "記録" },
-  { key: "photos", label: "写真" },
+  { key: "photos", label: "定点観測" },
 ];
+
+type ObservationPhoto = { id: string; date: string; url?: string };
+
+/**
+ * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
+ * 「基準（以前）」写真を固定し、スライダーで比較対象（今）を時系列に動かして見比べる。
+ */
+function ObservationGroup({
+  label,
+  icon,
+  photos,
+}: {
+  label: string;
+  icon: ReactNode;
+  photos: ObservationPhoto[];
+}) {
+  const [baseIndex, setBaseIndex] = useState(0);
+  const [compareIndex, setCompareIndex] = useState(photos.length - 1);
+
+  if (photos.length === 1) {
+    return (
+      <section className="rounded-2xl bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center gap-2">
+          {icon}
+          <p className="text-sm font-bold text-gray-900">{label}</p>
+          <span className="ml-auto text-xs text-gray-400">1枚</span>
+        </div>
+        <div className="aspect-square overflow-hidden rounded-xl">
+          <RemotePhoto src={photos[0].url} alt={label} className="h-full w-full object-cover" fallbackVariant="field" />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center gap-2">
+        {icon}
+        <p className="text-sm font-bold text-gray-900">{label}</p>
+        <span className="ml-auto text-xs text-gray-400">{photos.length}枚</span>
+      </div>
+
+      <PhotoCompareSlider
+        beforeUrl={photos[baseIndex].url}
+        afterUrl={photos[compareIndex].url}
+        beforeLabel={photos[baseIndex].date}
+        afterLabel={photos[compareIndex].date}
+      />
+
+      {/* 比較対象（今）を時系列に動かすスライダー */}
+      <input
+        type="range"
+        min={0}
+        max={photos.length - 1}
+        value={compareIndex}
+        onChange={(e) => setCompareIndex(Number(e.target.value))}
+        className="mt-3 w-full accent-green-700"
+        aria-label={`${label}の写真を時系列で比較する`}
+      />
+
+      {/* 基準（以前）の写真はフィルムストリップからタップして選び直せる */}
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+        {photos.map((p, i) => (
+          <button
+            key={p.id}
+            onClick={() => setBaseIndex(i)}
+            className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ${
+              i === baseIndex ? "ring-2 ring-green-600" : ""
+            }`}
+            aria-label={`${p.date}の写真を基準にする`}
+            aria-pressed={i === baseIndex}
+          >
+            <RemotePhoto src={p.url} alt={p.date} className="h-full w-full object-cover" fallbackVariant="field" />
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[11px] text-gray-400">基準（以前）はフィルムストリップをタップして選べます</p>
+    </section>
+  );
+}
 
 type Props = { fieldId: string };
 
@@ -192,6 +274,33 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   // この田んぼの概要（実データから集計）。「未対応」= 未解決の異常記録のみ
   const openRecords = records.filter(isUnresolvedIssue);
   const photoRecords = records.filter((r) => r.media === "photo");
+
+  // 定点観測タイムマシン: 写真をピン単位でグルーピング（ピン未紐付けは「田んぼ全体」にまとめる）
+  const pointById = new Map(points.map((p) => [p.id, p]));
+  const groupMap = new Map<string, RecordItem[]>();
+  photoRecords.forEach((r) => {
+    const key = r.pointId ?? "__field__";
+    const list = groupMap.get(key) ?? [];
+    list.push(r);
+    groupMap.set(key, list);
+  });
+  const observationGroups = [...groupMap.entries()]
+    .map(([key, list]) => {
+      const point = key !== "__field__" ? pointById.get(key) : undefined;
+      const meta = point ? POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"] : null;
+      const sorted = [...list].sort(
+        (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
+      );
+      return {
+        key,
+        label: point ? point.name || meta!.label : "田んぼ全体",
+        icon: meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />,
+        isFieldWide: key === "__field__",
+        photos: sorted.map((r) => ({ id: r.id, date: r.date, url: thumbUrls[r.id] })),
+      };
+    })
+    .sort((a, b) => (a.isFieldWide === b.isFieldWide ? 0 : a.isFieldWide ? 1 : -1));
+
   const lastRecord = records[0]; // loadRecords は新しい順に返す
   const lastRecordLabel = lastRecord
     ? `${new Date(lastRecord.recordedAt).getMonth() + 1}/${new Date(lastRecord.recordedAt).getDate()}`
@@ -492,33 +601,19 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
       )}
 
-      {/* 写真タブ: ギャラリー */}
+      {/* 定点観測タイムマシン: 同じ地点の写真を時系列比較 */}
       {activeTab === "photos" && (
         <div role="tabpanel" id="field-tabpanel-photos" aria-labelledby="field-tab-photos">
-          {photoRecords.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {photoRecords.map((record) => (
-                <Link
-                  key={record.id}
-                  href={`/records/${record.id}`}
-                  className="group relative aspect-square overflow-hidden rounded-xl active:scale-95 transition-transform"
-                >
-                  <RecordThumb
-                    media="photo"
-                    variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                    thumbUrl={thumbUrls[record.id]}
-                    className="h-full w-full"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1">
-                    <span className="block truncate text-[10px] font-semibold text-white">{record.time}</span>
-                  </span>
-                </Link>
+          {observationGroups.length > 0 ? (
+            <div className="space-y-3">
+              {observationGroups.map((g) => (
+                <ObservationGroup key={g.key} label={g.label} icon={g.icon} photos={g.photos} />
               ))}
             </div>
           ) : (
             <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
               <p className="text-sm text-gray-500">まだ写真がありません</p>
-              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加できます</p>
+              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加すると、同じ地点の変化を見比べられます</p>
             </div>
           )}
         </div>
