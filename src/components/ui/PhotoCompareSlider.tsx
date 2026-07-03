@@ -59,10 +59,10 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
         <RemotePhoto src={beforeUrl} alt={beforeLabel} className="absolute inset-0 h-full w-full object-cover" fallbackVariant="field" />
       </div>
 
-      <span className="absolute left-2 top-2 rounded-md bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+      <span className="absolute left-2 top-2 max-w-[45%] truncate rounded-md bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
         {beforeLabel}
       </span>
-      <span className="absolute right-2 top-2 rounded-md bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+      <span className="absolute right-2 top-2 max-w-[45%] truncate rounded-md bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
         {afterLabel}
       </span>
 

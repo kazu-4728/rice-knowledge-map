@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadRecords } from "../../lib/data/records";
-import { loadFarmData, ensureGroupId } from "../../lib/data/farm";
+import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPoint } from "../../types";
-import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
 import { getSeasonPhase } from "../../lib/season";
@@ -37,22 +36,13 @@ export default function HomeScreen() {
   const [isAnon, setIsAnon] = useState(false);
 
   useEffect(() => {
-    const sb = getSupabase();
-    if (sb) {
-      ensureGroupId().then(async (groupId) => {
-        if (!groupId) return;
-        const { count } = await sb
-          .from("records")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["open", "needs_check"])
-          .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
-        setOpenIssueCount(count ?? 0);
-      });
-    }
-
-    loadFarmData().then((data) => {
+    // ピンの異常/要確認 + ピン変更を伴わない「記録のみ」の異常をマージする
+    // （MapSummarySheetと同じ考え方。田んぼ単位の内訳とバナー件数の食い違いを防ぐ）
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, issueRecords]) => {
       if (data.mode === "anon") setIsAnon(true);
       if (data.mode === "error") setLoadError(true);
+      setOpenIssueCount(issueRecords.length);
+
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -68,6 +58,13 @@ export default function HomeScreen() {
         if (p.status === "issue") entry.issueCount++;
         else entry.needsCheckCount++;
         attnMap.set(p.fieldId, entry);
+      });
+      issueRecords.forEach(({ fieldId, isIssue }) => {
+        if (!fieldId) return;
+        const entry = attnMap.get(fieldId) ?? { issueCount: 0, needsCheckCount: 0 };
+        if (isIssue) entry.issueCount++;
+        else entry.needsCheckCount++;
+        attnMap.set(fieldId, entry);
       });
       const attnFields: AttentionField[] = [];
       attnMap.forEach((counts, fid) => {

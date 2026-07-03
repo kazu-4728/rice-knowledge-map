@@ -88,7 +88,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "photos", label: "定点観測" },
 ];
 
-type ObservationPhoto = { id: string; date: string; url?: string };
+type ObservationPhoto = { id: string; date: string; shortDate: string; url?: string };
 
 /**
  * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
@@ -114,9 +114,9 @@ function ObservationGroup({
           <p className="text-sm font-bold text-gray-900">{label}</p>
           <span className="ml-auto text-xs text-gray-400">1枚</span>
         </div>
-        <div className="aspect-square overflow-hidden rounded-xl">
+        <Link href={`/records/${photos[0].id}`} className="block aspect-square overflow-hidden rounded-xl">
           <RemotePhoto src={photos[0].url} alt={label} className="h-full w-full object-cover" fallbackVariant="field" />
-        </div>
+        </Link>
       </section>
     );
   }
@@ -132,8 +132,8 @@ function ObservationGroup({
       <PhotoCompareSlider
         beforeUrl={photos[baseIndex].url}
         afterUrl={photos[compareIndex].url}
-        beforeLabel={photos[baseIndex].date}
-        afterLabel={photos[compareIndex].date}
+        beforeLabel={photos[baseIndex].shortDate}
+        afterLabel={photos[compareIndex].shortDate}
       />
 
       {/* 比較対象（今）を時系列に動かすスライダー */}
@@ -146,6 +146,15 @@ function ObservationGroup({
         className="mt-3 w-full accent-green-700"
         aria-label={`${label}の写真を時系列で比較する`}
       />
+
+      <div className="mt-1.5 flex items-center justify-between text-xs">
+        <Link href={`/records/${photos[baseIndex].id}`} className="font-semibold text-green-700">
+          「以前」の記録を見る
+        </Link>
+        <Link href={`/records/${photos[compareIndex].id}`} className="font-semibold text-green-700">
+          「今」の記録を見る
+        </Link>
+      </div>
 
       {/* 基準（以前）の写真はフィルムストリップからタップして選び直せる */}
       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
@@ -296,7 +305,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         label: point ? point.name || meta!.label : "田んぼ全体",
         icon: meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />,
         isFieldWide: key === "__field__",
-        photos: sorted.map((r) => ({ id: r.id, date: r.date, url: thumbUrls[r.id] })),
+        photos: sorted.map((r) => ({
+          id: r.id,
+          date: r.date,
+          shortDate: `${new Date(r.recordedAt).getMonth() + 1}/${new Date(r.recordedAt).getDate()}`,
+          url: thumbUrls[r.id],
+        })),
       };
     })
     .sort((a, b) => (a.isFieldWide === b.isFieldWide ? 0 : a.isFieldWide ? 1 : -1));
