@@ -11,7 +11,7 @@ import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
-import { IconCamera, IconChevronRight, IconPlayFill } from "../../components/ui/icons";
+import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
 
 /**
  * 家族の統合トークルーム（田んぼOS「話す」空間）。
@@ -325,6 +325,9 @@ function MessageRow({
         e.stopPropagation();
         onFieldTap(m.fieldId!);
       }}
+      // 親を div role="button" 化したため、keydownはclickと違いstopPropagationだけでは
+      // 止まらず親のonOpenまでバブリングする。Enter/Spaceでの二重発火を防ぐ
+      onKeyDown={(e) => e.stopPropagation()}
       className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
     >
       🌾 {m.fieldName}
@@ -347,14 +350,14 @@ function MessageRow({
           </span>
         )}
         {m.isMine && (
-          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-0.5">
+          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1">
             {onDelete && (
               <button
                 onClick={onDelete}
                 aria-label="このメッセージを削除"
-                className="rounded px-1 text-[11px] leading-none text-gray-400 active:text-red-500"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
               >
-                ⋮
+                <IconTrash className="h-4 w-4" />
               </button>
             )}
             <span className="text-[9px] text-gray-400">{m.timeLabel}</span>
@@ -367,9 +370,18 @@ function MessageRow({
           )}
 
           {m.kind === "comment" ? (
-            <button
+            // fieldChip がボタンのためネストボタンを避け、div+role="button" で代用する
+            <div
+              role="button"
+              tabIndex={0}
               onClick={onOpen}
-              className={`block rounded-2xl px-3 py-2 text-left text-sm leading-relaxed shadow-sm ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen();
+                }
+              }}
+              className={`block cursor-pointer rounded-2xl px-3 py-2 text-left text-sm leading-relaxed shadow-sm ${
                 m.isMine
                   ? "rounded-br-sm bg-green-600 text-white"
                   : "rounded-bl-sm bg-white text-gray-800"
@@ -388,11 +400,19 @@ function MessageRow({
               )}
               {!m.isMine && !m.recordTitle && fieldChip && <span className="mr-1.5">{fieldChip}</span>}
               {m.text}
-            </button>
+            </div>
           ) : (
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={onOpen}
-              className={`block overflow-hidden rounded-2xl text-left shadow-sm ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen();
+                }
+              }}
+              className={`block cursor-pointer overflow-hidden rounded-2xl text-left shadow-sm ${
                 m.isMine ? "rounded-br-sm border border-emerald-200 bg-emerald-50" : "rounded-bl-sm bg-white"
               }`}
             >
@@ -415,9 +435,14 @@ function MessageRow({
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {fieldChip}
-                  {(m.status === "open" || m.status === "needs_check") && (
+                  {/* records.status は既定値が 'open' のため、異常系（isIssue）以外の
+                      ふつうの記録（写真/作業/ひとこと等）にまで「未対応」を出さない。
+                      isIssueでも解決済み（resolved等）になっていれば表示しない。
+                      需要確認（needs_check）は明示的に付けられた状態なので種別を問わず表示する */}
+                  {((m.isIssue && (m.status === "open" || m.status === "needs_check")) ||
+                    m.status === "needs_check") && (
                     <StatusBadge
-                      status={m.isIssue || m.status === "open" ? "open" : "needs_check"}
+                      status={m.isIssue && m.status === "open" ? "open" : "needs_check"}
                       className="text-[10px]"
                     />
                   )}
@@ -432,7 +457,7 @@ function MessageRow({
                   )}
                 </div>
               </div>
-            </button>
+            </div>
           )}
         </div>
 

@@ -148,15 +148,16 @@ export function useTransceiver(opts: {
     if (startingRef.current || state !== "idle") return;
     startingRef.current = true;
     stopRequestedRef.current = null;
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // 待っている間に指が離されていたら即終了
-      if (stopRequestedRef.current) {
-        stream.getTracks().forEach((t) => t.stop());
-        startingRef.current = false;
-        stopRequestedRef.current = null;
-        return;
-      }
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      onError("マイクを使用できません。ブラウザの許可設定を確認してください");
+      setState("idle");
+      startingRef.current = false;
+      return;
+    }
+    try {
       streamRef.current = stream;
       chunksRef.current = [];
       const mime = pickMimeType();
@@ -182,8 +183,16 @@ export function useTransceiver(opts: {
           recorderRef.current.stop();
         }
       }, 250);
+      // getUserMedia待ちの間に指が離されていた場合は、録音を開始した上ですぐ止める。
+      // finish() 側のMIN_DURATION_MSガードで「短すぎる」ものは自然に破棄され、
+      // ストリームを握ったまま黙って終了する（送信も通知もされない）事態を避ける
+      if (stopRequestedRef.current) {
+        recorder.stop();
+      }
     } catch {
-      onError("マイクを使用できません。ブラウザの許可設定を確認してください");
+      stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      onError("録音を開始できませんでした。別のブラウザやアプリでお試しください");
       setState("idle");
     } finally {
       startingRef.current = false;
