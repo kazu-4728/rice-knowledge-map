@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPoint } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -60,7 +60,8 @@ export default function HomeScreen() {
         else entry.needsCheckCount++;
         attnMap.set(p.fieldId, entry);
       });
-      issueRecords.forEach(({ fieldId, isIssue }) => {
+      // ピンに紐付いた異常記録はピン側で数え済みのため、「記録のみ」の異常だけを加算する
+      excludePointBackedIssues(issueRecords, data.points).forEach(({ fieldId, isIssue }) => {
         if (!fieldId) return;
         const entry = attnMap.get(fieldId) ?? { issueCount: 0, needsCheckCount: 0 };
         if (isIssue) entry.issueCount++;

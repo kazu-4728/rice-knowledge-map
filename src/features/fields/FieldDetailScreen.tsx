@@ -297,14 +297,18 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const photoRecords = records.filter((r) => r.media === "photo");
 
   // 定点観測タイムマシン: 写真をピン単位でグルーピング（ピン未紐付けは「田んぼ全体」にまとめる）
+  // media は写真の実体がない記録（ひとこと等）でも "photo" になるため、
+  // 実際に写真が付いている記録だけを比較対象にする（プレースホルダ同士の比較を防ぐ）
   const pointById = new Map(points.map((p) => [p.id, p]));
   const groupMap = new Map<string, RecordItem[]>();
-  photoRecords.forEach((r) => {
-    const key = r.pointId ?? "__field__";
-    const list = groupMap.get(key) ?? [];
-    list.push(r);
-    groupMap.set(key, list);
-  });
+  photoRecords
+    .filter((r) => (r.photoCount ?? 0) > 0)
+    .forEach((r) => {
+      const key = r.pointId ?? "__field__";
+      const list = groupMap.get(key) ?? [];
+      list.push(r);
+      groupMap.set(key, list);
+    });
   const observationGroups = [...groupMap.entries()]
     .map(([key, list]) => {
       const point = key !== "__field__" ? pointById.get(key) : undefined;

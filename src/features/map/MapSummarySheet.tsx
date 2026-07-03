@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import { getSeasonPhase } from "../../lib/season";
 
@@ -92,7 +92,8 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
         attnMap.set(p.fieldId, entry);
       });
       // ピンのステータス変更を伴わない「記録のみ」の異常も反映する
-      issueRecords.forEach(({ fieldId, isIssue }) => {
+      // （ピンに紐付いた異常記録はピン側で数え済みのため除外して二重集計を防ぐ）
+      excludePointBackedIssues(issueRecords, data.points).forEach(({ fieldId, isIssue }) => {
         if (!fieldId) return;
         const entry = attnMap.get(fieldId) ?? {
           issueCount: 0,

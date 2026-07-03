@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
+import { excludePointBackedIssues, loadOpenIssueRecords } from "../../lib/data/records";
 import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
@@ -81,7 +82,7 @@ export default function FieldsPage() {
       });
     }
 
-    loadFarmData().then(async (data) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(async ([data, issueRecords]) => {
       setMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
@@ -99,6 +100,14 @@ export default function FieldsPage() {
         if (!statusMap[p.fieldId]) statusMap[p.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
         if (p.status === "issue") statusMap[p.fieldId].issueCount++;
         else if (p.status === "needs_check") statusMap[p.fieldId].needsCheckCount++;
+      }
+      // ピン変更を伴わない「記録のみ」の異常も反映する（記録だけ残して放置した
+      // 田んぼに「順調」バッジを出さない。ピン紐付き分は除外して二重集計を防ぐ）
+      for (const r of excludePointBackedIssues(issueRecords, data.points)) {
+        if (!r.fieldId) continue;
+        if (!statusMap[r.fieldId]) statusMap[r.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
+        if (r.isIssue) statusMap[r.fieldId].issueCount++;
+        else statusMap[r.fieldId].needsCheckCount++;
       }
       setFieldStatuses((prev) => {
         const next = { ...prev };
