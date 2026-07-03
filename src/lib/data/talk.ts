@@ -1,5 +1,5 @@
 import { getSupabase } from "../supabase/client";
-import { ensureGroupId } from "./farm";
+import { resolveGroupIdForField } from "./farm";
 
 /**
  * 統合トークルーム（/talk）のデータ層。
@@ -310,7 +310,7 @@ export async function sendTalkText(
   const user = sessionData.session?.user;
   if (!user) return { error: "ログインが必要です" };
 
-  const groupId = await ensureGroupId();
+  const groupId = await resolveGroupIdForField(fieldId);
   if (!groupId) return { error: "グループが見つかりません" };
 
   const firstLine = trimmed.split("\n")[0];
@@ -320,6 +320,9 @@ export async function sendTalkText(
     group_id: groupId,
     field_id: fieldId,
     record_type: "other",
+    // 既定値'open'のままだと記録詳細で「未対応」表示になり、雑談メッセージが
+    // 異常記録のように見えてしまう（デモデータのひとことメモも同じ扱い）
+    status: "monitoring",
     title,
     note: trimmed,
     recorded_by: user.id,
