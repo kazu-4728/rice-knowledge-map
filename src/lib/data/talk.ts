@@ -30,6 +30,10 @@ export type TalkMessage = {
   audioUrl?: string;
   status?: "open" | "needs_check" | "resolved" | "monitoring";
   isIssue?: boolean;
+  /** records.record_type（削除可否の判定に使用。"other"=ひとこと） */
+  recordType?: string;
+  /** メディア行が存在するか（署名URLの成否に依存しない削除ガード用） */
+  hasMedia?: boolean;
   /** この記録に付いたコメント数（スレッドの存在を示す） */
   commentCount?: number;
   // kind === "comment"
@@ -66,11 +70,11 @@ function demoMessages(): TalkMessage[] {
     dateLabel: dateLabel(m.atISO),
   });
   return [
-    mk({ key: "r-demo1", kind: "record", recordId: "record-a1", author: "父", isMine: false, atISO: at(60 * 26), fieldId: "field-a", fieldName: "A田", title: "取水口の確認", note: "水量は問題なし", photoCount: 1, status: "resolved", commentCount: 1 }),
+    mk({ key: "r-demo1", kind: "record", recordId: "record-a1", author: "父", isMine: false, atISO: at(60 * 26), fieldId: "field-a", fieldName: "A田", title: "取水口の確認", note: "水量は問題なし", photoCount: 1, status: "resolved", commentCount: 1, recordType: "water", hasMedia: true }),
     mk({ key: "c-demo1", kind: "comment", recordId: "record-a1", author: "あなた", isMine: true, atISO: at(60 * 25), fieldId: "field-a", fieldName: "A田", text: "確認ありがとう👍", recordTitle: "取水口の確認" }),
-    mk({ key: "r-demo2", kind: "record", recordId: "record-b1", author: "母", isMine: false, atISO: at(60 * 5), fieldId: "field-b", fieldName: "B田", title: "畦に崩れあり", note: "南側の畦。早めに見てほしい", photoCount: 2, status: "open", isIssue: true, commentCount: 1 }),
+    mk({ key: "r-demo2", kind: "record", recordId: "record-b1", author: "母", isMine: false, atISO: at(60 * 5), fieldId: "field-b", fieldName: "B田", title: "畦に崩れあり", note: "南側の畦。早めに見てほしい", photoCount: 2, status: "open", isIssue: true, commentCount: 1, recordType: "issue", hasMedia: true }),
     mk({ key: "c-demo2", kind: "comment", recordId: "record-b1", author: "あなた", isMine: true, atISO: at(60 * 4), fieldId: "field-b", fieldName: "B田", text: "了解。夕方見てくる", recordTitle: "畦に崩れあり" }),
-    mk({ key: "r-demo3", kind: "record", recordId: "record-c1", author: "あなた", isMine: true, atISO: at(30), fieldId: "field-c", fieldName: "C田", title: "音声メモ", status: "monitoring" }),
+    mk({ key: "r-demo3", kind: "record", recordId: "record-c1", author: "あなた", isMine: true, atISO: at(30), fieldId: "field-c", fieldName: "C田", title: "ひとことメモ", status: "monitoring", recordType: "other", hasMedia: false }),
   ];
 }
 
@@ -212,6 +216,8 @@ export async function loadTalkTimeline(opts?: {
           audioUrl: audioUrls.get(r.id),
           status: VALID_STATUSES.has(r.status) ? (r.status as TalkMessage["status"]) : undefined,
           isIssue: r.record_type === "issue",
+          recordType: r.record_type,
+          hasMedia: (r.record_media?.length ?? 0) > 0,
           commentCount: r.record_comments?.[0]?.count || undefined,
         };
       }),

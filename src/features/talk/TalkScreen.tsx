@@ -115,7 +115,12 @@ export default function TalkScreen() {
   // 自分のコメント／メディアなしの「ひとこと」記録のみ削除できる（写真・音声の削除は記録詳細から）
   const handleDelete = useCallback(
     async (m: TalkMessage) => {
-      if (!window.confirm("このメッセージを削除しますか？")) return;
+      // 記録の削除はスレッドの返信も一緒に消える（cascade）ため、その旨を明示して確認する
+      const confirmText =
+        m.kind === "record" && m.commentCount != null && m.commentCount > 0
+          ? `この記録には返信が${m.commentCount}件付いています。記録と返信をまとめて削除しますか？`
+          : "このメッセージを削除しますか？";
+      if (!window.confirm(confirmText)) return;
       if (m.kind === "comment") {
         const { error } = await deleteComment(m.key.replace(/^c-/, ""));
         if (error) {
@@ -239,7 +244,11 @@ export default function TalkScreen() {
                 onOpen={() => router.push(`/records/${m.recordId}`)}
                 onFieldTap={(id) => setFilterId(id)}
                 onDelete={
-                  m.isMine && (m.kind === "comment" || (!m.photoUrl && !m.audioUrl))
+                  // 自分のコメント、または自分の「ひとこと」（record_type=other かつメディア行なし）のみ。
+                  // photoUrl（署名URL）は圏外等で発行に失敗しても hasMedia は record_media 由来で
+                  // 常に判定できるため、写真付き記録に誤って削除ボタンが出ることはない
+                  m.isMine &&
+                  (m.kind === "comment" || (m.recordType === "other" && !m.hasMedia))
                     ? () => handleDelete(m)
                     : undefined
                 }
