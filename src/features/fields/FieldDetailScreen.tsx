@@ -106,6 +106,17 @@ function ObservationGroup({
   const [baseIndex, setBaseIndex] = useState(0);
   const [compareIndex, setCompareIndex] = useState(photos.length - 1);
 
+  // 同じコンポーネントインスタンスがpropsの入れ替わり（田んぼ切り替え等）で再利用され、
+  // 新しいphotosがより短い場合に古いインデックスを参照してクラッシュしないようクランプする
+  const safeBaseIndex = Math.min(baseIndex, photos.length - 1);
+  const safeCompareIndex = Math.min(compareIndex, photos.length - 1);
+
+  useEffect(() => {
+    if (baseIndex > photos.length - 1) setBaseIndex(Math.max(0, photos.length - 1));
+    if (compareIndex > photos.length - 1) setCompareIndex(Math.max(0, photos.length - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos.length]);
+
   if (photos.length === 1) {
     return (
       <section className="rounded-2xl bg-white p-3 shadow-sm">
@@ -130,10 +141,10 @@ function ObservationGroup({
       </div>
 
       <PhotoCompareSlider
-        beforeUrl={photos[baseIndex].url}
-        afterUrl={photos[compareIndex].url}
-        beforeLabel={photos[baseIndex].shortDate}
-        afterLabel={photos[compareIndex].shortDate}
+        beforeUrl={photos[safeBaseIndex].url}
+        afterUrl={photos[safeCompareIndex].url}
+        beforeLabel={photos[safeBaseIndex].shortDate}
+        afterLabel={photos[safeCompareIndex].shortDate}
       />
 
       {/* 比較対象（今）を時系列に動かすスライダー */}
@@ -141,17 +152,17 @@ function ObservationGroup({
         type="range"
         min={0}
         max={photos.length - 1}
-        value={compareIndex}
+        value={safeCompareIndex}
         onChange={(e) => setCompareIndex(Number(e.target.value))}
         className="mt-3 w-full accent-green-700"
         aria-label={`${label}の写真を時系列で比較する`}
       />
 
       <div className="mt-1.5 flex items-center justify-between text-xs">
-        <Link href={`/records/${photos[baseIndex].id}`} className="font-semibold text-green-700">
+        <Link href={`/records/${photos[safeBaseIndex].id}`} className="font-semibold text-green-700">
           「以前」の記録を見る
         </Link>
-        <Link href={`/records/${photos[compareIndex].id}`} className="font-semibold text-green-700">
+        <Link href={`/records/${photos[safeCompareIndex].id}`} className="font-semibold text-green-700">
           「今」の記録を見る
         </Link>
       </div>
@@ -163,10 +174,10 @@ function ObservationGroup({
             key={p.id}
             onClick={() => setBaseIndex(i)}
             className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ${
-              i === baseIndex ? "ring-2 ring-green-600" : ""
+              i === safeBaseIndex ? "ring-2 ring-green-600" : ""
             }`}
             aria-label={`${p.date}の写真を基準にする`}
-            aria-pressed={i === baseIndex}
+            aria-pressed={i === safeBaseIndex}
           >
             <RemotePhoto src={p.url} alt={p.date} className="h-full w-full object-cover" fallbackVariant="field" />
           </button>

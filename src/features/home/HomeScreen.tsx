@@ -144,7 +144,7 @@ export default function HomeScreen() {
           <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
         </Link>
       )}
-      {!isAnon && openIssueCount === 0 && (
+      {!isAnon && openIssueCount === 0 && totalCounts.issue === 0 && totalCounts.needsCheck === 0 && (
         <div className="flex items-center gap-2 rounded-2xl bg-green-50 p-4">
           <StatusBadge status="normal" />
           <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
@@ -168,7 +168,7 @@ export default function HomeScreen() {
       )}
 
       {/* 信号色の統計サマリー（見わたす場所らしく、全体の量感を大きく見せる） */}
-      {loaded && !isAnon && (
+      {loaded && !isAnon && !loadError && (
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
             <p className="text-3xl font-bold leading-none text-gray-900">{fields.length}</p>
