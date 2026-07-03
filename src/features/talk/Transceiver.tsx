@@ -131,6 +131,9 @@ export function useTransceiver(opts: {
         memo: "",
         location,
         recordedAt: new Date().toISOString(),
+        // 異常判定に関与しない音声メモのため、既定値'open'のままだと記録詳細で
+        // 「未対応」と誤表示される（テキストのひとことメッセージと同じ理由）
+        status: "monitoring",
       });
       setState("idle");
       if (result.status === "saved") {

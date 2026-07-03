@@ -61,6 +61,7 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
         field_id: draft.fieldId,
         point_id: draft.pointId ?? null,
         record_type: recordType,
+        ...(draft.status ? { status: draft.status } : {}),
         title: buildTitle(draft),
         note: draft.memo.trim() || null,
         // 選んだポイント種別そのもの（inlet/outlet/weed/caution）。record_typeは分類が粗く
