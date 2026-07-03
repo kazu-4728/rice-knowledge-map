@@ -8,16 +8,16 @@ import { TYPE_LABELS } from "../map/mapPins";
 import { consumeJustSaved } from "./recordDraft";
 import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { Card, CardContent } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Skeleton } from "../../components/ui/skeleton";
 import {
   IconCamera,
-  IconChevronRight,
   IconDrop,
-  IconDropFill,
   IconMic,
   IconPin,
   IconSearch,
   IconSprout,
-  IconWarningFill,
 } from "../../components/ui/icons";
 
 const filterChips = [
@@ -45,27 +45,19 @@ function matchesFilter(record: RecordItem, filter: FilterLabel): boolean {
   }
 }
 
-const categoryChip: Record<RecordItem["category"], string> = {
-  水管理: "bg-blue-50 text-blue-600",
-  作業: "bg-green-50 text-green-700",
-  異常: "bg-orange-50 text-orange-600",
-  音声: "bg-green-50 text-green-700",
+/** メディアカードの写真上に重ねるカテゴリ帯色（田んぼ詳細の記録タブと共通の見た目） */
+const CATEGORY_BADGE: Record<RecordItem["category"], string> = {
+  水管理: "border-transparent bg-blue-600 text-white",
+  作業: "border-transparent bg-green-700 text-white",
+  異常: "border-transparent bg-orange-600 text-white",
+  音声: "border-transparent bg-teal-600 text-white",
 };
 
-const RECORD_STATUS_CHIP: Record<RecordItem["status"], { label: string; cls: string }> = {
-  open: { label: "未対応", cls: "bg-amber-50 text-amber-600 border-amber-200" },
-  needs_check: { label: "要確認", cls: "bg-orange-50 text-orange-600 border-orange-200" },
-  resolved: { label: "解決済み", cls: "bg-gray-50 text-gray-500 border-gray-200" },
-  monitoring: { label: "経過観察", cls: "bg-blue-50 text-blue-600 border-blue-200" },
+/** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
+const STATUS_BADGE: Partial<Record<RecordItem["status"], { label: string; cls: string }>> = {
+  open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
+  needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
 };
-
-
-function TitleIcon({ record }: { record: RecordItem }) {
-  if (record.category === "異常") return <IconWarningFill className="h-4.5 w-4.5 shrink-0 text-amber-500" />;
-  if (record.category === "作業") return <IconSprout className="h-4.5 w-4.5 shrink-0 text-green-600" />;
-  if (record.media === "audio") return <IconMic className="h-4.5 w-4.5 shrink-0 text-green-700" />;
-  return <IconDropFill className="h-4.5 w-4.5 shrink-0 text-sky-500" />;
-}
 
 const thumbVariant = (record: RecordItem) =>
   record.category === "作業" ? ("grass" as const) : record.category === "異常" ? ("sprout" as const) : ("water" as const);
@@ -220,58 +212,71 @@ export default function RecordsScreen() {
         </div>
       )}
 
-      {/* 日付グループ */}
+      {/* 読み込み中 */}
+      {mode === "loading" && (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-56 w-full rounded-xl" />
+          ))}
+        </div>
+      )}
+
+      {/* 日付グループ（写真主体のメディアカード。田んぼ詳細の記録タブと同じ見た目） */}
       {groups.map((group) => (
-        <section key={group.date} className="mt-4">
-          <h2 className="px-1 text-sm font-bold text-gray-800">{group.date}</h2>
-          <div className="mt-2 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {group.items.map((record) => (
-              <Link
-                key={record.id}
-                href={`/records/${record.id}`}
-                className={`flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-sm transition-colors hover:bg-gray-50 ${
-                  isUnresolvedIssue(record) ? "ring-1 ring-amber-200" : ""
-                }`}
-              >
-                <span className="w-11 shrink-0 text-sm font-semibold text-gray-700">{record.time}</span>
-                <RecordThumb
-                  media={record.media}
-                  variant={thumbVariant(record)}
-                  duration={record.audioDuration}
-                  thumbUrl={thumbUrls[record.id]}
-                  className="h-16 w-20 shrink-0 rounded-lg"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <TitleIcon record={record} />
-                    <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                  </div>
-                  <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                    <IconPin className="h-3.5 w-3.5" />
-                    <span className="truncate">
-                      {record.fieldName}
-                      {record.fieldArea && `（${record.fieldArea}）`}
-                      {record.pointName
-                        ? `・${record.pointName}`
-                        : record.pointId && TYPE_LABELS[record.pointType]
-                          ? `・${TYPE_LABELS[record.pointType]}`
-                          : ""}
-                    </span>
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${categoryChip[record.category]}`}>
-                    {record.category}
-                  </span>
-                  {ISSUE_POINT_TYPES.includes(record.pointType) && (
-                    <span className={`rounded-md border px-2 py-0.5 text-xs font-bold ${RECORD_STATUS_CHIP[record.status].cls}`}>
-                      {RECORD_STATUS_CHIP[record.status].label}
-                    </span>
-                  )}
-                  <IconChevronRight className="h-4 w-4 text-gray-400" />
-                </div>
-              </Link>
-            ))}
+        <section key={group.date} className="mt-5">
+          <div className="flex items-center gap-3 px-1">
+            <h2 className="shrink-0 text-sm font-bold text-gray-800">{group.date}</h2>
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="shrink-0 text-xs text-gray-400">{group.items.length}件</span>
+          </div>
+          <div className="mt-2.5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {group.items.map((record) => {
+              const statusBadge = ISSUE_POINT_TYPES.includes(record.pointType)
+                ? STATUS_BADGE[record.status]
+                : undefined;
+              return (
+                <Link key={record.id} href={`/records/${record.id}`} className="block transition-transform active:scale-[0.99]">
+                  <Card className={`overflow-hidden ${isUnresolvedIssue(record) ? "ring-2 ring-amber-300" : ""}`}>
+                    <div className="relative h-36">
+                      <RecordThumb
+                        media={record.media}
+                        variant={thumbVariant(record)}
+                        duration={record.audioDuration}
+                        thumbUrl={thumbUrls[record.id]}
+                        className="h-full w-full"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent" />
+                      <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+                        {record.category}
+                      </Badge>
+                      {statusBadge && (
+                        <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+                          {statusBadge.label}
+                        </Badge>
+                      )}
+                      <span className="absolute bottom-2 right-3 text-xs font-bold text-white drop-shadow">
+                        {record.time}
+                      </span>
+                    </div>
+                    <CardContent className="px-3.5 py-2.5">
+                      <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                        <IconPin className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">
+                          {record.fieldName}
+                          {record.fieldArea && `（${record.fieldArea}）`}
+                          {record.pointName
+                            ? `・${record.pointName}`
+                            : record.pointId && TYPE_LABELS[record.pointType]
+                              ? `・${TYPE_LABELS[record.pointType]}`
+                              : ""}
+                        </span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </section>
       ))}
