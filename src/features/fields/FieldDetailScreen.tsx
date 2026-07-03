@@ -15,6 +15,7 @@ import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
+import SectionHeading from "../../components/ui/SectionHeading";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
@@ -438,7 +439,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
       {/* この田んぼを記録する — 次にすべきこと */}
       <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <p className="text-sm font-bold text-gray-900">この田んぼを記録する</p>
+        <SectionHeading level={3}>この田んぼを記録する</SectionHeading>
         <div className="mt-3 flex gap-3">
           <Link
             href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
@@ -459,7 +460,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
       {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
       {attention.length > 0 || openRecords.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm">
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-3.5 shadow-sm">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
           </span>
@@ -529,11 +530,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         <div role="tabpanel" id="field-tabpanel-overview" aria-labelledby="field-tab-overview">
           {points.length > 0 ? (
             <section className="rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <IconPinFill className="h-5 w-5 text-green-700" />
-                <h2 className="text-sm font-bold text-gray-900">ポイントの状態</h2>
-                <span className="ml-auto text-xs text-gray-400">{points.length}件</span>
-              </div>
+              <SectionHeading
+                level={3}
+                className="mb-3"
+                trailing={<span className="text-xs text-gray-400">{points.length}件</span>}
+              >
+                ポイントの状態
+              </SectionHeading>
               <ul className="space-y-2">
                 {sortedPoints.map((point) => {
                   const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];

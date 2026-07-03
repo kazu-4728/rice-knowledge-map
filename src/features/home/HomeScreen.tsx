@@ -9,6 +9,7 @@ import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
 import { getSeasonPhase } from "../../lib/season";
 import SeasonTimelineBar from "../../components/ui/SeasonTimelineBar";
+import SectionHeading from "../../components/ui/SectionHeading";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import {
@@ -129,7 +130,7 @@ export default function HomeScreen() {
       {!isAnon && openIssueCount !== null && openIssueCount > 0 && (
         <Link
           href="/records?status=open"
-          className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition-transform active:scale-98"
+          className="flex items-center gap-3 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-4 shadow-sm transition-transform active:scale-98"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <IconWarningFill className="h-5 w-5 text-amber-600" />
@@ -192,10 +193,7 @@ export default function HomeScreen() {
       {/* 要注意の田んぼ */}
       {attentionFields.length > 0 && (
         <section className="rounded-2xl bg-white shadow-sm">
-          <div className="flex items-center gap-2 p-4 pb-2">
-            <IconWarningFill className="h-5 w-5 text-amber-500" />
-            <h2 className="text-base font-bold text-gray-900">要注意の田んぼ</h2>
-          </div>
+          <SectionHeading tone="alert" className="p-4 pb-2">要注意の田んぼ</SectionHeading>
           <ul className="px-4 pb-3">
             {attentionFields.map((af, i) => (
               <li key={af.id}>
@@ -272,16 +270,20 @@ export default function HomeScreen() {
 
       {/* 最近の記録 */}
       <section className="rounded-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between p-4 pb-2">
-          <h2 className="text-base font-bold text-gray-900">最近の記録</h2>
-          <Link
-            href="/records"
-            className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
-          >
-            すべて
-            <IconChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
+        <SectionHeading
+          className="p-4 pb-2"
+          trailing={
+            <Link
+              href="/records"
+              className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
+            >
+              すべて
+              <IconChevronRight className="h-4 w-4" />
+            </Link>
+          }
+        >
+          最近の記録
+        </SectionHeading>
         {recentRecords.length === 0 ? (
           recordsMode === "loading" ? (
             <div className="space-y-2 px-4 pb-4">
@@ -352,16 +354,20 @@ export default function HomeScreen() {
         </section>
       ) : (
         <section className="rounded-2xl bg-white shadow-sm">
-          <div className="flex items-center justify-between p-4 pb-2">
-            <h2 className="text-base font-bold text-gray-900">田んぼ</h2>
-            <Link
-              href="/fields"
-              className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
-            >
-              一覧
-              <IconChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <SectionHeading
+            className="p-4 pb-2"
+            trailing={
+              <Link
+                href="/fields"
+                className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
+              >
+                一覧
+                <IconChevronRight className="h-4 w-4" />
+              </Link>
+            }
+          >
+            田んぼ
+          </SectionHeading>
           {!loaded ? (
             <div className="space-y-2 px-4 pb-4">
               <Skeleton className="h-6 w-24 rounded" />

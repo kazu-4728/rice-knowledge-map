@@ -10,6 +10,7 @@ import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
 import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
 
@@ -119,14 +120,22 @@ export default function TalkScreen() {
     await reload(filterId);
   }, [text, sending, filterId, reload, showToast]);
 
-  // 自分のコメント／メディアなしの「ひとこと」記録のみ削除できる（写真・音声の削除は記録詳細から）
+  // 自分のメッセージ（コメント・記録とも）を削除できる
   const handleDelete = useCallback(
     async (m: TalkMessage) => {
-      // 記録の削除はスレッドの返信も一緒に消える（cascade）ため、その旨を明示して確認する
-      const confirmText =
-        m.kind === "record" && m.commentCount != null && m.commentCount > 0
-          ? `この記録には返信が${m.commentCount}件付いています。記録と返信をまとめて削除しますか？`
-          : "このメッセージを削除しますか？";
+      // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
+      // 消えるものを明示して確認する
+      let confirmText = "このメッセージを削除しますか？";
+      if (m.kind === "record") {
+        const extras = [
+          m.hasMedia ? "写真・音声の添付" : null,
+          m.commentCount != null && m.commentCount > 0 ? `返信${m.commentCount}件` : null,
+        ].filter(Boolean);
+        confirmText =
+          extras.length > 0
+            ? `この記録を削除しますか？（${extras.join("と")}も一緒に削除されます）`
+            : "この記録を削除しますか？";
+      }
       if (!window.confirm(confirmText)) return;
       if (m.kind === "comment") {
         const { error } = await deleteComment(m.key.replace(/^c-/, ""));
@@ -251,13 +260,9 @@ export default function TalkScreen() {
                 onOpen={() => router.push(`/records/${m.recordId}`)}
                 onFieldTap={(id) => setFilterId(id)}
                 onDelete={
-                  // 自分のコメント、または自分の「ひとこと」（record_type=other かつメディア行なし）のみ。
-                  // photoUrl（署名URL）は圏外等で発行に失敗しても hasMedia は record_media 由来で
-                  // 常に判定できるため、写真付き記録に誤って削除ボタンが出ることはない
-                  m.isMine &&
-                  (m.kind === "comment" || (m.recordType === "other" && !m.hasMedia))
-                    ? () => handleDelete(m)
-                    : undefined
+                  // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
+                  // 家族の誤削除を防ぐため他人のメッセージには出さない
+                  m.isMine ? () => handleDelete(m) : undefined
                 }
               />
             ))}
@@ -278,18 +283,27 @@ export default function TalkScreen() {
           >
             <IconCamera className="h-5.5 w-5.5" />
           </Link>
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={filterName ? `${filterName}へひとこと…` : "家族へひとこと…"}
-            className="h-11 min-w-0 flex-1 rounded-full bg-gray-100 px-4 text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
+          {/* テキスト入力。中の小さいマイクは「音声入力」（音声→文字起こし）で、
+              右端の大きいマイク（トランシーバー=音声メモ送信）とは別機能 */}
+          <div className="flex h-11 min-w-0 flex-1 items-center rounded-full bg-gray-100 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-emerald-400">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={filterName ? `${filterName}へひとこと…` : "家族へひとこと…"}
+              className="h-full min-w-0 flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            />
+            <VoiceInputButton
+              onText={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))}
+              disabled={sending}
+              className="shrink-0"
+            />
+          </div>
           {text.trim() ? (
             <button
               onClick={handleSend}
