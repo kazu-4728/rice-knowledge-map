@@ -10,6 +10,7 @@ import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
 import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { compressImage } from "../../lib/utils/imageCompress";
 import { formatAreaSqm } from "../../lib/utils/geo";
@@ -281,13 +282,12 @@ export default function FieldsPage() {
           </div>
         )}
 
-        <Link
-          href="/map"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-green-600 bg-white py-4 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
-        >
-          <IconPlus className="h-5 w-5" strokeWidth={2.2} />
-          田んぼを追加（マップで描く）
-        </Link>
+        <Button asChild variant="secondary" size="lg" className="w-full border-dashed">
+          <Link href="/map">
+            <IconPlus className="h-5 w-5" strokeWidth={2.2} />
+            田んぼを追加（マップで描く）
+          </Link>
+        </Button>
       </div>
     </AppShell>
   );
