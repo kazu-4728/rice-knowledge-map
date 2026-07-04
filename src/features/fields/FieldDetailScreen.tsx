@@ -17,6 +17,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
 import SectionHeading from "../../components/ui/SectionHeading";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
@@ -515,31 +516,17 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </Link>
       )}
 
-      {/* タブ */}
-      <div className="flex gap-6 border-b border-gray-200 px-1" role="tablist" aria-label="田んぼ詳細の表示切り替え">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            id={`field-tab-${tab.key}`}
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            aria-controls={`field-tabpanel-${tab.key}`}
-            onClick={() => setActiveTab(tab.key)}
-            className={`relative pb-2.5 text-sm font-bold transition-colors ${
-              activeTab === tab.key ? "text-green-800" : "text-gray-400"
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.key && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-green-800" />
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+        <TabsList aria-label="田んぼ詳細の表示切り替え">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
       {/* 概要タブ: ポイントの状態 */}
-      {activeTab === "overview" && (
-        <div role="tabpanel" id="field-tabpanel-overview" aria-labelledby="field-tab-overview">
+      <TabsContent value="overview" className="mt-3">
           {points.length > 0 ? (
             <section className="rounded-2xl bg-white p-4 shadow-sm">
               <SectionHeading
@@ -582,12 +569,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">マップで入水口・異常箇所などを登録できます</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
 
       {/* 記録タブ: 写真主体のタイムライン（大量記録時に一括描画しないようページング） */}
-      {activeTab === "records" && (
-        <div role="tabpanel" id="field-tabpanel-records" aria-labelledby="field-tab-records">
+      <TabsContent value="records" className="mt-3">
           {records.length > 0 ? (
             <>
               <div className="space-y-3">
@@ -624,12 +609,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 })}
               </div>
               {recordsShown < records.length && (
-                <button
+                <Button
+                  variant="tertiary"
+                  className="mt-3 w-full"
                   onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
-                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 shadow-sm active:bg-gray-50"
                 >
                   もっと見る（残り{records.length - recordsShown}件）
-                </button>
+                </Button>
               )}
             </>
           ) : (
@@ -638,12 +624,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
 
       {/* 定点観測タイムマシン: 同じ地点の写真を時系列比較 */}
-      {activeTab === "photos" && (
-        <div role="tabpanel" id="field-tabpanel-photos" aria-labelledby="field-tab-photos">
+      <TabsContent value="photos" className="mt-3">
           {observationGroups.length > 0 ? (
             <div className="space-y-3">
               {observationGroups.map((g) => (
@@ -656,8 +640,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加すると、同じ地点の変化を見比べられます</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
+      </Tabs>
 
       {/* 二次導線 */}
       <Button asChild variant="secondary" className="w-full">

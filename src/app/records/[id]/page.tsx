@@ -28,6 +28,17 @@ import {
 } from "../../../lib/data/recordDetail";
 import type { RecordDetail } from "../../../types";
 import { VoiceInputButton } from "../../../components/ui/VoiceInputButton";
+import { Button } from "../../../components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "../../../components/ui/alert-dialog";
 
 export default function RecordDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +49,6 @@ export default function RecordDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -209,39 +219,19 @@ export default function RecordDetailPage() {
         </button>
         <h1 className="text-lg font-bold text-white">記録詳細</h1>
         {canDelete && (
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="その他の操作"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="absolute right-1 p-2.5 text-white/90"
-          >
-            <IconMoreVertical className="h-6 w-6" />
-          </button>
-        )}
-        {menuOpen && (
-          <>
-            {/* 背景をタップしたらメニューを閉じる（aria-hiddenの装飾要素） */}
-            <button
-              aria-hidden="true"
-              tabIndex={-1}
-              onClick={() => setMenuOpen(false)}
-              className="fixed inset-0 z-30 cursor-default bg-transparent"
-            />
-            <div
-              role="menu"
-              className="absolute right-2 top-12 z-40 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
-            >
-              <button
-                role="menuitem"
-                onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
-                className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
-              >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button aria-label="その他の操作" className="absolute right-1 p-2.5 text-white/90">
+                <IconMoreVertical className="h-6 w-6" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem destructive onSelect={() => setConfirmDelete(true)}>
                 <IconTrash className="h-4 w-4" />
                 記録を削除
-              </button>
-            </div>
-          </>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </header>
 
@@ -390,19 +380,21 @@ export default function RecordDetailPage() {
                 className="w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
               />
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="tertiary"
+                  className="flex-1"
                   onClick={() => { setShowCommentInput(false); setCommentText(""); }}
-                  className="flex-1 rounded-xl border border-gray-300 py-2 text-sm font-semibold text-gray-600"
                 >
                   キャンセル
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
                   onClick={handleAddComment}
                   disabled={submitting || !commentText.trim()}
-                  className="flex-1 rounded-xl bg-green-700 py-2 text-sm font-bold text-white disabled:opacity-50"
                 >
                   {submitting ? "送信中…" : "送信"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -456,54 +448,43 @@ export default function RecordDetailPage() {
 
       {/* 下部アクション */}
       <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-        <button
+        <Button
+          variant={isResolved ? "tertiary" : "secondary"}
+          className="flex-1"
           onClick={handleResolve}
           disabled={isResolved || resolving}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors ${
-            isResolved
-              ? "border-gray-300 bg-gray-50 text-gray-400"
-              : "border-green-700 bg-white text-green-700 hover:bg-green-50"
-          }`}
         >
           <IconCheck className="h-5 w-5" strokeWidth={2.2} />
           {isResolved ? "対応済み" : resolving ? "更新中…" : "対応済みにする"}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="primary"
+          className="flex-1"
           onClick={() => router.push(`/records/new?${followupQuery}`)}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
         >
           <IconMic className="h-4.5 w-4.5" />
           追記する
-        </button>
+        </Button>
       </div>
 
-      {/* 削除確認モーダル（親の overflow-hidden を抜けるため fixed） */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <h2 className="text-base font-bold text-gray-900">この記録を削除しますか？</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              写真・音声・コメントもまとめて削除されます。元には戻せません。
-            </p>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-                className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-50"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? "削除中…" : "削除する"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 削除確認モーダル */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogTitle>この記録を削除しますか？</AlertDialogTitle>
+          <AlertDialogDescription>
+            写真・音声・コメントもまとめて削除されます。元には戻せません。
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+            >
+              {deleting ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

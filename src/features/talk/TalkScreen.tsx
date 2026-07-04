@@ -11,6 +11,15 @@ import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
 import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
 
@@ -34,6 +43,8 @@ export default function TalkScreen() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
@@ -120,44 +131,45 @@ export default function TalkScreen() {
     await reload(filterId);
   }, [text, sending, filterId, reload, showToast]);
 
-  // 自分のメッセージ（コメント・記録とも）を削除できる
-  const handleDelete = useCallback(
-    async (m: TalkMessage) => {
-      // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
-      // 消えるものを明示して確認する
-      let confirmText = "このメッセージを削除しますか？";
-      if (m.kind === "record") {
-        const extras = [
-          m.hasMedia ? "写真・音声の添付" : null,
-          m.commentCount != null && m.commentCount > 0 ? `返信${m.commentCount}件` : null,
-        ].filter(Boolean);
-        confirmText =
-          extras.length > 0
-            ? `この記録を削除しますか？（${extras.join("と")}も一緒に削除されます）`
-            : "この記録を削除しますか？";
+  // 自分のメッセージ（コメント・記録とも）を削除できる。確認はAlertDialogで行う
+  // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
+  // 消えるものを明示して確認する
+  const deleteExtrasText = (m: TalkMessage): string | null => {
+    if (m.kind !== "record") return null;
+    const extras = [
+      m.hasMedia ? "写真・音声の添付" : null,
+      m.commentCount != null && m.commentCount > 0 ? `返信${m.commentCount}件` : null,
+    ].filter(Boolean);
+    return extras.length > 0 ? `${extras.join("と")}も一緒に削除されます。元には戻せません。` : "元には戻せません。";
+  };
+
+  const handleDelete = useCallback(async () => {
+    const m = pendingDelete;
+    if (!m || deleting) return;
+    setDeleting(true);
+    if (m.kind === "comment") {
+      const { error } = await deleteComment(m.key.replace(/^c-/, ""));
+      if (error) {
+        showToast(error, "error");
+        setDeleting(false);
+        return;
       }
-      if (!window.confirm(confirmText)) return;
-      if (m.kind === "comment") {
-        const { error } = await deleteComment(m.key.replace(/^c-/, ""));
-        if (error) {
-          showToast(error, "error");
-          return;
-        }
-      } else {
-        const result = await deleteRecord(m.recordId);
-        if (result.status !== "deleted") {
-          showToast(
-            result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
-            "error"
-          );
-          return;
-        }
+    } else {
+      const result = await deleteRecord(m.recordId);
+      if (result.status !== "deleted") {
+        showToast(
+          result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
+          "error"
+        );
+        setDeleting(false);
+        return;
       }
-      showToast("削除しました");
-      await reload(filterId);
-    },
-    [filterId, reload, showToast]
-  );
+    }
+    setDeleting(false);
+    setPendingDelete(null);
+    showToast("削除しました");
+    await reload(filterId);
+  }, [pendingDelete, deleting, filterId, reload, showToast]);
 
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
@@ -262,7 +274,7 @@ export default function TalkScreen() {
                 onDelete={
                   // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
                   // 家族の誤削除を防ぐため他人のメッセージには出さない
-                  m.isMine ? () => handleDelete(m) : undefined
+                  m.isMine ? () => setPendingDelete(m) : undefined
                 }
               />
             ))}
@@ -325,6 +337,23 @@ export default function TalkScreen() {
       </div>
 
       <TransceiverOverlay transceiver={transceiver} />
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingDelete?.kind === "record" ? "この記録を削除しますか？" : "このメッセージを削除しますか？"}
+          </AlertDialogTitle>
+          {pendingDelete && (
+            <AlertDialogDescription>{deleteExtrasText(pendingDelete)}</AlertDialogDescription>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={deleting}>
+              {deleting ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
