@@ -111,9 +111,17 @@ export function IconUser(props: IconProps) {
   return <User strokeWidth={1.8} aria-hidden="true" {...props} />;
 }
 
-/** 人物アイコンの塗りつぶし版（lucideのUserを塗りで代用） */
+/**
+ * 人物アイコンの塗りつぶし版。lucideのUserは胴体パスが閉じておらず
+ * fill指定しても頭の丸だけしか表示されないため、独自SVGを維持する
+ */
 export function IconUserFill(props: IconProps) {
-  return <User fill="currentColor" stroke="none" aria-hidden="true" {...props} />;
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0Z" />
+    </svg>
+  );
 }
 
 export function IconUsers(props: IconProps) {

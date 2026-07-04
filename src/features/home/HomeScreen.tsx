@@ -41,10 +41,10 @@ export default function HomeScreen() {
   useEffect(() => {
     // ピンの異常/要確認 + ピン変更を伴わない「記録のみ」の異常をマージする
     // （MapSummarySheetと同じ考え方。田んぼ単位の内訳とバナー件数の食い違いを防ぐ）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, { records: issueRecords, count }]) => {
       if (data.mode === "anon") setIsAnon(true);
       if (data.mode === "error") setLoadError(true);
-      setOpenIssueCount(issueRecords.length);
+      setOpenIssueCount(count);
 
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),

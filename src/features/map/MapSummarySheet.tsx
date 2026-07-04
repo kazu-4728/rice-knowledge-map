@@ -59,9 +59,9 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     let cancelled = false;
 
     // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, { records: issueRecords, count }]) => {
       if (cancelled) return;
-      setOpenIssueCount(issueRecords.length);
+      setOpenIssueCount(count);
 
       // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
       if (data.mode === "error") {

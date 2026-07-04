@@ -53,7 +53,7 @@ export default function TodayStory() {
       if (!cancelled) setWeather(w);
     }).catch(() => {});
     // ピン状態の異常/要確認 + ピン変更を伴わない「記録のみ」の異常の両方を数える（MapSummarySheetと同じ考え方）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([farm, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([farm, { records: issueRecords }]) => {
       if (cancelled || farm.mode === "error") return;
       const fieldNames = new Map(
         farm.fieldsGeoJSON.features.map((f) => [

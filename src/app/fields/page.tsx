@@ -84,7 +84,7 @@ export default function FieldsPage() {
       });
     }
 
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(async ([data, issueRecords]) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(async ([data, { records: issueRecords }]) => {
       setMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),

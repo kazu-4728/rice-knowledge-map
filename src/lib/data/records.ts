@@ -74,26 +74,36 @@ export type OpenIssueRecord = {
   isIssue: boolean;
 };
 
+export type OpenIssueRecords = {
+  /** 田んぼ/ピン単位の内訳集計用（PostgRESTの行数上限がかかる場合がある） */
+  records: OpenIssueRecord[];
+  /** バナー等の件数表示用の正確な総数（COUNTベースのため上限の影響を受けない） */
+  count: number;
+};
+
 /**
  * 未対応（open/needs_check）の異常系レコードを取得する。
  * ピンのステータス変更を伴わない「記録のみ」の異常も拾うための共通クエリ
  * （MapSummarySheet と TodayStory の集計で使用）。未ログイン・未設定時は空配列。
+ * count は同じクエリに { count: "exact" } を付けて取得するため、
+ * records（行データ）がPostgRESTの上限で欠けても件数表示は正確なまま。
  */
-export async function loadOpenIssueRecords(): Promise<OpenIssueRecord[]> {
+export async function loadOpenIssueRecords(): Promise<OpenIssueRecords> {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) return { records: [], count: 0 };
   const { data: members } = await sb.from("farm_group_members").select("group_id").limit(1);
-  if (!members || members.length === 0) return [];
-  const { data } = await sb
+  if (!members || members.length === 0) return { records: [], count: 0 };
+  const { data, count } = await sb
     .from("records")
-    .select("field_id, point_id, record_type")
+    .select("field_id, point_id, record_type", { count: "exact" })
     .in("status", ["open", "needs_check"])
     .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
-  return (data ?? []).map((r) => ({
+  const records = (data ?? []).map((r) => ({
     fieldId: (r.field_id as string | null) ?? null,
     pointId: (r.point_id as string | null) ?? null,
     isIssue: r.record_type === "issue",
   }));
+  return { records, count: count ?? records.length };
 }
 
 /**

@@ -17,9 +17,12 @@ export default function SeasonTimelineBar() {
 
   return (
     <div>
-      <ul className="flex h-12 list-none gap-1 overflow-hidden rounded-xl p-0" aria-label="農事暦（1年の作業フェーズ）">
+      {/* 9フェーズ+gapで最小でも356px前後必要になるため、幅の狭い端末では
+          横スクロールで全フェーズに到達できるようにする（overflow-hiddenだと
+          右側のフェーズが見えず・タップもできなくなる） */}
+      <ul className="flex h-12 list-none gap-1 overflow-x-auto rounded-xl p-0" aria-label="農事暦（1年の作業フェーズ）">
         {timeline.map((p, i) => (
-          <li key={p.key} style={{ flexGrow: Math.max(1, (p.endFraction - p.startFraction) * 100) }} className="min-w-[2.25rem]">
+          <li key={p.key} style={{ flexGrow: Math.max(1, (p.endFraction - p.startFraction) * 100) }} className="min-w-[2.25rem] shrink-0">
             <button
               aria-label={`${p.label}${p.isCurrent ? "（現在）" : ""}。タップで詳しく`}
               aria-pressed={openIndex === i}
