@@ -17,15 +17,15 @@ export default function SeasonTimelineBar() {
 
   return (
     <div>
-      <ul className="flex h-9 list-none gap-0.5 overflow-hidden rounded-xl p-0" aria-label="農事暦（1年の作業フェーズ）">
+      <ul className="flex h-12 list-none gap-1 overflow-hidden rounded-xl p-0" aria-label="農事暦（1年の作業フェーズ）">
         {timeline.map((p, i) => (
-          <li key={p.key} style={{ flexGrow: Math.max(1, (p.endFraction - p.startFraction) * 100) }} className="min-w-[1.75rem]">
+          <li key={p.key} style={{ flexGrow: Math.max(1, (p.endFraction - p.startFraction) * 100) }} className="min-w-[2.25rem]">
             <button
-              aria-label={`${p.label}${p.isCurrent ? "（現在）" : ""}`}
+              aria-label={`${p.label}${p.isCurrent ? "（現在）" : ""}。タップで詳しく`}
               aria-pressed={openIndex === i}
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
               className={cn(
-                "flex h-9 w-full items-center justify-center text-sm transition-transform",
+                "flex h-12 w-full items-center justify-center text-xl transition-transform",
                 p.isCurrent ? "bg-green-600 scale-y-110" : "bg-green-100 hover:bg-green-200",
                 openIndex === i && !p.isCurrent && "bg-green-200"
               )}
@@ -36,11 +36,12 @@ export default function SeasonTimelineBar() {
         ))}
       </ul>
       {active && (
-        <p className="mt-2 text-xs text-gray-500">
-          <span className="font-bold text-gray-700">{active.label}</span>
+        <p className="mt-2 text-sm text-gray-700">
+          <span className="font-bold text-gray-900">{active.label}</span>
           {active.isCurrent ? "（いまの時期）" : ""}：{active.hint}
         </p>
       )}
+      <p className="mt-1 text-xs text-gray-400">アイコンをタップすると各時期の説明が見られます</p>
     </div>
   );
 }

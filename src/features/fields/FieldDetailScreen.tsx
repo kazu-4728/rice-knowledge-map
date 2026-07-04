@@ -142,6 +142,10 @@ function ObservationGroup({
         <span className="ml-auto text-xs text-gray-400">{photos.length}枚</span>
       </div>
 
+      <p className="mb-2 text-sm text-gray-600">
+        写真の中央を指で左右にドラッグすると、「以前」と「今」を見比べられます
+      </p>
+
       <PhotoCompareSlider
         beforeUrl={photos[safeBaseIndex].url}
         afterUrl={photos[safeCompareIndex].url}
@@ -149,6 +153,9 @@ function ObservationGroup({
         afterLabel={photos[safeCompareIndex].shortDate}
       />
 
+      <p className="mb-1 mt-3 text-sm text-gray-600">
+        下のつまみを動かすと「今」の写真を別の日に変えられます
+      </p>
       {/* 比較対象（今）を時系列に動かすスライダー */}
       <input
         type="range"
@@ -156,7 +163,7 @@ function ObservationGroup({
         max={photos.length - 1}
         value={safeCompareIndex}
         onChange={(e) => setCompareIndex(Number(e.target.value))}
-        className="mt-3 w-full accent-green-700"
+        className="w-full accent-green-700"
         aria-label={`${label}の写真を時系列で比較する`}
       />
 
@@ -185,7 +192,7 @@ function ObservationGroup({
           </button>
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-gray-400">基準（以前）はフィルムストリップをタップして選べます</p>
+      <p className="mt-1 text-xs text-gray-500">下の写真をタップすると「以前」の基準を選び直せます</p>
     </section>
   );
 }

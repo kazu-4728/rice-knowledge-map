@@ -275,6 +275,11 @@ export default function TalkScreen() {
         {mode === "demo" && (
           <p className="pb-1.5 text-center text-[10px] text-gray-400">デモ環境: 送信は保存されません</p>
         )}
+        {!text.trim() && (
+          <p className="pb-1.5 text-center text-xs text-gray-500">
+            小さいマイク=声で文字入力　大きいマイク=音声メモをそのまま送信
+          </p>
+        )}
         <div className="flex items-end gap-1.5">
           <Link
             href={`/records/new?returnTo=%2Ftalk${filterId ? `&field=${encodeURIComponent(filterId)}` : ""}`}
@@ -364,21 +369,21 @@ function MessageRow({
           </span>
         </div>
       )}
-      <div className={`flex items-end gap-1.5 pb-1.5 ${m.isMine ? "justify-end" : ""}`}>
+      <div className={`flex items-end gap-2 pb-1.5 ${m.isMine ? "justify-end" : ""}`}>
         {!m.isMine && (
           <span className="w-8 shrink-0">
             {showAuthor && <MemberAvatar name={m.author} />}
           </span>
         )}
         {m.isMine && (
-          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1">
+          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1.5">
             {onDelete && (
               <button
                 onClick={onDelete}
                 aria-label="このメッセージを削除"
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
               >
-                <IconTrash className="h-4 w-4" />
+                <IconTrash className="h-4.5 w-4.5" />
               </button>
             )}
             <span className="text-[9px] text-gray-400">{m.timeLabel}</span>
