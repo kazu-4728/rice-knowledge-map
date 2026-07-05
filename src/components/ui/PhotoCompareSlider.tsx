@@ -45,6 +45,23 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 20 : 5;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setPercent((p) => Math.max(0, p - step));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setPercent((p) => Math.min(100, p + step));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setPercent(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setPercent(100);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -70,7 +87,15 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
       </span>
 
       <div
-        className="absolute inset-y-0 flex w-8 -translate-x-1/2 items-center justify-center"
+        role="slider"
+        tabIndex={0}
+        aria-label={`${beforeLabel}と${afterLabel}の比較位置`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(percent)}
+        aria-valuetext={`${Math.round(percent)}%`}
+        onKeyDown={handleKeyDown}
+        className="absolute inset-y-0 flex w-8 -translate-x-1/2 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
         style={{ left: `${percent}%` }}
       >
         <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/90 shadow" />

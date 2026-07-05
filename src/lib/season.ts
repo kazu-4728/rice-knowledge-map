@@ -123,9 +123,11 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
   const span = Math.max(1, nextStart - currentStart);
   const progress = Math.min(1, Math.max(0, (today - currentStart) / span));
 
-  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする（うるう年は年日数を動的に算出）
+  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする。
+  // シーズン年の長さはうるう日を含む翌年2月をまたぐため、seasonYear自身ではなく
+  // seasonYear+1の年日数で判定する（例: 2023/3/1〜2024/2/29〜2024/3/1 は366日）
   const { seasonYear, sinceStart } = resolveSeasonYear(date);
-  const yearProgress = Math.min(1, Math.max(0, sinceStart / daysInYear(seasonYear)));
+  const yearProgress = Math.min(1, Math.max(0, sinceStart / daysInYear(seasonYear + 1)));
 
   return {
     key: current.key,
@@ -157,7 +159,8 @@ export type SeasonTimelineEntry = {
 export function getSeasonTimeline(date: Date = new Date()): SeasonTimelineEntry[] {
   const current = getSeasonPhase(date);
   const { seasonYear } = resolveSeasonYear(date);
-  const total = daysInYear(seasonYear);
+  // シーズン年の長さはseasonYear+1の年日数で判定する（getSeasonPhaseのyearProgressと同じ理由）
+  const total = daysInYear(seasonYear + 1);
   const base = phaseStartDay(seasonYear, PHASES[0]);
 
   return PHASES.map((def, i) => {

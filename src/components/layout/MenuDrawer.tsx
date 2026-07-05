@@ -53,7 +53,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
         </div>
 
         {/* nav links */}
-        <div className="flex-1 overflow-y-auto px-2 py-3">
+        <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-2 py-3">
           {NAV_ITEMS.map(({ href, label, Icon }) => {
             const active = isNavActive(href, pathname);
             return (
