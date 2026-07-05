@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { loadWeather, type WeatherData } from "../../lib/data/weather";
-import { loadFarmData } from "../../lib/data/farm";
-import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { loadRecords } from "../../lib/data/records";
+import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { getSeasonPhase, getGreeting, formatDateLabel } from "../../lib/season";
 import type { RecordItem } from "../../types";
 import { PaddyPhoto, RecordThumb } from "../../components/ui/PaddyPhoto";
@@ -53,27 +53,12 @@ export default function TodayStory() {
       if (!cancelled) setWeather(w);
     }).catch(() => {});
     // ピン状態の異常/要確認 + ピン変更を伴わない「記録のみ」の異常の両方を数える（MapSummarySheetと同じ考え方）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([farm, { records: issueRecords }]) => {
-      if (cancelled || farm.mode === "error") return;
-      const fieldNames = new Map(
-        farm.fieldsGeoJSON.features.map((f) => [
-          String(f.id ?? f.properties?.id ?? ""),
-          String(f.properties?.name ?? ""),
-        ])
-      );
-      const flagged = farm.points.filter(
-        (p) => p.status === "issue" || p.status === "needs_check"
-      );
-      // ピンに紐付いた異常記録はピン側で数え済みのため、「記録のみ」の異常だけ加算する
-      const recordOnly = excludePointBackedIssues(issueRecords, farm.points);
-      const count = flagged.length + recordOnly.length;
+    loadFieldAttention().then((summary) => {
+      if (cancelled || summary.mode === "error") return;
+      const count = summary.totalIssue + summary.totalNeedsCheck;
       if (count > 0) {
-        const names = [
-          ...new Set([
-            ...flagged.map((p) => fieldNames.get(p.fieldId) || p.name),
-            ...recordOnly.map((r) => (r.fieldId ? fieldNames.get(r.fieldId) ?? "" : "")),
-          ]),
-        ]
+        const names = summary.attentionFields
+          .map((f) => f.name)
           .filter(Boolean)
           .slice(0, 3);
         setAttention({ count, names });

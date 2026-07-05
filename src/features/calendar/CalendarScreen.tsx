@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "../../components/ui/Toast";
-import {
-  loadSchedules, createSchedule, toggleScheduleDone, deleteSchedule,
-  CATEGORY_LABELS, type ScheduleCategory, type ScheduleItem,
-} from "../../lib/data/schedule";
-import { loadFarmData, getMyRole, ensureGroupId } from "../../lib/data/farm";
+import { CATEGORY_LABELS, type ScheduleCategory, type ScheduleItem } from "../../lib/data/schedule";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { getSeasonPhase } from "../../lib/season";
+import { SeasonProgressHero } from "../../components/patterns/SeasonProgressHero";
+import { RevealCard } from "../../components/patterns/RevealCard";
+import { useCalendarMonth } from "./hooks/useCalendarMonth";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconTrash } from "../../components/ui/icons";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -17,19 +17,16 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-type FieldOption = { id: string; name: string };
-
 export default function CalendarScreen() {
   const { showToast } = useToast();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [fields, setFields] = useState<FieldOption[]>([]);
-  // viewer は予定の追加/完了/削除が RLS で拒否されるため、書き込み操作を隠す（デモ/未ログインは操作可）
-  const [canEdit, setCanEdit] = useState(true);
+
+  const { schedules, schedulesByDate, fields, canEdit, createItem, toggleItem, deleteItem } = useCalendarMonth(viewYear, viewMonth);
+  const season = useMemo(() => getSeasonPhase(), []);
 
   // 入力フォーム状態
   const [formTitle, setFormTitle] = useState("");
@@ -41,37 +38,6 @@ export default function CalendarScreen() {
 
   const firstDay = new Date(viewYear, viewMonth, 1);
   const lastDay = new Date(viewYear, viewMonth + 1, 0);
-  const from = toYMD(firstDay);
-  const to = toYMD(lastDay);
-
-  useEffect(() => {
-    loadSchedules(from, to).then(setSchedules);
-  }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 田んぼ選択とロール判定をアクティブグループ（最初の所属）に限定する（単一グループ運用）。
-  // これで予定作成/読込/権限がすべて同一グループに揃い、別グループ選択での保存失敗や
-  // 再読込での消失、権限の取り違えを防ぐ
-  useEffect(() => {
-    (async () => {
-      const gid = await ensureGroupId();
-      const f = await loadFarmData();
-      setFields(
-        f.fieldsGeoJSON.features
-          .filter((ft) => !gid || (ft.properties?.group_id ?? f.groupId) === gid)
-          .map((ft) => ({ id: String(ft.id ?? ft.properties?.id ?? ""), name: String(ft.properties?.name ?? "") }))
-      );
-      if (gid) {
-        const role = await getMyRole(gid);
-        setCanEdit(role === null || role === "owner" || role === "editor");
-      }
-    })();
-  }, []);
-
-  const schedulesByDate: Record<string, ScheduleItem[]> = {};
-  schedules.forEach((s) => {
-    if (!schedulesByDate[s.scheduledDate]) schedulesByDate[s.scheduledDate] = [];
-    schedulesByDate[s.scheduledDate].push(s);
-  });
 
   // カレンダーセル構築
   const startPad = firstDay.getDay();
@@ -80,10 +46,20 @@ export default function CalendarScreen() {
     ...Array.from({ length: lastDay.getDate() }, (_, i) => i + 1),
   ];
 
+  const todayStr = toYMD(today);
+  const nextSchedule = useMemo(() => {
+    return schedules
+      .filter((s) => !s.done && s.scheduledDate >= todayStr)
+      .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0];
+  }, [schedules, todayStr]);
+  const nextScheduleLabel = nextSchedule
+    ? `${new Date(nextSchedule.scheduledDate + "T00:00:00").getMonth() + 1}/${new Date(nextSchedule.scheduledDate + "T00:00:00").getDate()} ${nextSchedule.title}`
+    : null;
+
   const handleSave = async () => {
     if (!formTitle.trim()) { showToast("タイトルを入力してください", "error"); return; }
     setSaving(true);
-    const result = await createSchedule({
+    const result = await createItem({
       title: formTitle.trim(),
       scheduledDate: formDate,
       category: formCategory,
@@ -93,57 +69,54 @@ export default function CalendarScreen() {
     setSaving(false);
     if (!result) { showToast("保存できませんでした", "error"); return; }
     showToast("予定を追加しました");
-    setSchedules((prev) => [...prev, result].sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)));
     setFormTitle(""); setFormMemo(""); setFormCategory("other"); setFormFieldId("");
     setShowForm(false);
   };
 
   const handleToggle = async (item: ScheduleItem) => {
-    const ok = await toggleScheduleDone(item.id, !item.done);
+    const ok = await toggleItem(item);
     if (!ok) return;
-    setSchedules((prev) => prev.map((s) => s.id === item.id ? { ...s, done: !s.done } : s));
     showToast(item.done ? "未完了に戻しました" : "完了しました");
   };
 
   const handleDelete = async (id: string) => {
-    const ok = await deleteSchedule(id);
-    if (!ok) return;
-    setSchedules((prev) => prev.filter((s) => s.id !== id));
-    showToast("削除しました");
+    const ok = await deleteItem(id);
+    if (ok) showToast("削除しました");
   };
 
   const selectedItems = selectedDate ? (schedulesByDate[selectedDate] ?? []) : [];
-  const todayStr = toYMD(today);
 
   return (
     <div className="space-y-3 px-3 pb-24 pt-3">
-      {/* ヘッダー */}
-      <div className="px-1">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="h-px w-6 bg-emerald-600" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">Calendar</span>
+      {/* 主役ヒーロー: 次の農作業タイミングを主役化 */}
+      <SeasonProgressHero
+        seasonLabel={season.label}
+        seasonIconKey={season.iconKey}
+        hint={season.hint}
+        yearProgress={season.yearProgress}
+        nextScheduleLabel={nextScheduleLabel}
+      >
+        <div className="mt-3 flex items-center justify-between">
+          <button onClick={() => {
+            const d = new Date(viewYear, viewMonth - 1, 1);
+            setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
+          }} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 active:scale-90 transition-transform">
+            <IconChevronLeft className="h-5 w-5" />
+          </button>
+          <h1 className="font-heading text-base font-bold tracking-tight text-white">
+            {viewYear}年 {MONTHS[viewMonth]}
+          </h1>
+          <button onClick={() => {
+            const d = new Date(viewYear, viewMonth + 1, 1);
+            setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
+          }} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 active:scale-90 transition-transform">
+            <IconChevronRight className="h-5 w-5" />
+          </button>
         </div>
-      <div className="flex items-center justify-between">
-        <button onClick={() => {
-          const d = new Date(viewYear, viewMonth - 1, 1);
-          setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
-        }} className="rounded-lg p-1.5 hover:bg-gray-100 active:scale-90 transition-transform">
-          <IconChevronLeft className="h-5 w-5 text-gray-600" />
-        </button>
-        <h1 className="font-heading text-xl font-bold tracking-tight text-gray-900">
-          {viewYear}年 {MONTHS[viewMonth]}
-        </h1>
-        <button onClick={() => {
-          const d = new Date(viewYear, viewMonth + 1, 1);
-          setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
-        }} className="rounded-lg p-1.5 hover:bg-gray-100 active:scale-90 transition-transform">
-          <IconChevronRight className="h-5 w-5 text-gray-600" />
-        </button>
-      </div>
-      </div>
+      </SeasonProgressHero>
 
       {/* カレンダーグリッド */}
-      <div className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] overflow-hidden">
+      <RevealCard as="div" className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] overflow-hidden">
         {/* 曜日ヘッダー */}
         <div className="grid grid-cols-7 border-b border-gray-100">
           {WEEKDAYS.map((w, i) => (
@@ -175,7 +148,7 @@ export default function CalendarScreen() {
                 <div className="mt-0.5 flex flex-wrap justify-center gap-0.5 px-0.5">
                   {items.slice(0, 3).map((item) => (
                     <span key={item.id}
-                      className={`h-1.5 w-1.5 rounded-full ${item.done ? "bg-gray-300" : CATEGORY_LABELS[item.category]?.bg.replace("bg-", "bg-").replace("-50", "-400")}`}
+                      className={`h-1.5 w-1.5 rounded-full ${item.done ? "bg-gray-300" : CATEGORY_LABELS[item.category].dot}`}
                     />
                   ))}
                 </div>
@@ -183,11 +156,11 @@ export default function CalendarScreen() {
             );
           })}
         </div>
-      </div>
+      </RevealCard>
 
       {/* 選択日の予定 */}
       {selectedDate && (
-        <section className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
+        <RevealCard as="section" delay={0.05} className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-gray-900">
               {selectedDate.replace(/(\d+)-(\d+)-(\d+)/, "$2/$3")} の予定
@@ -245,12 +218,12 @@ export default function CalendarScreen() {
               })}
             </ul>
           )}
-        </section>
+        </RevealCard>
       )}
 
       {/* 今月の予定一覧 */}
       {!selectedDate && schedules.length > 0 && (
-        <section className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
+        <RevealCard as="section" delay={0.05} className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
           <p className="text-sm font-bold text-gray-900 mb-3">今月の予定</p>
           <ul className="space-y-2">
             {schedules.map((item) => {
@@ -278,7 +251,7 @@ export default function CalendarScreen() {
               );
             })}
           </ul>
-        </section>
+        </RevealCard>
       )}
 
       {!selectedDate && schedules.length === 0 && (

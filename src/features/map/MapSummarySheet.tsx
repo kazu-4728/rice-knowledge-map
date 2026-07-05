@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
-import { loadFarmData } from "../../lib/data/farm";
+import { loadRecords } from "../../lib/data/records";
+import { loadFieldAttention, type FieldAttention } from "../../lib/data/fieldAttention";
 import { getSeasonPhase } from "../../lib/season";
 
-import type { FieldPoint, RecordItem } from "../../types";
+import type { RecordItem } from "../../types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -22,12 +22,7 @@ import {
   SEASON_ICONS,
 } from "../../components/ui/icons";
 
-type AttentionField = {
-  id: string;
-  name: string;
-  issueCount: number;
-  needsCheckCount: number;
-};
+type AttentionField = FieldAttention;
 
 type NextAction = {
   key: string;
@@ -61,63 +56,18 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     let cancelled = false;
 
     // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, { records: issueRecords, count }]) => {
+    loadFieldAttention().then((summary) => {
       if (cancelled) return;
-      setOpenIssueCount(count);
+      setOpenIssueCount(summary.openIssueCount);
 
       // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
-      if (data.mode === "error") {
+      if (summary.mode === "error") {
         setErrored(true);
         return;
       }
 
-      const items = data.fieldsGeoJSON.features.map((f) => ({
-        id: String(f.id ?? f.properties?.id ?? ""),
-        name: String(f.properties?.name ?? ""),
-      }));
-      setFieldCount(items.length);
-
-      const fieldNameMap = new Map(items.map((f) => [f.id, f.name]));
-      const attnMap = new Map<
-        string,
-        { issueCount: number; needsCheckCount: number }
-      >();
-      data.points.forEach((p: FieldPoint) => {
-        if (p.status !== "issue" && p.status !== "needs_check") return;
-        if (!p.fieldId) return;
-        const entry = attnMap.get(p.fieldId) ?? {
-          issueCount: 0,
-          needsCheckCount: 0,
-        };
-        if (p.status === "issue") entry.issueCount++;
-        else entry.needsCheckCount++;
-        attnMap.set(p.fieldId, entry);
-      });
-      // ピンのステータス変更を伴わない「記録のみ」の異常も反映する
-      // （ピンに紐付いた異常記録はピン側で数え済みのため除外して二重集計を防ぐ）
-      excludePointBackedIssues(issueRecords, data.points).forEach(({ fieldId, isIssue }) => {
-        if (!fieldId) return;
-        const entry = attnMap.get(fieldId) ?? {
-          issueCount: 0,
-          needsCheckCount: 0,
-        };
-        if (isIssue) entry.issueCount++;
-        else entry.needsCheckCount++;
-        attnMap.set(fieldId, entry);
-      });
-      const attnFields: AttentionField[] = [];
-      attnMap.forEach((counts, fid) => {
-        attnFields.push({
-          id: fid,
-          name: fieldNameMap.get(fid) ?? "",
-          ...counts,
-        });
-      });
-      attnFields.sort(
-        (a, b) =>
-          b.issueCount + b.needsCheckCount - (a.issueCount + a.needsCheckCount)
-      );
-      setAttentionFields(attnFields);
+      setFieldCount(summary.fields.length);
+      setAttentionFields(summary.attentionFields);
       setLoaded(true);
     });
 

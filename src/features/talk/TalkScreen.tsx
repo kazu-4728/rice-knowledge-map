@@ -1,18 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { fadeRise } from "../../lib/motion/variants";
-import { deleteComment, loadTalkTimeline, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { deleteComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
 import { deleteRecord } from "../../lib/data/recordDetail";
-import { loadFarmData } from "../../lib/data/farm";
+import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { TalkPreviewCard } from "../../components/patterns/TalkPreviewCard";
+import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,56 +41,26 @@ import {
  * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
  */
 
-type FieldChip = { id: string; name: string };
-
 export default function TalkScreen() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
-  const [messages, setMessages] = useState<TalkMessage[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [fields, setFields] = useState<FieldChip[]>([]);
   const [filterId, setFilterId] = useState<string | null>(null);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [attentionFieldName, setAttentionFieldName] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const stickToBottomRef = useRef(true);
-  // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
-  const reloadTokenRef = useRef(0);
+
+  const timeline = useTalkTimeline(filterId);
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
-  const reload = useCallback(async (fieldId: string | null) => {
-    const token = ++reloadTokenRef.current;
-    const data = await loadTalkTimeline(fieldId ? { fieldId } : undefined);
-    if (token !== reloadTokenRef.current) return; // 待っている間に新しいreloadが発行された
-    if (data.mode === "anon" || data.mode === "error") {
-      setMode(data.mode);
-      return;
-    }
-    setMode(data.mode);
-    setMessages(data.messages);
-    setHasMore(data.hasMore);
-    stickToBottomRef.current = true;
-  }, []);
-
   useEffect(() => {
-    setMode("loading");
-    reload(filterId);
-  }, [filterId, reload]);
-
-  useEffect(() => {
-    loadFarmData().then((farm) => {
-      if (farm.mode === "error") return;
-      setFields(
-        farm.fieldsGeoJSON.features.map((f) => ({
-          id: String(f.id ?? f.properties?.id ?? ""),
-          name: String(f.properties?.name ?? "名前のない田んぼ"),
-        }))
-      );
+    loadFieldAttention().then((summary) => {
+      if (summary.attentionFields.length > 0) setAttentionFieldName(summary.attentionFields[0].name || null);
     });
   }, []);
 
@@ -97,36 +69,18 @@ export default function TalkScreen() {
     if (!stickToBottomRef.current) return;
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, stickToBottomRef]);
 
-  const loadOlder = useCallback(async () => {
-    if (loadingOlder || messages.length === 0) return;
-    setLoadingOlder(true);
+  const handleLoadOlder = async () => {
     const el = listRef.current;
     const prevHeight = el?.scrollHeight ?? 0;
-    // reload と同じトークンを共有する。応答が届くまでの間に田んぼチップが切り替わった場合、
-    // 古い絞り込みの結果が現在の絞り込みへ混入するのを防ぐ
-    const token = ++reloadTokenRef.current;
-    const data = await loadTalkTimeline({
-      fieldId: filterId ?? undefined,
-      before: messages[0].atISO,
+    await loadOlder();
+    requestAnimationFrame(() => {
+      if (el) el.scrollTop = el.scrollHeight - prevHeight;
     });
-    if (token === reloadTokenRef.current && (data.mode === "live" || data.mode === "demo")) {
-      stickToBottomRef.current = false;
-      setMessages((prev) => {
-        const seen = new Set(prev.map((m) => m.key));
-        return [...data.messages.filter((m) => !seen.has(m.key)), ...prev];
-      });
-      setHasMore(data.hasMore);
-      // 読み込み前に見ていた位置を維持する
-      requestAnimationFrame(() => {
-        if (el) el.scrollTop = el.scrollHeight - prevHeight;
-      });
-    }
-    setLoadingOlder(false);
-  }, [loadingOlder, messages, filterId]);
+  };
 
-  const handleSend = useCallback(async () => {
+  const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setSending(true);
@@ -138,7 +92,7 @@ export default function TalkScreen() {
     }
     setText("");
     await reload(filterId);
-  }, [text, sending, filterId, reload, showToast]);
+  };
 
   // 自分のメッセージ（コメント・記録とも）を削除できる。確認はAlertDialogで行う
   // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
@@ -152,7 +106,7 @@ export default function TalkScreen() {
     return extras.length > 0 ? `${extras.join("と")}も一緒に削除されます。元には戻せません。` : "元には戻せません。";
   };
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = async () => {
     const m = pendingDelete;
     if (!m || deleting) return;
     setDeleting(true);
@@ -178,7 +132,7 @@ export default function TalkScreen() {
     setPendingDelete(null);
     showToast("削除しました");
     await reload(filterId);
-  }, [pendingDelete, deleting, filterId, reload, showToast]);
+  };
 
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
@@ -216,8 +170,28 @@ export default function TalkScreen() {
     );
   }
 
+  const todayCount = messages.length > 0 ? messages.filter((m) => m.dateLabel === messages[messages.length - 1].dateLabel).length : 0;
+
   return (
     <div className="flex h-full flex-col bg-talk-surface">
+      {/* 主役ヒーロー: 「今日の会話の温度」を折りたたみ式で表示（MapSummarySheetのpeek/expand設計を踏襲） */}
+      {mode !== "loading" && (
+        <button
+          onClick={() => setHeroExpanded((v) => !v)}
+          className="shrink-0 border-b border-black/5 bg-white/60 px-3 pt-2 text-left backdrop-blur-sm"
+          aria-expanded={heroExpanded}
+        >
+          <motion.div layout transition={{ type: "spring", stiffness: 320, damping: 32 }}>
+            <TalkPreviewCard
+              latestMessages={heroExpanded ? messages.slice(-2).reverse() : []}
+              todayCount={todayCount}
+              attentionFieldName={attentionFieldName}
+              className="bg-transparent p-0 pb-2"
+            />
+          </motion.div>
+        </button>
+      )}
+
       {/* 田んぼ絞り込みチップ */}
       <div className="shrink-0 border-b border-black/5 bg-white/80 backdrop-blur-sm">
         <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
@@ -271,7 +245,7 @@ export default function TalkScreen() {
             {hasMore && (
               <div className="pb-2 text-center">
                 <button
-                  onClick={loadOlder}
+                  onClick={handleLoadOlder}
                   disabled={loadingOlder}
                   className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-500 shadow-sm"
                 >
