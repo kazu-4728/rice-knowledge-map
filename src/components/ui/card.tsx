@@ -1,20 +1,36 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import type { StatusKey } from "./StatusBadge";
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-));
+/** カード左端のアクセントバー色（StatusBadgeの信号色と統一） */
+const CARD_ACCENT: Record<StatusKey, string> = {
+  normal: "border-l-4 border-l-emerald-500",
+  needs_check: "border-l-4 border-l-amber-500",
+  issue: "border-l-4 border-l-red-500",
+  open: "border-l-4 border-l-red-500",
+  resolved: "border-l-4 border-l-blue-500",
+  monitoring: "border-l-4 border-l-gray-400",
+};
+
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** 左端に信号色のアクセントバーを付ける（田んぼOS共通の優先度表現） */
+  accent?: StatusKey;
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, accent, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
+        accent && CARD_ACCENT[accent],
+        className
+      )}
+      {...props}
+    />
+  )
+);
 Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<

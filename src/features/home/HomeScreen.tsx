@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadRecords } from "../../lib/data/records";
-import { loadFarmData, ensureGroupId } from "../../lib/data/farm";
+import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPoint } from "../../types";
-import { getSupabase } from "../../lib/supabase/client";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import type { RecordItem } from "../../types";
+import { getSeasonPhase } from "../../lib/season";
+import SeasonTimelineBar from "../../components/ui/SeasonTimelineBar";
+import SectionHeading from "../../components/ui/SectionHeading";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 import {
   IconCamera,
   IconChevronRight,
@@ -33,22 +39,13 @@ export default function HomeScreen() {
   const [isAnon, setIsAnon] = useState(false);
 
   useEffect(() => {
-    const sb = getSupabase();
-    if (sb) {
-      ensureGroupId().then(async (groupId) => {
-        if (!groupId) return;
-        const { count } = await sb
-          .from("records")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["open", "needs_check"])
-          .or("record_type.eq.issue,ai_category.in.(caution,levee_damage,poor_drainage)");
-        setOpenIssueCount(count ?? 0);
-      });
-    }
-
-    loadFarmData().then((data) => {
+    // ピンの異常/要確認 + ピン変更を伴わない「記録のみ」の異常をマージする
+    // （MapSummarySheetと同じ考え方。田んぼ単位の内訳とバナー件数の食い違いを防ぐ）
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([data, { records: issueRecords, count }]) => {
       if (data.mode === "anon") setIsAnon(true);
       if (data.mode === "error") setLoadError(true);
+      setOpenIssueCount(count);
+
       const items = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
@@ -65,6 +62,14 @@ export default function HomeScreen() {
         else entry.needsCheckCount++;
         attnMap.set(p.fieldId, entry);
       });
+      // ピンに紐付いた異常記録はピン側で数え済みのため、「記録のみ」の異常だけを加算する
+      excludePointBackedIssues(issueRecords, data.points).forEach(({ fieldId, isIssue }) => {
+        if (!fieldId) return;
+        const entry = attnMap.get(fieldId) ?? { issueCount: 0, needsCheckCount: 0 };
+        if (isIssue) entry.issueCount++;
+        else entry.needsCheckCount++;
+        attnMap.set(fieldId, entry);
+      });
       const attnFields: AttentionField[] = [];
       attnMap.forEach((counts, fid) => {
         attnFields.push({ id: fid, name: fieldNameMap.get(fid) ?? "", ...counts });
@@ -72,6 +77,9 @@ export default function HomeScreen() {
       attnFields.sort((a, b) => (b.issueCount + b.needsCheckCount) - (a.issueCount + a.needsCheckCount));
       setAttentionFields(attnFields);
 
+      setLoaded(true);
+    }).catch(() => {
+      setLoadError(true);
       setLoaded(true);
     });
 
@@ -82,32 +90,70 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const season = useMemo(() => getSeasonPhase(), []);
+  const totalCounts = useMemo(() => {
+    let issue = 0;
+    let needsCheck = 0;
+    attentionFields.forEach((f) => {
+      issue += f.issueCount;
+      needsCheck += f.needsCheckCount;
+    });
+    return { issue, needsCheck };
+  }, [attentionFields]);
+
   return (
     <div className="space-y-4 px-3 pb-8 pt-3">
-      <h1 className="px-1 text-2xl font-bold text-gray-900">管理</h1>
+      <div className="px-1">
+        <h1 className="text-2xl font-bold text-gray-900">管理</h1>
+        <p className="mt-0.5 text-sm text-gray-500">田んぼ全体を見わたす場所</p>
+      </div>
 
-      {/* 未対応の異常 */}
-      {openIssueCount !== null && openIssueCount > 0 && (
-        <Link
-          href="/records?status=open"
-          className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition-transform active:scale-98"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
-            <IconWarningFill className="h-5 w-5 text-amber-600" />
-          </span>
+      {/* 農事暦シーズンエンジン: 今の時期と年間の位置づけ */}
+      <section className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="text-4xl leading-none">{season.emoji}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-amber-800">
-              未対応の異常が{openIssueCount}件あります
-            </p>
-            <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
+            <p className="text-lg font-bold text-gray-900">{season.label}</p>
+            <p className="mt-0.5 text-sm text-gray-600">{season.hint}</p>
           </div>
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
+        </div>
+        <Button asChild variant="primary" className="mt-3 w-full">
+          <Link href="/records/new?returnTo=%2Fhome">
+            {season.action}
+            <IconChevronRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="mt-4">
+          <SeasonTimelineBar />
+        </div>
+      </section>
+
+      {/* 未対応の異常（未ログイン時は実データが取得できていないため出さない） */}
+      {!isAnon && openIssueCount !== null && openIssueCount > 0 && (
+        <Link href="/records?status=open" className="block active:scale-98 transition-transform">
+          <Card accent="open" className="flex items-center gap-3 bg-amber-50 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <IconWarningFill className="h-5 w-5 text-amber-600" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-800">
+                未対応の異常が{openIssueCount}件あります
+              </p>
+              <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
+            </div>
+            <StatusBadge status="open" label={`${openIssueCount}件`} />
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
+          </Card>
         </Link>
       )}
-      {openIssueCount === 0 && (
-        <div className="rounded-2xl bg-green-50 p-4">
+      {!isAnon && openIssueCount === 0 && totalCounts.issue === 0 && totalCounts.needsCheck === 0 && (
+        <Card accent="normal" className="flex items-center gap-2 bg-green-50 p-4">
+          <StatusBadge status="normal" />
           <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
-        </div>
+        </Card>
+      )}
+      {!isAnon && !loadError && openIssueCount === null && (
+        <Skeleton className="h-14 w-full rounded-2xl" />
       )}
 
       {/* ログイン促進 */}
@@ -123,13 +169,32 @@ export default function HomeScreen() {
         </Link>
       )}
 
+      {/* 信号色の統計サマリー（見わたす場所らしく、全体の量感を大きく見せる） */}
+      {loaded && !isAnon && !loadError && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className="text-3xl font-bold leading-none text-gray-900">{fields.length}</p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">田んぼ</p>
+          </div>
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className={`text-3xl font-bold leading-none ${totalCounts.issue > 0 ? "text-red-600" : "text-gray-300"}`}>
+              {totalCounts.issue}
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">異常</p>
+          </div>
+          <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm">
+            <p className={`text-3xl font-bold leading-none ${totalCounts.needsCheck > 0 ? "text-amber-600" : "text-gray-300"}`}>
+              {totalCounts.needsCheck}
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold text-gray-500">要確認</p>
+          </div>
+        </div>
+      )}
+
       {/* 要注意の田んぼ */}
       {attentionFields.length > 0 && (
         <section className="rounded-2xl bg-white shadow-sm">
-          <div className="flex items-center gap-2 p-4 pb-2">
-            <IconWarningFill className="h-5 w-5 text-amber-500" />
-            <h2 className="text-base font-bold text-gray-900">要注意の田んぼ</h2>
-          </div>
+          <SectionHeading tone="alert" className="p-4 pb-2">要注意の田んぼ</SectionHeading>
           <ul className="px-4 pb-3">
             {attentionFields.map((af, i) => (
               <li key={af.id}>
@@ -142,12 +207,10 @@ export default function HomeScreen() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-gray-900">{af.name || "名前のない田んぼ"}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {[
-                        af.issueCount > 0 ? `異常${af.issueCount}件` : null,
-                        af.needsCheckCount > 0 ? `要確認${af.needsCheckCount}件` : null,
-                      ].filter(Boolean).join("・")}
-                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {af.issueCount > 0 && <StatusBadge status="issue" label={`異常${af.issueCount}`} />}
+                      {af.needsCheckCount > 0 && <StatusBadge status="needs_check" label={`要確認${af.needsCheckCount}`} />}
+                    </div>
                   </div>
                   <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
                 </Link>
@@ -157,36 +220,32 @@ export default function HomeScreen() {
         </section>
       )}
 
-      {/* クイックアクション */}
+      {/* クイックアクション（緑塗り=最優先/緑枠=第二/グレー枠=第三、の3層を維持） */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Link
-          href="/records/new?returnTo=%2Fhome"
-          className="flex items-center justify-center gap-2 rounded-2xl bg-green-700 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-800"
-        >
-          <IconCamera className="h-5 w-5" />
-          写真で記録
-        </Link>
-        <Link
-          href="/talk"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-green-700 bg-white py-3.5 text-sm font-bold text-green-700 shadow-sm transition-colors hover:bg-green-50"
-        >
-          <IconChat className="h-5 w-5" />
-          トーク
-        </Link>
-        <Link
-          href="/map"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-        >
-          <IconMap className="h-5 w-5 text-green-700" />
-          マップ
-        </Link>
-        <Link
-          href="/fields"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-        >
-          <IconFieldGrid className="h-5 w-5 text-green-700" />
-          田んぼ
-        </Link>
+        <Button asChild variant="primary">
+          <Link href="/records/new?returnTo=%2Fhome">
+            <IconCamera className="h-5 w-5" />
+            写真で記録
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/talk">
+            <IconChat className="h-5 w-5" />
+            トーク
+          </Link>
+        </Button>
+        <Button asChild variant="tertiary">
+          <Link href="/map">
+            <IconMap className="h-5 w-5 text-green-700" />
+            マップ
+          </Link>
+        </Button>
+        <Button asChild variant="tertiary">
+          <Link href="/fields">
+            <IconFieldGrid className="h-5 w-5 text-green-700" />
+            田んぼ
+          </Link>
+        </Button>
       </div>
 
       {/* 管理メニュー（ナビ4系統化に伴い、二次導線をここに集約） */}
@@ -196,38 +255,43 @@ export default function HomeScreen() {
           { href: "/export", label: "エクスポート" },
           { href: "/guide", label: "使い方" },
         ].map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="flex items-center justify-center rounded-2xl bg-white py-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-          >
-            {label}
-          </Link>
+          <Button key={href} asChild variant="tertiary" className="border-0 shadow-sm">
+            <Link href={href}>{label}</Link>
+          </Button>
         ))}
       </div>
 
       {/* 最近の記録 */}
       <section className="rounded-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between p-4 pb-2">
-          <h2 className="text-base font-bold text-gray-900">最近の記録</h2>
-          <Link
-            href="/records"
-            className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
-          >
-            すべて
-            <IconChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
+        <SectionHeading
+          className="p-4 pb-2"
+          trailing={
+            <Link
+              href="/records"
+              className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
+            >
+              すべて
+              <IconChevronRight className="h-4 w-4" />
+            </Link>
+          }
+        >
+          最近の記録
+        </SectionHeading>
         {recentRecords.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-gray-400">
-            {recordsMode === "loading"
-              ? "読み込み中…"
-              : recordsMode === "anon"
+          recordsMode === "loading" ? (
+            <div className="space-y-2 px-4 pb-4">
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          ) : (
+            <p className="px-4 pb-4 text-sm text-gray-400">
+              {recordsMode === "anon"
                 ? "ログインすると記録が表示されます"
                 : recordsMode === "error"
                   ? "記録を読み込めませんでした"
                   : "まだ記録がありません"}
-          </p>
+            </p>
+          )
         ) : (
           <ul className="px-4 pb-3">
             {recentRecords.map((record, i) => (
@@ -283,18 +347,26 @@ export default function HomeScreen() {
         </section>
       ) : (
         <section className="rounded-2xl bg-white shadow-sm">
-          <div className="flex items-center justify-between p-4 pb-2">
-            <h2 className="text-base font-bold text-gray-900">田んぼ</h2>
-            <Link
-              href="/fields"
-              className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
-            >
-              一覧
-              <IconChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <SectionHeading
+            className="p-4 pb-2"
+            trailing={
+              <Link
+                href="/fields"
+                className="flex items-center gap-0.5 text-sm font-semibold text-green-700"
+              >
+                一覧
+                <IconChevronRight className="h-4 w-4" />
+              </Link>
+            }
+          >
+            田んぼ
+          </SectionHeading>
           {!loaded ? (
-            <p className="px-4 pb-4 text-sm text-gray-400">読み込み中…</p>
+            <div className="space-y-2 px-4 pb-4">
+              <Skeleton className="h-6 w-24 rounded" />
+              <Skeleton className="h-6 w-full rounded" />
+              <Skeleton className="h-6 w-full rounded" />
+            </div>
           ) : loadError ? (
             <div className="px-4 pb-4">
               <p className="text-sm text-gray-500">

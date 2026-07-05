@@ -10,6 +10,16 @@ import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
 import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
 
@@ -33,6 +43,8 @@ export default function TalkScreen() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
@@ -119,36 +131,45 @@ export default function TalkScreen() {
     await reload(filterId);
   }, [text, sending, filterId, reload, showToast]);
 
-  // 自分のコメント／メディアなしの「ひとこと」記録のみ削除できる（写真・音声の削除は記録詳細から）
-  const handleDelete = useCallback(
-    async (m: TalkMessage) => {
-      // 記録の削除はスレッドの返信も一緒に消える（cascade）ため、その旨を明示して確認する
-      const confirmText =
-        m.kind === "record" && m.commentCount != null && m.commentCount > 0
-          ? `この記録には返信が${m.commentCount}件付いています。記録と返信をまとめて削除しますか？`
-          : "このメッセージを削除しますか？";
-      if (!window.confirm(confirmText)) return;
-      if (m.kind === "comment") {
-        const { error } = await deleteComment(m.key.replace(/^c-/, ""));
-        if (error) {
-          showToast(error, "error");
-          return;
-        }
-      } else {
-        const result = await deleteRecord(m.recordId);
-        if (result.status !== "deleted") {
-          showToast(
-            result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
-            "error"
-          );
-          return;
-        }
+  // 自分のメッセージ（コメント・記録とも）を削除できる。確認はAlertDialogで行う
+  // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
+  // 消えるものを明示して確認する
+  const deleteExtrasText = (m: TalkMessage): string | null => {
+    if (m.kind !== "record") return null;
+    const extras = [
+      m.hasMedia ? "写真・音声の添付" : null,
+      m.commentCount != null && m.commentCount > 0 ? `返信${m.commentCount}件` : null,
+    ].filter(Boolean);
+    return extras.length > 0 ? `${extras.join("と")}も一緒に削除されます。元には戻せません。` : "元には戻せません。";
+  };
+
+  const handleDelete = useCallback(async () => {
+    const m = pendingDelete;
+    if (!m || deleting) return;
+    setDeleting(true);
+    if (m.kind === "comment") {
+      const { error } = await deleteComment(m.key.replace(/^c-/, ""));
+      if (error) {
+        showToast(error, "error");
+        setDeleting(false);
+        return;
       }
-      showToast("削除しました");
-      await reload(filterId);
-    },
-    [filterId, reload, showToast]
-  );
+    } else {
+      const result = await deleteRecord(m.recordId);
+      if (result.status !== "deleted") {
+        showToast(
+          result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
+          "error"
+        );
+        setDeleting(false);
+        return;
+      }
+    }
+    setDeleting(false);
+    setPendingDelete(null);
+    showToast("削除しました");
+    await reload(filterId);
+  }, [pendingDelete, deleting, filterId, reload, showToast]);
 
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
@@ -251,13 +272,9 @@ export default function TalkScreen() {
                 onOpen={() => router.push(`/records/${m.recordId}`)}
                 onFieldTap={(id) => setFilterId(id)}
                 onDelete={
-                  // 自分のコメント、または自分の「ひとこと」（record_type=other かつメディア行なし）のみ。
-                  // photoUrl（署名URL）は圏外等で発行に失敗しても hasMedia は record_media 由来で
-                  // 常に判定できるため、写真付き記録に誤って削除ボタンが出ることはない
-                  m.isMine &&
-                  (m.kind === "comment" || (m.recordType === "other" && !m.hasMedia))
-                    ? () => handleDelete(m)
-                    : undefined
+                  // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
+                  // 家族の誤削除を防ぐため他人のメッセージには出さない
+                  m.isMine ? () => setPendingDelete(m) : undefined
                 }
               />
             ))}
@@ -270,6 +287,11 @@ export default function TalkScreen() {
         {mode === "demo" && (
           <p className="pb-1.5 text-center text-[10px] text-gray-400">デモ環境: 送信は保存されません</p>
         )}
+        {!text.trim() && (
+          <p className="pb-1.5 text-center text-xs text-gray-500">
+            小さいマイク=声で文字入力　大きいマイク=音声メモをそのまま送信
+          </p>
+        )}
         <div className="flex items-end gap-1.5">
           <Link
             href={`/records/new?returnTo=%2Ftalk${filterId ? `&field=${encodeURIComponent(filterId)}` : ""}`}
@@ -278,18 +300,27 @@ export default function TalkScreen() {
           >
             <IconCamera className="h-5.5 w-5.5" />
           </Link>
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={filterName ? `${filterName}へひとこと…` : "家族へひとこと…"}
-            className="h-11 min-w-0 flex-1 rounded-full bg-gray-100 px-4 text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
+          {/* テキスト入力。中の小さいマイクは「音声入力」（音声→文字起こし）で、
+              右端の大きいマイク（トランシーバー=音声メモ送信）とは別機能 */}
+          <div className="flex h-11 min-w-0 flex-1 items-center rounded-full bg-gray-100 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-emerald-400">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={filterName ? `${filterName}へひとこと…` : "家族へひとこと…"}
+              className="h-full min-w-0 flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            />
+            <VoiceInputButton
+              onText={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))}
+              disabled={sending}
+              className="shrink-0"
+            />
+          </div>
           {text.trim() ? (
             <button
               onClick={handleSend}
@@ -306,6 +337,23 @@ export default function TalkScreen() {
       </div>
 
       <TransceiverOverlay transceiver={transceiver} />
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingDelete?.kind === "record" ? "この記録を削除しますか？" : "このメッセージを削除しますか？"}
+          </AlertDialogTitle>
+          {pendingDelete && (
+            <AlertDialogDescription>{deleteExtrasText(pendingDelete)}</AlertDialogDescription>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={deleting}>
+              {deleting ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -350,21 +398,21 @@ function MessageRow({
           </span>
         </div>
       )}
-      <div className={`flex items-end gap-1.5 pb-1.5 ${m.isMine ? "justify-end" : ""}`}>
+      <div className={`flex items-end gap-2 pb-1.5 ${m.isMine ? "justify-end" : ""}`}>
         {!m.isMine && (
           <span className="w-8 shrink-0">
             {showAuthor && <MemberAvatar name={m.author} />}
           </span>
         )}
         {m.isMine && (
-          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1">
+          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1.5">
             {onDelete && (
               <button
                 onClick={onDelete}
                 aria-label="このメッセージを削除"
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
               >
-                <IconTrash className="h-4 w-4" />
+                <IconTrash className="h-4.5 w-4.5" />
               </button>
             )}
             <span className="text-[9px] text-gray-400">{m.timeLabel}</span>

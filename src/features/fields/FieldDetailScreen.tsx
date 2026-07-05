@@ -14,11 +14,16 @@ import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
+import SectionHeading from "../../components/ui/SectionHeading";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
   IconChevronRight,
   IconDropFill,
+  IconFieldGrid,
   IconMic,
   IconPinFill,
   IconSprout,
@@ -83,8 +88,115 @@ type TabKey = "overview" | "records" | "photos";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "概要" },
   { key: "records", label: "記録" },
-  { key: "photos", label: "写真" },
+  { key: "photos", label: "定点観測" },
 ];
+
+type ObservationPhoto = { id: string; date: string; shortDate: string; url?: string };
+
+/**
+ * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
+ * 「基準（以前）」写真を固定し、スライダーで比較対象（今）を時系列に動かして見比べる。
+ */
+function ObservationGroup({
+  label,
+  icon,
+  photos,
+}: {
+  label: string;
+  icon: ReactNode;
+  photos: ObservationPhoto[];
+}) {
+  const [baseIndex, setBaseIndex] = useState(0);
+  const [compareIndex, setCompareIndex] = useState(photos.length - 1);
+
+  // 同じコンポーネントインスタンスがpropsの入れ替わり（田んぼ切り替え等）で再利用され、
+  // 新しいphotosがより短い場合に古いインデックスを参照してクラッシュしないようクランプする
+  const safeBaseIndex = Math.min(baseIndex, photos.length - 1);
+  const safeCompareIndex = Math.min(compareIndex, photos.length - 1);
+
+  useEffect(() => {
+    if (baseIndex > photos.length - 1) setBaseIndex(Math.max(0, photos.length - 1));
+    if (compareIndex > photos.length - 1) setCompareIndex(Math.max(0, photos.length - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos.length]);
+
+  if (photos.length === 1) {
+    return (
+      <section className="rounded-2xl bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center gap-2">
+          {icon}
+          <p className="text-sm font-bold text-gray-900">{label}</p>
+          <span className="ml-auto text-xs text-gray-400">1枚</span>
+        </div>
+        <Link href={`/records/${photos[0].id}`} className="block aspect-square overflow-hidden rounded-xl">
+          <RemotePhoto src={photos[0].url} alt={label} className="h-full w-full object-cover" fallbackVariant="field" />
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center gap-2">
+        {icon}
+        <p className="text-sm font-bold text-gray-900">{label}</p>
+        <span className="ml-auto text-xs text-gray-400">{photos.length}枚</span>
+      </div>
+
+      <p className="mb-2 text-sm text-gray-600">
+        写真の中央を指で左右にドラッグすると、「以前」と「今」を見比べられます
+      </p>
+
+      <PhotoCompareSlider
+        beforeUrl={photos[safeBaseIndex].url}
+        afterUrl={photos[safeCompareIndex].url}
+        beforeLabel={photos[safeBaseIndex].shortDate}
+        afterLabel={photos[safeCompareIndex].shortDate}
+      />
+
+      <p className="mb-1 mt-3 text-sm text-gray-600">
+        下のつまみを動かすと「今」の写真を別の日に変えられます
+      </p>
+      {/* 比較対象（今）を時系列に動かすスライダー */}
+      <input
+        type="range"
+        min={0}
+        max={photos.length - 1}
+        value={safeCompareIndex}
+        onChange={(e) => setCompareIndex(Number(e.target.value))}
+        className="w-full accent-green-700"
+        aria-label={`${label}の写真を時系列で比較する`}
+      />
+
+      <div className="mt-1.5 flex items-center justify-between text-xs">
+        <Link href={`/records/${photos[safeBaseIndex].id}`} className="font-semibold text-green-700">
+          「以前」の記録を見る
+        </Link>
+        <Link href={`/records/${photos[safeCompareIndex].id}`} className="font-semibold text-green-700">
+          「今」の記録を見る
+        </Link>
+      </div>
+
+      {/* 基準（以前）の写真はフィルムストリップからタップして選び直せる */}
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+        {photos.map((p, i) => (
+          <button
+            key={p.id}
+            onClick={() => setBaseIndex(i)}
+            className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ${
+              i === safeBaseIndex ? "ring-2 ring-green-600" : ""
+            }`}
+            aria-label={`${p.date}の写真を基準にする`}
+            aria-pressed={i === safeBaseIndex}
+          >
+            <RemotePhoto src={p.url} alt={p.date} className="h-full w-full object-cover" fallbackVariant="field" />
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-xs text-gray-500">下の写真をタップすると「以前」の基準を選び直せます</p>
+    </section>
+  );
+}
 
 type Props = { fieldId: string };
 
@@ -192,6 +304,42 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   // この田んぼの概要（実データから集計）。「未対応」= 未解決の異常記録のみ
   const openRecords = records.filter(isUnresolvedIssue);
   const photoRecords = records.filter((r) => r.media === "photo");
+
+  // 定点観測タイムマシン: 写真をピン単位でグルーピング（ピン未紐付けは「田んぼ全体」にまとめる）
+  // media は写真の実体がない記録（ひとこと等）でも "photo" になるため、
+  // 実際に写真が付いている記録だけを比較対象にする（プレースホルダ同士の比較を防ぐ）
+  const pointById = new Map(points.map((p) => [p.id, p]));
+  const groupMap = new Map<string, RecordItem[]>();
+  photoRecords
+    .filter((r) => (r.photoCount ?? 0) > 0)
+    .forEach((r) => {
+      const key = r.pointId ?? "__field__";
+      const list = groupMap.get(key) ?? [];
+      list.push(r);
+      groupMap.set(key, list);
+    });
+  const observationGroups = [...groupMap.entries()]
+    .map(([key, list]) => {
+      const point = key !== "__field__" ? pointById.get(key) : undefined;
+      const meta = point ? POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"] : null;
+      const sorted = [...list].sort(
+        (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
+      );
+      return {
+        key,
+        label: point ? point.name || meta!.label : "田んぼ全体",
+        icon: meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />,
+        isFieldWide: key === "__field__",
+        photos: sorted.map((r) => ({
+          id: r.id,
+          date: r.date,
+          shortDate: `${new Date(r.recordedAt).getMonth() + 1}/${new Date(r.recordedAt).getDate()}`,
+          url: thumbUrls[r.id],
+        })),
+      };
+    })
+    .sort((a, b) => (a.isFieldWide === b.isFieldWide ? 0 : a.isFieldWide ? 1 : -1));
+
   const lastRecord = records[0]; // loadRecords は新しい順に返す
   const lastRecordLabel = lastRecord
     ? `${new Date(lastRecord.recordedAt).getMonth() + 1}/${new Date(lastRecord.recordedAt).getDate()}`
@@ -304,28 +452,26 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
       {/* この田んぼを記録する — 次にすべきこと */}
       <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <p className="text-sm font-bold text-gray-900">この田んぼを記録する</p>
+        <SectionHeading level={3}>この田んぼを記録する</SectionHeading>
         <div className="mt-3 flex gap-3">
-          <Link
-            href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
-          >
-            <IconCamera className="h-4.5 w-4.5" />
-            写真で記録
-          </Link>
-          <Link
-            href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
-          >
-            <IconMic className="h-4.5 w-4.5" />
-            音声メモ
-          </Link>
+          <Button asChild variant="primary" className="flex-1">
+            <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+              <IconCamera className="h-4.5 w-4.5" />
+              写真で記録
+            </Link>
+          </Button>
+          <Button asChild variant="secondary" className="flex-1">
+            <Link href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+              <IconMic className="h-4.5 w-4.5" />
+              音声メモ
+            </Link>
+          </Button>
         </div>
       </section>
 
       {/* 状態サマリー — 今この田んぼがどういう状態か（要対応ポイント or 未対応の異常記録） */}
       {attention.length > 0 || openRecords.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm">
+        <Card accent="issue" className="flex items-center gap-3 bg-amber-50 p-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <IconWarningFill className="h-4.5 w-4.5 text-amber-600" />
           </span>
@@ -338,9 +484,9 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             </p>
             <p className="mt-0.5 text-xs text-amber-600">「記録」タブ、または「概要」タブの「ポイントの状態」で確認してください</p>
           </div>
-        </div>
+        </Card>
       ) : points.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm">
+        <Card accent="normal" className="flex items-center gap-3 bg-green-50 p-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
             <IconPinFill className="h-4.5 w-4.5 text-green-700" />
           </span>
@@ -354,52 +500,42 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 : "要対応のポイントはありません（対応済みを含む）"}
             </p>
           </div>
-        </div>
+        </Card>
       ) : (
-        <Link href="/map" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm active:scale-98 transition-transform">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-            <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-          </div>
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        <Link href="/map" className="block active:scale-98 transition-transform">
+          <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+              <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
+              <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
+            </div>
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+          </Card>
         </Link>
       )}
 
-      {/* タブ */}
-      <div className="flex gap-6 border-b border-gray-200 px-1" role="tablist" aria-label="田んぼ詳細の表示切り替え">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            id={`field-tab-${tab.key}`}
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            aria-controls={`field-tabpanel-${tab.key}`}
-            onClick={() => setActiveTab(tab.key)}
-            className={`relative pb-2.5 text-sm font-bold transition-colors ${
-              activeTab === tab.key ? "text-green-800" : "text-gray-400"
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.key && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-green-800" />
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+        <TabsList aria-label="田んぼ詳細の表示切り替え">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
       {/* 概要タブ: ポイントの状態 */}
-      {activeTab === "overview" && (
-        <div role="tabpanel" id="field-tabpanel-overview" aria-labelledby="field-tab-overview">
+      <TabsContent value="overview" className="mt-3">
           {points.length > 0 ? (
             <section className="rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <IconPinFill className="h-5 w-5 text-green-700" />
-                <h2 className="text-sm font-bold text-gray-900">ポイントの状態</h2>
-                <span className="ml-auto text-xs text-gray-400">{points.length}件</span>
-              </div>
+              <SectionHeading
+                level={3}
+                className="mb-3"
+                trailing={<span className="text-xs text-gray-400">{points.length}件</span>}
+              >
+                ポイントの状態
+              </SectionHeading>
               <ul className="space-y-2">
                 {sortedPoints.map((point) => {
                   const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
@@ -433,12 +569,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">マップで入水口・異常箇所などを登録できます</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
 
       {/* 記録タブ: 写真主体のタイムライン（大量記録時に一括描画しないようページング） */}
-      {activeTab === "records" && (
-        <div role="tabpanel" id="field-tabpanel-records" aria-labelledby="field-tab-records">
+      <TabsContent value="records" className="mt-3">
           {records.length > 0 ? (
             <>
               <div className="space-y-3">
@@ -475,12 +609,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 })}
               </div>
               {recordsShown < records.length && (
-                <button
+                <Button
+                  variant="tertiary"
+                  className="mt-3 w-full"
                   onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
-                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 shadow-sm active:bg-gray-50"
                 >
                   もっと見る（残り{records.length - recordsShown}件）
-                </button>
+                </Button>
               )}
             </>
           ) : (
@@ -489,49 +624,32 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
 
-      {/* 写真タブ: ギャラリー */}
-      {activeTab === "photos" && (
-        <div role="tabpanel" id="field-tabpanel-photos" aria-labelledby="field-tab-photos">
-          {photoRecords.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {photoRecords.map((record) => (
-                <Link
-                  key={record.id}
-                  href={`/records/${record.id}`}
-                  className="group relative aspect-square overflow-hidden rounded-xl active:scale-95 transition-transform"
-                >
-                  <RecordThumb
-                    media="photo"
-                    variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                    thumbUrl={thumbUrls[record.id]}
-                    className="h-full w-full"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1">
-                    <span className="block truncate text-[10px] font-semibold text-white">{record.time}</span>
-                  </span>
-                </Link>
+      {/* 定点観測タイムマシン: 同じ地点の写真を時系列比較 */}
+      <TabsContent value="photos" className="mt-3">
+          {observationGroups.length > 0 ? (
+            <div className="space-y-3">
+              {observationGroups.map((g) => (
+                <ObservationGroup key={g.key} label={g.label} icon={g.icon} photos={g.photos} />
               ))}
             </div>
           ) : (
             <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
               <p className="text-sm text-gray-500">まだ写真がありません</p>
-              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加できます</p>
+              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加すると、同じ地点の変化を見比べられます</p>
             </div>
           )}
-        </div>
-      )}
+      </TabsContent>
+      </Tabs>
 
       {/* 二次導線 */}
-      <Link
-        href={`/map?field=${encodeURIComponent(fieldId)}`}
-        className="flex items-center justify-center gap-1.5 rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-bold text-green-700 active:scale-95 transition-transform shadow-sm"
-      >
-        <IconPinFill className="h-4 w-4" />
-        マップで見る
-      </Link>
+      <Button asChild variant="secondary" className="w-full">
+        <Link href={`/map?field=${encodeURIComponent(fieldId)}`}>
+          <IconPinFill className="h-4 w-4" />
+          マップで見る
+        </Link>
+      </Button>
     </div>
   );
 }

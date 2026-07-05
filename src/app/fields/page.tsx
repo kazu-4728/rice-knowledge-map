@@ -4,9 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
+import { excludePointBackedIssues, loadOpenIssueRecords } from "../../lib/data/records";
 import { getSupabase } from "../../lib/supabase/client";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
-import { IconCamera, IconChevronRight, IconFieldGrid, IconPlus, IconWarningFill } from "../../components/ui/icons";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { compressImage } from "../../lib/utils/imageCompress";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
@@ -79,7 +84,7 @@ export default function FieldsPage() {
       });
     }
 
-    loadFarmData().then(async (data) => {
+    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(async ([data, { records: issueRecords }]) => {
       setMode(data.mode);
       const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
@@ -97,6 +102,14 @@ export default function FieldsPage() {
         if (!statusMap[p.fieldId]) statusMap[p.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
         if (p.status === "issue") statusMap[p.fieldId].issueCount++;
         else if (p.status === "needs_check") statusMap[p.fieldId].needsCheckCount++;
+      }
+      // ピン変更を伴わない「記録のみ」の異常も反映する（記録だけ残して放置した
+      // 田んぼに「順調」バッジを出さない。ピン紐付き分は除外して二重集計を防ぐ）
+      for (const r of excludePointBackedIssues(issueRecords, data.points)) {
+        if (!r.fieldId) continue;
+        if (!statusMap[r.fieldId]) statusMap[r.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
+        if (r.isIssue) statusMap[r.fieldId].issueCount++;
+        else statusMap[r.fieldId].needsCheckCount++;
       }
       setFieldStatuses((prev) => {
         const next = { ...prev };
@@ -173,9 +186,9 @@ export default function FieldsPage() {
         )}
 
         {mode === "loading" && (
-          <div className="space-y-2.5">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {[0, 1].map((i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-gray-200" />
+              <Skeleton key={i} className="h-48 w-full rounded-2xl" />
             ))}
           </div>
         )}
@@ -188,17 +201,19 @@ export default function FieldsPage() {
         )}
 
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
-          <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {fields.map((field) => {
               const fs = fieldStatuses[field.id];
               const hasAttention = fs && (fs.issueCount > 0 || fs.needsCheckCount > 0);
               return (
-              <div key={field.id} className={`relative rounded-2xl bg-white shadow-sm overflow-hidden ${hasAttention ? "ring-1 ring-amber-200" : ""}`}>
-                <Link
-                  href={`/fields/${encodeURIComponent(field.id)}`}
-                  className="flex items-center gap-3 p-3 transition-colors hover:bg-gray-50"
-                >
-                  <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
+              <Card
+                key={field.id}
+                accent={fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : undefined}
+                className="relative overflow-hidden transition-transform active:scale-[0.99]"
+              >
+                <Link href={`/fields/${encodeURIComponent(field.id)}`} className="block">
+                  {/* 写真が主役のヒーロー部（Googleマップの場所カード風） */}
+                  <div className="relative h-36">
                     <RemotePhoto
                       src={photoUrls[field.id]}
                       alt={field.name}
@@ -206,55 +221,48 @@ export default function FieldsPage() {
                       fallbackVariant="field"
                     />
                     {!photoUrls[field.id] && (
-                      <span
-                        className="absolute inset-0 opacity-45"
-                        style={{ background: field.color }}
-                      />
+                      <span className="absolute inset-0 opacity-40" style={{ background: field.color }} />
                     )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      {hasAttention && <IconWarningFill className="h-4 w-4 shrink-0 text-amber-500" />}
-                      <p className="truncate text-base font-bold text-gray-900">
-                        {field.name}
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 to-transparent" />
+
+                    {/* 状態バッジ（写真の上・信号色） */}
+                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                      {fs?.issueCount ? <StatusBadge status="issue" label={`異常${fs.issueCount}`} /> : null}
+                      {fs?.needsCheckCount ? <StatusBadge status="needs_check" label={`要確認${fs.needsCheckCount}`} /> : null}
+                      {!hasAttention && fs?.lastRecordDate ? <StatusBadge status="normal" label="順調" /> : null}
+                    </div>
+
+                    {/* 田んぼ名と面積（写真の上） */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="truncate text-lg font-bold text-white drop-shadow">
+                        {field.name || "名前のない田んぼ"}
                       </p>
-                      {formatArea(field.areaSqm) && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); }}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); } }}
-                          className="shrink-0 border-b border-dotted border-gray-300 text-sm font-medium text-gray-500 active:opacity-60"
-                        >
-                          {formatArea(field.areaSqm)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                      {fs?.issueCount ? (
-                        <span className="rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs font-bold text-red-600">
-                          異常{fs.issueCount}件
-                        </span>
-                      ) : null}
-                      {fs?.needsCheckCount ? (
-                        <span className="rounded-md border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-xs font-bold text-orange-600">
-                          要確認{fs.needsCheckCount}件
-                        </span>
-                      ) : null}
-                      {fs?.lastRecordDate ? (
-                        <span className="text-xs text-gray-400">最終記録: {fs.lastRecordDate}</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">記録なし</span>
-                      )}
                     </div>
                   </div>
-                  <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+
+                  {/* 情報行 */}
+                  <div className="flex items-center gap-2 px-3 py-2.5">
+                    {formatArea(field.areaSqm) && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); } }}
+                        className="shrink-0 border-b border-dotted border-gray-300 text-sm font-bold text-gray-700 active:opacity-60"
+                      >
+                        {formatArea(field.areaSqm)}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-right text-xs text-gray-400">
+                      {fs?.lastRecordDate ? `最終記録 ${fs.lastRecordDate}` : "記録なし"}
+                    </span>
+                  </div>
                 </Link>
                 {field.groupId && (
                   <>
                     <button
                       onClick={() => fileInputRefs.current[field.id]?.click()}
-                      className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs font-semibold text-white"
+                      className="absolute right-2 top-24 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm"
                       aria-label="写真を変更"
                     >
                       <IconCamera className="h-3.5 w-3.5" />
@@ -268,19 +276,18 @@ export default function FieldsPage() {
                     />
                   </>
                 )}
-              </div>
+              </Card>
             );
             })}
           </div>
         )}
 
-        <Link
-          href="/map"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-green-600 bg-white py-4 text-sm font-bold text-green-700 transition-colors hover:bg-green-50"
-        >
-          <IconPlus className="h-5 w-5" strokeWidth={2.2} />
-          田んぼを追加（マップで描く）
-        </Link>
+        <Button asChild variant="secondary" size="lg" className="w-full border-dashed">
+          <Link href="/map">
+            <IconPlus className="h-5 w-5" strokeWidth={2.2} />
+            田んぼを追加（マップで描く）
+          </Link>
+        </Button>
       </div>
     </AppShell>
   );

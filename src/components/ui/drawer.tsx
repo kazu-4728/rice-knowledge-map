@@ -34,21 +34,34 @@ const DrawerOverlay = React.forwardRef<
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
+/** Vaulのdirectionごとの配置・角丸・可動域クラス（bottom=下からのシート、left=左からのナビ） */
+const DRAWER_DIRECTION_CLASS: Record<"top" | "bottom" | "left" | "right", string> = {
+  bottom: "inset-x-0 bottom-0 mt-24 h-auto rounded-t-2xl border-t",
+  top: "inset-x-0 top-0 mb-24 h-auto rounded-b-2xl border-b",
+  left: "inset-y-0 left-0 h-dvh w-72 rounded-r-2xl border-r",
+  right: "inset-y-0 right-0 h-dvh w-72 rounded-l-2xl border-l",
+};
+
 const DrawerContent = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
+    direction?: "top" | "bottom" | "left" | "right";
+  }
+>(({ className, children, direction = "bottom", ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border bg-background",
+        "fixed z-50 flex flex-col border bg-background",
+        DRAWER_DIRECTION_CLASS[direction],
         className
       )}
       {...props}
     >
-      <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/20" />
+      {direction === "bottom" && (
+        <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/20" />
+      )}
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../../features/auth/useAuth";
 import { NAV_ITEMS, SUB_NAV_ITEMS, isNavActive } from "./navItems";
+import { Drawer, DrawerContent, DrawerClose, DrawerTitle } from "../ui/drawer";
 import {
   IconClose,
   IconUser,
@@ -19,16 +20,6 @@ type Props = {
 export default function MenuDrawer({ open, onClose }: Props) {
   const pathname = usePathname();
   const { session, signOut } = useAuth();
-  const drawerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   useEffect(() => {
     onClose();
@@ -36,17 +27,13 @@ export default function MenuDrawer({ open, onClose }: Props) {
   }, [pathname]);
 
   return (
-    <>
-      {/* backdrop */}
-      <div
-        className={`fixed inset-0 z-50 bg-black/40 transition-opacity duration-200 ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
-        onClick={onClose}
-      />
-      {/* drawer */}
-      <nav
-        ref={drawerRef}
-        className={`fixed left-0 top-0 z-50 flex h-dvh w-72 flex-col bg-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}
+    <Drawer open={open} onOpenChange={(next) => { if (!next) onClose(); }} direction="left" shouldScaleBackground={false}>
+      <DrawerContent
+        direction="left"
+        className="bg-white p-0 shadow-2xl"
+        aria-describedby={undefined}
       >
+        <DrawerTitle className="sr-only">メニュー</DrawerTitle>
         {/* header */}
         <div className="flex h-14 items-center justify-between bg-green-800 px-4">
           <div className="flex items-center gap-1.5">
@@ -57,17 +44,16 @@ export default function MenuDrawer({ open, onClose }: Props) {
               みらい稲作管理
             </span>
           </div>
-          <button
-            onClick={onClose}
+          <DrawerClose
             aria-label="メニューを閉じる"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
           >
             <IconClose className="h-5 w-5" />
-          </button>
+          </DrawerClose>
         </div>
 
         {/* nav links */}
-        <div className="flex-1 overflow-y-auto px-2 py-3">
+        <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-2 py-3">
           {NAV_ITEMS.map(({ href, label, Icon }) => {
             const active = isNavActive(href, pathname);
             return (
@@ -141,7 +127,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
             </Link>
           )}
         </div>
-      </nav>
-    </>
+      </DrawerContent>
+    </Drawer>
   );
 }

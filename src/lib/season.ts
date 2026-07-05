@@ -80,6 +80,24 @@ function phaseStartDay(year: number, def: PhaseDef): number {
   return dayOfYear(new Date(year, def.start[0] - 1, def.start[1]));
 }
 
+/**
+ * 「農事暦の年」を解決する。田起こし(3/1)開始を年の起点とし、それ以前の日付は
+ * 前年を起点とした農閑期（年またぎ）として扱う。sinceStart は起点からの経過日数。
+ */
+function resolveSeasonYear(date: Date): { seasonYear: number; sinceStart: number } {
+  const year = date.getFullYear();
+  const today = dayOfYear(date);
+  const seasonStartThisYear = phaseStartDay(year, PHASES[0]);
+  if (today >= seasonStartThisYear) {
+    return { seasonYear: year, sinceStart: today - seasonStartThisYear };
+  }
+  const seasonYear = year - 1;
+  return {
+    seasonYear,
+    sinceStart: today + daysInYear(seasonYear) - phaseStartDay(seasonYear, PHASES[0]),
+  };
+}
+
 /** 指定日（省略時は今日）の稲作フェーズを返す */
 export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
   const year = date.getFullYear();
@@ -105,17 +123,11 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
   const span = Math.max(1, nextStart - currentStart);
   const progress = Math.min(1, Math.max(0, (today - currentStart) / span));
 
-  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする（うるう年は年日数を動的に算出）
-  const seasonStartThisYear = phaseStartDay(year, PHASES[0]);
-  let seasonYear = year;
-  let sinceStart: number;
-  if (today >= seasonStartThisYear) {
-    sinceStart = today - seasonStartThisYear;
-  } else {
-    seasonYear = year - 1;
-    sinceStart = today + daysInYear(seasonYear) - phaseStartDay(seasonYear, PHASES[0]);
-  }
-  const yearProgress = Math.min(1, Math.max(0, sinceStart / daysInYear(seasonYear)));
+  // 年間進行度: 田起こし(3/1)開始を0、翌年2月末を1とする。
+  // シーズン年の長さはうるう日を含む翌年2月をまたぐため、seasonYear自身ではなく
+  // seasonYear+1の年日数で判定する（例: 2023/3/1〜2024/2/29〜2024/3/1 は366日）
+  const { seasonYear, sinceStart } = resolveSeasonYear(date);
+  const yearProgress = Math.min(1, Math.max(0, sinceStart / daysInYear(seasonYear + 1)));
 
   return {
     key: current.key,
@@ -126,6 +138,44 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
     progress,
     yearProgress,
   };
+}
+
+export type SeasonTimelineEntry = {
+  key: SeasonPhaseKey;
+  label: string;
+  emoji: string;
+  hint: string;
+  /** 年間（田起こし開始〜翌年2月末）に占める開始位置 0..1 */
+  startFraction: number;
+  /** 年間に占める終了位置 0..1 */
+  endFraction: number;
+  isCurrent: boolean;
+};
+
+/**
+ * 農事暦の年間タイムライン（田んぼOS レイヤー4: 農事暦シーズンエンジンの通年表示用）
+ * 9フェーズすべてを年間に占める割合つきで返す。管理画面のシーズンバー描画に使う。
+ */
+export function getSeasonTimeline(date: Date = new Date()): SeasonTimelineEntry[] {
+  const current = getSeasonPhase(date);
+  const { seasonYear } = resolveSeasonYear(date);
+  // シーズン年の長さはseasonYear+1の年日数で判定する（getSeasonPhaseのyearProgressと同じ理由）
+  const total = daysInYear(seasonYear + 1);
+  const base = phaseStartDay(seasonYear, PHASES[0]);
+
+  return PHASES.map((def, i) => {
+    const start = phaseStartDay(seasonYear, def) - base;
+    const end = i + 1 < PHASES.length ? phaseStartDay(seasonYear, PHASES[i + 1]) - base : total;
+    return {
+      key: def.key,
+      label: def.label,
+      emoji: def.emoji,
+      hint: def.hint,
+      startFraction: Math.max(0, Math.min(1, start / total)),
+      endFraction: Math.max(0, Math.min(1, end / total)),
+      isCurrent: def.key === current.key,
+    };
+  });
 }
 
 /** 時間帯に応じた挨拶（ストーリーの導入用） */
