@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
@@ -12,12 +12,14 @@ import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import {
+  IconCamera,
   IconChat,
   IconChevronRight,
   IconFieldGrid,
   IconHome,
   IconPin,
   IconWarningFill,
+  SEASON_ICONS,
 } from "../../components/ui/icons";
 
 type AttentionField = {
@@ -29,7 +31,7 @@ type AttentionField = {
 
 type NextAction = {
   key: string;
-  emoji: string;
+  Icon: (props: { className?: string }) => JSX.Element;
   label: string;
   sub?: string;
   href: string;
@@ -161,11 +163,12 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   // ネクストアクション（レイヤー6: 次に何をすべきかを常に示す）
   const nextActions = useMemo((): NextAction[] => {
     const actions: NextAction[] = [];
+    const SeasonIcon = SEASON_ICONS[season.iconKey];
     if (openIssueCount !== null && openIssueCount > 0) {
       const top = attentionFields[0];
       actions.push({
         key: "issues",
-        emoji: "⚠️",
+        Icon: IconWarningFill,
         label: `未対応を確認する（${openIssueCount}件）`,
         sub: top?.name ? `まずは「${top.name}」から` : undefined,
         href: "/records?status=open",
@@ -180,16 +183,16 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     if (!hasTodayRecord) {
       actions.push({
         key: "today-record",
-        emoji: "📷",
+        Icon: IconCamera,
         label: "今日の記録を残す",
-        sub: `${season.emoji} ${season.label}: ${season.action}`,
+        sub: `${season.label}: ${season.action}`,
         href: "/records/new?returnTo=%2Fmap",
         tone: "normal",
       });
     } else {
       actions.push({
         key: "season",
-        emoji: season.emoji,
+        Icon: SeasonIcon,
         label: season.action,
         sub: `いまは「${season.label}」の時期`,
         href: "/records/new?returnTo=%2Fmap",
@@ -207,46 +210,58 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
         <motion.div
           layout
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
-          className={`flex flex-col rounded-t-3xl glass-dark-strong shadow-[0_-8px_32px_rgba(0,0,0,0.45)] ${
-            expanded ? "max-h-[72dvh]" : "max-h-[5.25rem]"
+          className={`flex flex-col rounded-t-3xl glass-light-strong ${
+            expanded ? "max-h-[72dvh]" : "max-h-[9.5rem]"
           } overflow-hidden`}
         >
-          {/* ピークヘッダー（常時表示） */}
+          {/* ピークヘッダー（常時表示。折りたたみ時も「次にやること」が1件見えるようにする） */}
           <button
             onClick={toggleExpand}
             aria-expanded={expanded}
             className="w-full shrink-0 pt-2.5"
           >
-            <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
+            <div className="mx-auto h-1 w-10 rounded-full bg-black/15" />
             <div className="flex items-center gap-3 px-5 py-3">
               {!loaded ? (
                 <>
-                  <Skeleton className="h-7 w-24 bg-white/15" />
-                  <Skeleton className="h-5 w-16 bg-white/10" />
+                  <Skeleton className="h-7 w-24 bg-gray-200" />
+                  <Skeleton className="h-5 w-16 bg-gray-100" />
                 </>
               ) : (
                 <>
-                  <span className="text-2xl font-bold leading-none text-white">
+                  <span className="font-heading text-2xl font-bold leading-none text-gray-900">
                     {fieldCount}
-                    <span className="ml-1 text-sm font-semibold text-white/70">枚の田んぼ</span>
+                    <span className="ml-1 text-sm font-semibold text-gray-500">枚の田んぼ</span>
                   </span>
                   {totals.issue + totals.needsCheck > 0 ? (
                     <StatusBadge
                       status={totals.issue > 0 ? "issue" : "needs_check"}
                       label={`気になる ${totals.issue + totals.needsCheck}`}
-                      dark
                     />
                   ) : (
-                    <StatusBadge status="normal" label="すべて順調" dark />
+                    <StatusBadge status="normal" label="すべて順調" />
                   )}
                 </>
               )}
               <IconChevronRight
-                className={`ml-auto h-5 w-5 shrink-0 text-white/60 transition-transform duration-200 ${
+                className={`ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 ${
                   expanded ? "rotate-90" : "-rotate-90"
                 }`}
               />
             </div>
+            {/* 折りたたみ時のピーク表示: 展開せずとも「次にやること」の先頭1件が見える */}
+            {!expanded && loaded && nextActions[0] && (
+              <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+                {(() => {
+                  const PeekIcon = nextActions[0].Icon;
+                  return <PeekIcon className="h-5 w-5 shrink-0 text-emerald-700" />;
+                })()}
+                <span className="min-w-0 flex-1 truncate text-left text-sm font-bold text-gray-800">
+                  {nextActions[0].label}
+                </span>
+                <IconChevronRight className="h-4 w-4 shrink-0 text-emerald-600" />
+              </div>
+            )}
           </button>
 
           {/* 展開コンテンツ（折りたたみ時は描画しない: ピークバーからのはみ出し防止） */}
@@ -255,7 +270,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
           >
             {/* ネクストアクション（次に何をすべきか） */}
             <section className="mb-4">
-              <h3 className="pb-2 text-xs font-bold uppercase tracking-wider text-white/50">
+              <h3 className="pb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
                 次にやること
               </h3>
               <ul className="space-y-2">
@@ -265,22 +280,22 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                       href={a.href}
                       className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-transform active:scale-[0.98] ${
                         a.tone === "alert"
-                          ? "border-red-400/40 bg-red-500/15"
-                          : "border-emerald-400/30 bg-emerald-500/10"
+                          ? "border-red-200 bg-red-50"
+                          : "border-emerald-200 bg-emerald-50"
                       }`}
                     >
-                      <span className="text-2xl">{a.emoji}</span>
+                      <a.Icon className={`h-6 w-6 shrink-0 ${a.tone === "alert" ? "text-red-600" : "text-emerald-700"}`} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-base font-bold text-white">
+                        <span className="block truncate text-base font-bold text-gray-900">
                           {a.label}
                         </span>
                         {a.sub && (
-                          <span className="mt-0.5 block truncate text-xs text-white/65">
+                          <span className="mt-0.5 block truncate text-xs text-gray-500">
                             {a.sub}
                           </span>
                         )}
                       </span>
-                      <IconChevronRight className="h-5 w-5 shrink-0 text-white/50" />
+                      <IconChevronRight className="h-5 w-5 shrink-0 text-gray-400" />
                     </Link>
                   </li>
                 ))}
@@ -290,16 +305,16 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
             {/* 状態サマリー（大型タイポ・信号色） */}
             <section className="mb-4 grid grid-cols-3 gap-2">
               {[
-                { label: "田んぼ", value: fieldCount, unit: "枚", color: "text-white" },
-                { label: "異常", value: totals.issue, unit: "件", color: totals.issue > 0 ? "text-red-400" : "text-white/40" },
-                { label: "要確認", value: totals.needsCheck, unit: "件", color: totals.needsCheck > 0 ? "text-amber-300" : "text-white/40" },
+                { label: "田んぼ", value: fieldCount, unit: "枚", color: "text-gray-900" },
+                { label: "異常", value: totals.issue, unit: "件", color: totals.issue > 0 ? "text-red-600" : "text-gray-300" },
+                { label: "要確認", value: totals.needsCheck, unit: "件", color: totals.needsCheck > 0 ? "text-amber-600" : "text-gray-300" },
               ].map((s) => (
-                <div key={s.label} className="rounded-2xl bg-white/5 px-3 py-3 text-center">
-                  <p className={`text-3xl font-bold leading-none ${s.color}`}>
+                <div key={s.label} className="rounded-2xl bg-gray-50 px-3 py-3 text-center">
+                  <p className={`font-heading text-3xl font-bold leading-none ${s.color}`}>
                     {s.value}
-                    <span className="ml-0.5 text-xs font-semibold text-white/50">{s.unit}</span>
+                    <span className="ml-0.5 text-xs font-semibold text-gray-400">{s.unit}</span>
                   </p>
-                  <p className="mt-1.5 text-[11px] font-semibold text-white/60">{s.label}</p>
+                  <p className="mt-1.5 text-[11px] font-semibold text-gray-500">{s.label}</p>
                 </div>
               ))}
             </section>
@@ -308,8 +323,8 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
             {attentionFields.length > 0 && (
               <section className="mb-4">
                 <div className="flex items-center gap-1.5 pb-2">
-                  <IconWarningFill className="h-4 w-4 text-amber-400" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">
+                  <IconWarningFill className="h-4 w-4 text-amber-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                     要注意の田んぼ
                   </h3>
                 </div>
@@ -318,16 +333,16 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                     <li key={af.id}>
                       <Link
                         href={`/fields/${encodeURIComponent(af.id)}`}
-                        className="flex items-center gap-2.5 rounded-2xl bg-white/5 px-3.5 py-3 transition-colors active:bg-white/10"
+                        className="flex items-center gap-2.5 rounded-2xl bg-gray-50 px-3.5 py-3 transition-colors active:bg-gray-100"
                       >
-                        <span className="flex-1 truncate text-sm font-bold text-white">
+                        <span className="flex-1 truncate text-sm font-bold text-gray-900">
                           {af.name || "名前のない田んぼ"}
                         </span>
                         {af.issueCount > 0 && (
-                          <StatusBadge status="issue" label={`異常${af.issueCount}`} dark />
+                          <StatusBadge status="issue" label={`異常${af.issueCount}`} />
                         )}
                         {af.needsCheckCount > 0 && (
-                          <StatusBadge status="needs_check" label={`要確認${af.needsCheckCount}`} dark />
+                          <StatusBadge status="needs_check" label={`要確認${af.needsCheckCount}`} />
                         )}
                       </Link>
                     </li>
@@ -340,12 +355,12 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
             {recentRecords.length > 0 && (
               <section>
                 <div className="flex items-center justify-between pb-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                     最近の記録
                   </h3>
                   <Link
                     href="/talk"
-                    className="flex items-center gap-0.5 text-xs font-bold text-emerald-300"
+                    className="flex items-center gap-0.5 text-xs font-bold text-emerald-700"
                   >
                     トークで見る
                     <IconChevronRight className="h-3.5 w-3.5" />
@@ -356,7 +371,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                     <li key={record.id}>
                       <Link
                         href={`/records/${record.id}`}
-                        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors active:bg-white/10"
+                        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors active:bg-gray-100"
                       >
                         <RecordThumb
                           media={record.media}
@@ -372,13 +387,13 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                           className="h-11 w-16 shrink-0 rounded-xl"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-white">
+                          <p className="truncate text-sm font-bold text-gray-900">
                             {record.title}
                           </p>
-                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-white/60">
+                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-gray-500">
                             <IconPin className="h-3 w-3" />
                             {record.fieldName}
-                            <span className="text-white/30">|</span>
+                            <span className="text-gray-300">|</span>
                             {record.time}
                           </p>
                         </div>
@@ -399,9 +414,9 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                 <Link
                   key={href}
                   href={href}
-                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/5 py-3 text-xs font-bold text-white/85 transition-colors active:bg-white/10"
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-gray-50 py-3 text-xs font-bold text-gray-700 transition-colors active:bg-gray-100"
                 >
-                  <Icon className="h-5.5 w-5.5 text-emerald-300" />
+                  <Icon className="h-5.5 w-5.5 text-emerald-600" />
                   {label}
                 </Link>
               ))}

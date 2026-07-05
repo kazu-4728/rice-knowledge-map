@@ -118,14 +118,19 @@ export default function CalendarScreen() {
   return (
     <div className="space-y-3 px-3 pb-24 pt-3">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-1">
+      <div className="px-1">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="h-px w-6 bg-emerald-600" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">Calendar</span>
+        </div>
+      <div className="flex items-center justify-between">
         <button onClick={() => {
           const d = new Date(viewYear, viewMonth - 1, 1);
           setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
         }} className="rounded-lg p-1.5 hover:bg-gray-100 active:scale-90 transition-transform">
           <IconChevronLeft className="h-5 w-5 text-gray-600" />
         </button>
-        <h1 className="text-xl font-bold text-gray-900">
+        <h1 className="font-heading text-xl font-bold tracking-tight text-gray-900">
           {viewYear}年 {MONTHS[viewMonth]}
         </h1>
         <button onClick={() => {
@@ -135,9 +140,10 @@ export default function CalendarScreen() {
           <IconChevronRight className="h-5 w-5 text-gray-600" />
         </button>
       </div>
+      </div>
 
       {/* カレンダーグリッド */}
-      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] overflow-hidden">
         {/* 曜日ヘッダー */}
         <div className="grid grid-cols-7 border-b border-gray-100">
           {WEEKDAYS.map((w, i) => (
@@ -163,7 +169,7 @@ export default function CalendarScreen() {
                   ${isSelected ? "bg-green-50" : "hover:bg-gray-50"}`}
               >
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold
-                  ${isToday ? "bg-green-600 text-white" : dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-gray-700"}`}>
+                  ${isToday ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_12px_-2px_rgba(16,185,129,0.7)]" : dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-gray-700"}`}>
                   {day}
                 </span>
                 <div className="mt-0.5 flex flex-wrap justify-center gap-0.5 px-0.5">
@@ -181,7 +187,7 @@ export default function CalendarScreen() {
 
       {/* 選択日の予定 */}
       {selectedDate && (
-        <section className="rounded-2xl bg-white shadow-sm p-4">
+        <section className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-gray-900">
               {selectedDate.replace(/(\d+)-(\d+)-(\d+)/, "$2/$3")} の予定
@@ -244,7 +250,7 @@ export default function CalendarScreen() {
 
       {/* 今月の予定一覧 */}
       {!selectedDate && schedules.length > 0 && (
-        <section className="rounded-2xl bg-white shadow-sm p-4">
+        <section className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
           <p className="text-sm font-bold text-gray-900 mb-3">今月の予定</p>
           <ul className="space-y-2">
             {schedules.map((item) => {
@@ -276,7 +282,7 @@ export default function CalendarScreen() {
       )}
 
       {!selectedDate && schedules.length === 0 && (
-        <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+        <div className="rounded-2xl bg-white p-6 text-center shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)]">
           <p className="text-sm text-gray-500">今月の予定はありません</p>
           {canEdit ? (
             <p className="mt-1 text-xs text-gray-400">＋ボタンから作業予定を追加できます</p>
@@ -290,7 +296,7 @@ export default function CalendarScreen() {
       {canEdit && (
         <button
           onClick={() => { setFormDate(selectedDate ?? toYMD(today)); setShowForm(true); }}
-          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 shadow-xl active:scale-90 transition-transform"
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-700 shadow-[0_10px_28px_-8px_rgba(16,185,129,0.7)] active:scale-90 transition-transform animate-fab-glow"
           aria-label="予定を追加"
         >
           <IconPlus className="h-7 w-7 text-white" strokeWidth={2.5} />

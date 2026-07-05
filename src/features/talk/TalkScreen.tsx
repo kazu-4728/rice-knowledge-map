@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
+import { fadeRise } from "../../lib/motion/variants";
 import { deleteComment, loadTalkTimeline, sendTalkText, type TalkMessage } from "../../lib/data/talk";
 import { deleteRecord } from "../../lib/data/recordDetail";
 import { loadFarmData } from "../../lib/data/farm";
@@ -21,7 +23,14 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
-import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
+import {
+  IconCamera,
+  IconChat,
+  IconChevronRight,
+  IconPlayFill,
+  IconSprout,
+  IconTrash,
+} from "../../components/ui/icons";
 
 /**
  * 家族の統合トークルーム（田んぼOS「話す」空間）。
@@ -173,7 +182,7 @@ export default function TalkScreen() {
 
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
-      showToast(fieldName ? `🌾 ${fieldName} に送信しました` : "音声を送信しました");
+      showToast(fieldName ? `${fieldName} に送信しました` : "音声を送信しました");
       reload(filterId);
     },
     onError: (message) => showToast(message, "error"),
@@ -208,14 +217,16 @@ export default function TalkScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#eef2ea]">
+    <div className="flex h-full flex-col bg-talk-surface">
       {/* 田んぼ絞り込みチップ */}
       <div className="shrink-0 border-b border-black/5 bg-white/80 backdrop-blur-sm">
         <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setFilterId(null)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-              filterId === null ? "bg-green-700 text-white" : "bg-gray-100 text-gray-600"
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
+              filterId === null
+                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
+                : "border border-white/60 bg-white/70 text-gray-600"
             }`}
           >
             すべて
@@ -224,11 +235,14 @@ export default function TalkScreen() {
             <button
               key={f.id}
               onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                filterId === f.id ? "bg-green-700 text-white" : "bg-gray-100 text-gray-600"
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
+                filterId === f.id
+                  ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
+                  : "border border-white/60 bg-white/70 text-gray-600"
               }`}
             >
-              🌾 {f.name}
+              <IconSprout className="h-3.5 w-3.5" />
+              {f.name}
             </button>
           ))}
         </div>
@@ -244,7 +258,9 @@ export default function TalkScreen() {
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-3xl">🌾</p>
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <IconSprout className="h-7 w-7" />
+            </span>
             <p className="text-sm font-bold text-gray-700">
               {filterName ? `「${filterName}」のやり取りはまだありません` : "まだやり取りがありません"}
             </p>
@@ -383,14 +399,15 @@ function MessageRow({
       // 親を div role="button" 化したため、keydownはclickと違いstopPropagationだけでは
       // 止まらず親のonOpenまでバブリングする。Enter/Spaceでの二重発火を防ぐ
       onKeyDown={(e) => e.stopPropagation()}
-      className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
+      className="flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
     >
-      🌾 {m.fieldName}
+      <IconSprout className="h-3 w-3" />
+      {m.fieldName}
     </button>
   );
 
   return (
-    <div>
+    <motion.div initial="hidden" animate="show" variants={fadeRise}>
       {showDate && (
         <div className="flex justify-center py-2.5">
           <span className="rounded-full bg-black/10 px-3 py-1 text-[10px] font-semibold text-gray-600">
@@ -502,12 +519,16 @@ function MessageRow({
                     />
                   )}
                   {m.photoCount != null && m.photoCount > 1 && (
-                    <span className="text-[10px] text-gray-400">📷 {m.photoCount}枚</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                      <IconCamera className="h-3 w-3" />
+                      {m.photoCount}枚
+                    </span>
                   )}
                   {/* スレッドの存在を明示（返信の履歴は元記録に集約されている） */}
                   {m.commentCount != null && m.commentCount > 0 && (
-                    <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
-                      💬 返信{m.commentCount}件
+                    <span className="flex items-center gap-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
+                      <IconChat className="h-3 w-3" />
+                      返信{m.commentCount}件
                     </span>
                   )}
                 </div>
@@ -518,6 +539,6 @@ function MessageRow({
 
         {!m.isMine && <span className="mb-0.5 shrink-0 text-[9px] text-gray-400">{m.timeLabel}</span>}
       </div>
-    </div>
+    </motion.div>
   );
 }

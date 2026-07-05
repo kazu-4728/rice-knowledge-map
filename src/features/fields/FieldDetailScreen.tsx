@@ -18,6 +18,7 @@ import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
 import SectionHeading from "../../components/ui/SectionHeading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { CATEGORY_BADGE, CATEGORY_CHIP, CATEGORY_THEME } from "../../components/ui/categoryStyles";
 import type { FieldPoint, RecordItem } from "../../types";
 import {
   IconCamera,
@@ -48,21 +49,6 @@ const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: stri
   needs_check: { label: "要確認", cls: "bg-amber-100 text-amber-700", order: 1 },
   normal: { label: "正常", cls: "bg-green-50 text-green-700", order: 2 },
   resolved: { label: "解決済み", cls: "bg-blue-50 text-blue-600", order: 3 },
-};
-
-const CATEGORY_CHIP: Record<RecordItem["category"], string> = {
-  水管理: "bg-blue-50 text-blue-600",
-  作業: "bg-green-50 text-green-700",
-  異常: "bg-orange-50 text-orange-600",
-  音声: "bg-teal-50 text-teal-600",
-};
-
-/** タイムラインカードのカテゴリ帯色（写真上に重ねるバッジ用、視認性のため白文字前提の濃色） */
-const CATEGORY_BADGE: Record<RecordItem["category"], string> = {
-  水管理: "border-transparent bg-blue-600 text-white",
-  作業: "border-transparent bg-green-700 text-white",
-  異常: "border-transparent bg-orange-600 text-white",
-  音声: "border-transparent bg-teal-600 text-white",
 };
 
 /** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
@@ -436,16 +422,28 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             <p className="mt-0.5 text-[11px] text-gray-500">未対応</p>
           </div>
         </div>
-        {(categoryCounts.length > 0 || lastRecord) && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-3">
-            {categoryCounts.map(({ cat, count }) => (
-              <span key={cat} className={`rounded-md px-2 py-0.5 text-xs font-semibold ${CATEGORY_CHIP[cat]}`}>
-                {cat} {count}
-              </span>
-            ))}
-            {lastRecord && (
-              <span className="ml-auto text-xs text-gray-400">最終記録 {lastRecordLabel}</span>
-            )}
+        {categoryCounts.length > 0 && (
+          <div className="mt-3 border-t border-gray-100 pt-3">
+            {/* 作業履歴の傾向（カテゴリ別件数の内訳バー） */}
+            <div className="flex h-2 overflow-hidden rounded-full bg-gray-100">
+              {categoryCounts.map(({ cat, count }) => (
+                <span
+                  key={cat}
+                  className={CATEGORY_THEME[cat].dot}
+                  style={{ width: `${(count / records.length) * 100}%` }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {categoryCounts.map(({ cat, count }) => (
+                <span key={cat} className={`rounded-md px-2 py-0.5 text-xs font-semibold ${CATEGORY_CHIP[cat]}`}>
+                  {cat} {count}
+                </span>
+              ))}
+              {lastRecord && (
+                <span className="ml-auto text-xs text-gray-400">最終記録 {lastRecordLabel}</span>
+              )}
+            </div>
           </div>
         )}
       </section>

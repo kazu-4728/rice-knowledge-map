@@ -9,7 +9,7 @@ import { getSeasonPhase, getGreeting, formatDateLabel } from "../../lib/season";
 import type { RecordItem } from "../../types";
 import { PaddyPhoto, RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { IconClose, IconChevronRight, IconPin, IconWarningFill } from "../../components/ui/icons";
+import { IconClose, IconChevronRight, IconPin, IconWarningFill, SEASON_ICONS } from "../../components/ui/icons";
 
 /**
  * 「今日の田んぼ」オープニングストーリー（田んぼOS レイヤー1）
@@ -138,7 +138,7 @@ export default function TodayStory() {
 
   return (
     <div
-      className="absolute inset-0 z-40 overflow-hidden bg-black"
+      className="fixed inset-0 z-40 overflow-hidden bg-black"
       role="dialog"
       aria-label="今日の田んぼ"
     >
@@ -207,7 +207,10 @@ export default function TodayStory() {
               )}
               <div className="mt-6 rounded-2xl glass-dark p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{season.emoji}</span>
+                  {(() => {
+                    const SeasonIcon = SEASON_ICONS[season.iconKey];
+                    return <SeasonIcon className="h-6 w-6 text-emerald-300" />;
+                  })()}
                   <p className="text-lg font-bold text-white">いまは「{season.label}」の時期</p>
                 </div>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">

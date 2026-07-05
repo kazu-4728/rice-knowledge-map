@@ -27,79 +27,80 @@ export default function MenuDrawer({ open, onClose }: Props) {
   }, [pathname]);
 
   return (
-    <Drawer open={open} onOpenChange={(next) => { if (!next) onClose(); }} direction="left" shouldScaleBackground={false}>
+    <Drawer open={open} onOpenChange={(next) => { if (!next) onClose(); }} direction="bottom" shouldScaleBackground={false}>
       <DrawerContent
-        direction="left"
-        className="bg-white p-0 shadow-2xl"
+        direction="bottom"
+        className="max-h-[85dvh] rounded-t-3xl bg-white p-0 shadow-2xl"
         aria-describedby={undefined}
       >
         <DrawerTitle className="sr-only">メニュー</DrawerTitle>
         {/* header */}
-        <div className="flex h-14 items-center justify-between bg-green-800 px-4">
+        <div className="flex items-center justify-between px-5 pb-2 pt-1">
           <div className="flex items-center gap-1.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-50">
               <LogoRice className="h-5 w-5" />
             </span>
-            <span className="text-base font-bold tracking-tight text-white">
+            <span className="font-heading text-base font-bold tracking-tight text-gray-900">
               みらい稲作管理
             </span>
           </div>
           <DrawerClose
             aria-label="メニューを閉じる"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             <IconClose className="h-5 w-5" />
           </DrawerClose>
         </div>
 
-        {/* nav links */}
-        <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-2 py-3">
-          {NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active = isNavActive(href, pathname);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold transition-colors ${
-                  active
-                    ? "bg-green-50 text-green-700"
-                    : "text-gray-800 hover:bg-gray-50"
-                }`}
-              >
-                <Icon
-                  className="h-6 w-6 shrink-0"
-                  strokeWidth={active ? 2.1 : 1.8}
-                />
-                {label}
-              </Link>
-            );
-          })}
+        {/* 主要4系統: 大きいアイコンタイルのグリッド（オンデマンド起動時に一目で選べるように） */}
+        <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-4 pb-3">
+          <div className="grid grid-cols-4 gap-2.5">
+            {NAV_ITEMS.map(({ href, label, Icon }) => {
+              const active = isNavActive(href, pathname);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl px-2 py-3.5 text-xs font-bold transition-all active:scale-95 ${
+                    active
+                      ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.65)]"
+                      : "bg-gray-50 text-gray-700"
+                  }`}
+                >
+                  <Icon className="h-6 w-6 shrink-0" strokeWidth={active ? 2.1 : 1.8} />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
 
-          <p className="px-3 pb-1 pt-4 text-[11px] font-bold text-gray-400">その他</p>
-          {SUB_NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active = isNavActive(href, pathname);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                  active
-                    ? "bg-green-50 text-green-700"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Icon
-                  className="h-5 w-5 shrink-0"
-                  strokeWidth={active ? 2.1 : 1.8}
-                />
-                {label}
-              </Link>
-            );
-          })}
+          <p className="px-1 pb-1.5 pt-5 text-[11px] font-bold uppercase tracking-wider text-gray-400">その他</p>
+          <div className="space-y-0.5">
+            {SUB_NAV_ITEMS.map(({ href, label, Icon }) => {
+              const active = isNavActive(href, pathname);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    active
+                      ? "bg-green-50 text-green-700"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon
+                    className="h-5 w-5 shrink-0"
+                    strokeWidth={active ? 2.1 : 1.8}
+                  />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* account */}
-        <div className="border-t border-gray-100 px-3 py-3">
+        <div className="border-t border-gray-100 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           {session ? (
             <>
               <div className="flex items-center gap-2.5 px-3 py-1">
@@ -121,7 +122,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
           ) : (
             <Link
               href="/login"
-              className="flex w-full items-center justify-center rounded-xl bg-green-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-green-800"
+              className="flex w-full items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-700 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.6)] transition-colors"
             >
               ログイン
             </Link>

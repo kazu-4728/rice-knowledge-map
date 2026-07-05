@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
+import { motion } from "motion/react";
+import { staggerContainer, staggerItem } from "../../lib/motion/variants";
 import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
 import { excludePointBackedIssues, loadOpenIssueRecords } from "../../lib/data/records";
 import { getSupabase } from "../../lib/supabase/client";
@@ -158,14 +160,20 @@ export default function FieldsPage() {
   return (
     <AppShell>
       <div className="space-y-3 px-3 pb-6 pt-3">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <IconFieldGrid className="h-6 w-6 text-green-700" />
-            <h1 className="text-2xl font-bold text-gray-900">田んぼ一覧</h1>
+        <div className="px-1">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="h-px w-6 bg-emerald-600" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">Fields</span>
           </div>
-          {mode !== "loading" && (
-            <span className="text-sm text-gray-500">{fields.length}枚</span>
-          )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <IconFieldGrid className="h-6 w-6 text-green-700" />
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼ一覧</h1>
+            </div>
+            {mode !== "loading" && (
+              <span className="text-sm text-gray-500">{fields.length}枚</span>
+            )}
+          </div>
         </div>
 
         {mode === "anon" && (
@@ -201,13 +209,18 @@ export default function FieldsPage() {
         )}
 
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer}
+            className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+          >
             {fields.map((field) => {
               const fs = fieldStatuses[field.id];
               const hasAttention = fs && (fs.issueCount > 0 || fs.needsCheckCount > 0);
               return (
+              <motion.div key={field.id} variants={staggerItem}>
               <Card
-                key={field.id}
                 accent={fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : undefined}
                 className="relative overflow-hidden transition-transform active:scale-[0.99]"
               >
@@ -277,9 +290,10 @@ export default function FieldsPage() {
                   </>
                 )}
               </Card>
+              </motion.div>
             );
             })}
-          </div>
+          </motion.div>
         )}
 
         <Button asChild variant="secondary" size="lg" className="w-full border-dashed">

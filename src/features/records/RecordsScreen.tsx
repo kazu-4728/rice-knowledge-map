@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "motion/react";
+import { staggerContainer, staggerItem } from "../../lib/motion/variants";
 import { loadRecords, isUnresolvedIssue, ISSUE_POINT_TYPES, type RecordsData } from "../../lib/data/records";
 import { TYPE_LABELS } from "../map/mapPins";
 import { consumeJustSaved } from "./recordDraft";
@@ -12,6 +14,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
+import { CATEGORY_BADGE } from "../../components/ui/categoryStyles";
 import {
   IconCamera,
   IconDrop,
@@ -45,14 +48,6 @@ function matchesFilter(record: RecordItem, filter: FilterLabel): boolean {
       return true;
   }
 }
-
-/** メディアカードの写真上に重ねるカテゴリ帯色（田んぼ詳細の記録タブと共通の見た目） */
-const CATEGORY_BADGE: Record<RecordItem["category"], string> = {
-  水管理: "border-transparent bg-blue-600 text-white",
-  作業: "border-transparent bg-green-700 text-white",
-  異常: "border-transparent bg-orange-600 text-white",
-  音声: "border-transparent bg-teal-600 text-white",
-};
 
 /** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
 const STATUS_BADGE: Partial<Record<RecordItem["status"], { label: string; cls: string }>> = {
@@ -134,14 +129,14 @@ export default function RecordsScreen() {
       )}
 
       {/* フィルターチップ */}
-      <div className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-white p-2 shadow-sm">
+      <div className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-white p-2 shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)]">
         {filterChips.map(({ label, Icon }) => (
           <button
             key={label}
             onClick={() => setFilter(label)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
               filter === label
-                ? "bg-green-700 text-white"
+                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.6)]"
                 : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
@@ -224,18 +219,25 @@ export default function RecordsScreen() {
       {/* 日付グループ（写真主体のメディアカード。田んぼ詳細の記録タブと同じ見た目） */}
       {groups.map((group) => (
         <section key={group.date} className="mt-5">
-          <div className="flex items-center gap-3 px-1">
-            <h2 className="shrink-0 text-sm font-bold text-gray-800">{group.date}</h2>
+          <div className="flex items-center gap-2 px-1">
+            <span className="h-px w-4 shrink-0 bg-emerald-600" />
+            <h2 className="shrink-0 font-heading text-sm font-bold text-gray-800">{group.date}</h2>
             <span className="h-px flex-1 bg-gray-200" />
             <span className="shrink-0 text-xs text-gray-400">{group.items.length}件</span>
           </div>
-          <div className="mt-2.5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer}
+            className="mt-2.5 grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+          >
             {group.items.map((record) => {
               const statusBadge = ISSUE_POINT_TYPES.includes(record.pointType)
                 ? STATUS_BADGE[record.status]
                 : undefined;
               return (
-                <Link key={record.id} href={`/records/${record.id}`} className="block transition-transform active:scale-[0.99]">
+                <motion.div key={record.id} variants={staggerItem}>
+                <Link href={`/records/${record.id}`} className="block transition-transform active:scale-[0.99]">
                   <Card accent={isUnresolvedIssue(record) ? "issue" : undefined} className="overflow-hidden">
                     <div className="relative h-36">
                       <RecordThumb
@@ -275,9 +277,10 @@ export default function RecordsScreen() {
                     </CardContent>
                   </Card>
                 </Link>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         </section>
       ))}
     </div>
