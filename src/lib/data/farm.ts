@@ -309,7 +309,7 @@ export async function getSignedPhotoUrls(paths: string[]): Promise<Record<string
 
 /**
  * 全田んぼの最終記録日を一括取得する（田んぼ一覧のカードに表示）。
- * PostgRESTの既定上限（1000件）を超える場合に備えページングして全件走査する。
+ * PostgRESTの既定上限（1000件）を超える場合に備え、ページ単位で最終日を集計する。
  * 未ログイン・未設定時は空マップを返す。
  */
 export async function loadFieldLastRecordDates(): Promise<Record<string, string>> {
@@ -320,24 +320,26 @@ export async function loadFieldLastRecordDates(): Promise<Record<string, string>
 
   type DateRow = { field_id: string; recorded_at: string };
   const PAGE = 1000;
-  const allRows: DateRow[] = [];
+  const lastMap: Record<string, string> = {};
   for (let from = 0; ; from += PAGE) {
-    const { data: page } = await sb.from("records")
+    const { data: page, error } = await sb.from("records")
       .select("field_id, recorded_at")
       .not("field_id", "is", null)
       .order("recorded_at", { ascending: false })
       .range(from, from + PAGE - 1);
-    if (!page || page.length === 0) break;
-    allRows.push(...(page as DateRow[]));
-    if (page.length < PAGE) break;
-  }
-  const lastMap: Record<string, string> = {};
-  for (const r of allRows) {
-    if (r.field_id && !lastMap[r.field_id]) {
-      const d = new Date(r.recorded_at);
-      const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-      lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+    if (error) {
+      console.warn("[farm] loadFieldLastRecordDates failed", error);
+      break;
     }
+    if (!page || page.length === 0) break;
+    for (const r of page as DateRow[]) {
+      if (r.field_id && !lastMap[r.field_id]) {
+        const d = new Date(r.recorded_at);
+        const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+        lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+      }
+    }
+    if (page.length < PAGE) break;
   }
   return lastMap;
 }
