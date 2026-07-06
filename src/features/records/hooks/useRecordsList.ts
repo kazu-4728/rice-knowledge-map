@@ -93,14 +93,14 @@ export function useRecordsList(opts: RecordsListOptions): RecordsList {
   }, [records, opts.pointFilter, opts.fieldFilter, opts.statusFilter, opts.filterChip, opts.query]);
 
   const groups = useMemo(() => {
-    // 日付ごとにグループ化（日付降順で並んでいる前提）
-    const list: RecordsListGroup[] = [];
+    // 日付ごとにグループ化（日付降順で並んでいる前提）。Mapの挿入順で表示順を維持する。
+    const itemsByDate = new Map<string, RecordItem[]>();
     for (const record of visibleRecords) {
-      const group = list.find((g) => g.date === record.date);
-      if (group) group.items.push(record);
-      else list.push({ date: record.date, items: [record] });
+      const items = itemsByDate.get(record.date);
+      if (items) items.push(record);
+      else itemsByDate.set(record.date, [record]);
     }
-    return list;
+    return [...itemsByDate].map(([date, items]) => ({ date, items }));
   }, [visibleRecords]);
 
   const categoryCounts = useMemo(() => {
