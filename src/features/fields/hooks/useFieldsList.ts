@@ -34,7 +34,7 @@ export type FieldsList = {
   photoUrls: Record<string, string>;
   handlePhotoSelect: (field: FieldItem, file: File) => Promise<void>;
   /** 写真未登録の田んぼに使う既定カバー実写（差し替え>システム既定の順で解決済み） */
-  defaultCoverUrl: string;
+  defaultCoverUrl: string | undefined;
 };
 
 /** /fields一覧のデータ取得を1本化するフック（Supabase直呼びはlib/data/farm.ts経由に統一済み） */

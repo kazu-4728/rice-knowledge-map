@@ -1,26 +1,29 @@
 import type { HeroSlide, GroupSiteContentRow, ImageSlot, ImageSlots } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { ensureGroupId } from "./farm";
+import { SYSTEM_DEFAULT_IMAGES } from "./defaultImageCatalog";
 
 export type { HeroSlide, ImageSlot, ImageSlots };
 
-// 既定画像はオーナー提供の生成画像（public/img/defaults/、defaultImageCatalog.ts参照）
+// 既定画像はオーナー提供の生成画像（Supabase Storageのapp-defaultsバケット、
+// defaultImageCatalog.ts参照。Supabase未設定環境ではimage_urlがundefinedになり
+// HeroBackdropのグラデーション表示に委ねる）
 export const DEFAULT_SLIDES: HeroSlide[] = [
   {
     // 朝日と霧の田園全景
-    image_url: "/img/defaults/sunrise-paddies.webp",
+    image_url: SYSTEM_DEFAULT_IMAGES.home,
     title: "家族の田んぼを、みんなで守る",
     body: "水、土、稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。",
   },
   {
     // 田を見回る農家
-    image_url: "/img/defaults/farmer-check.webp",
+    image_url: SYSTEM_DEFAULT_IMAGES.talk,
     title: "記録が、次の一手になる",
     body: "入水口・異常箇所をピンで管理。家族でコメントを付けて対応を共有できます。",
   },
   {
     // 黄金色の稲穂・収穫前
-    image_url: "/img/defaults/harvest-gold.webp",
+    image_url: SYSTEM_DEFAULT_IMAGES.calendar.autumn,
     title: "稲を育てるストーリーを残す",
     body: "今年の記録が、来年の判断を助けます。農家の知恵をデジタルで引き継ぐ。",
   },

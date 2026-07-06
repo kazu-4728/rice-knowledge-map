@@ -22,7 +22,7 @@ export type TalkTimeline = {
    * 実際のscrollTop操作はコンポーネント側（DOM副作用）が担当する。
    */
   stickToBottomRef: React.RefObject<boolean>;
-  coverImageUrl: string;
+  coverImageUrl: string | undefined;
 };
 
 /**

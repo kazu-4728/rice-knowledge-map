@@ -48,7 +48,7 @@ export type FieldDetail = {
   lastRecord: RecordItem | undefined;
   handlePhotoSelect: (file: File) => Promise<void>;
   /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定） */
-  coverImageUrl: string;
+  coverImageUrl: string | undefined;
 };
 
 /**

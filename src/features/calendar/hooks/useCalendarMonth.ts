@@ -24,7 +24,7 @@ export type CalendarMonth = {
   createItem: (input: { title: string; scheduledDate: string; category: ScheduleCategory; fieldId: string | null; memo: string | null }) => Promise<ScheduleItem | null>;
   toggleItem: (item: ScheduleItem) => Promise<boolean>;
   deleteItem: (id: string) => Promise<boolean>;
-  coverImageUrl: string;
+  coverImageUrl: string | undefined;
 };
 
 /** /calendar のデータ取得を1本化するフック。フォームのローカル状態はコンポーネント側に残す */

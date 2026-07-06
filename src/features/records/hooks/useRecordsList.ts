@@ -73,7 +73,8 @@ export function useRecordsList(opts: RecordsListOptions): RecordsList {
     const merged = { ...rawThumbUrls };
     for (const record of records) {
       if (record.media === "photo" && !merged[record.id]) {
-        merged[record.id] = resolveRecordCoverUrl(undefined, record.category, imageSlots);
+        const fallback = resolveRecordCoverUrl(undefined, record.category, imageSlots);
+        if (fallback) merged[record.id] = fallback;
       }
     }
     return merged;

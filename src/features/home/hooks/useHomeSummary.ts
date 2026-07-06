@@ -15,7 +15,7 @@ export type HomeSummary = {
   loaded: boolean;
   loadError: boolean;
   isAnon: boolean;
-  heroImageUrl: string;
+  heroImageUrl: string | undefined;
 };
 
 /** /home のデータ取得を1本化するフック。集計・整形のみを担当し、DOM/UI状態は持たない */
