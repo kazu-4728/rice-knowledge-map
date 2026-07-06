@@ -115,7 +115,7 @@ export async function loadSiteContent(): Promise<SiteContentResult> {
   return { mode: "live", groupId, slides, imageSlots };
 }
 
-/** 各画面ヒーロー用にimage_slotsだけを取得する軽量版（hero_slides・署名URL変換は行わない） */
+/** 各画面ヒーロー用にimage_slotsだけを取得する軽量版。hero_slidesは取得せず、image_pathは署名URLへ変換する。 */
 export async function loadImageSlots(): Promise<ImageSlots> {
   const sb = getSupabase();
   if (!sb) return {};
