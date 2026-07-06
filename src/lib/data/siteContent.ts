@@ -4,25 +4,23 @@ import { ensureGroupId } from "./farm";
 
 export type { HeroSlide, ImageSlot, ImageSlots };
 
+// 既定画像はオーナー提供の生成画像（public/img/defaults/、defaultImageCatalog.ts参照）
 export const DEFAULT_SLIDES: HeroSlide[] = [
   {
-    // 青々とした水田・稲穂
-    image_url:
-      "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=1200&q=70",
+    // 朝日と霧の田園全景
+    image_url: "/img/defaults/sunrise-paddies.webp",
     title: "家族の田んぼを、みんなで守る",
     body: "水、土、稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。",
   },
   {
-    // 水鏡の田んぼ・稲作風景
-    image_url:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=70",
+    // 田を見回る農家
+    image_url: "/img/defaults/farmer-check.webp",
     title: "記録が、次の一手になる",
     body: "入水口・異常箇所をピンで管理。家族でコメントを付けて対応を共有できます。",
   },
   {
     // 黄金色の稲穂・収穫前
-    image_url:
-      "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=70",
+    image_url: "/img/defaults/harvest-gold.webp",
     title: "稲を育てるストーリーを残す",
     body: "今年の記録が、来年の判断を助けます。農家の知恵をデジタルで引き継ぐ。",
   },

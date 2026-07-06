@@ -2,33 +2,32 @@ import type { CalendarSeason, RecordCategoryLabel } from "../supabase/types";
 
 /**
  * システム既定の実写カタログ。
- * 出典: Unsplash（https://unsplash.com/license）。商用利用可・改変可・帰属表示不要。
- * URL自体は src/lib/data/siteContent.ts の DEFAULT_SLIDES と同一のもの（本リポジトリで
- * ランディングの既定ヒーロー画像として稼働実績がある3枚）を用途別に再利用している。
- * 確認日: 2026-07-06（このカタログを追加した時点でリポジトリに既存のURLをそのまま流用）。
+ * 出典: オーナー提供のAI生成画像5枚（2026-07-06受領、public/img/defaults/ に
+ * WebP圧縮して同梱。生成画像のため第三者ライセンスなし・商用利用の制約なし）。
+ * オーナーが /menu/site で差し替えた画像（image_slots）が常に優先され、
+ * ここの画像は「何も設定していなくても実写で見える」ための最終既定。
  */
-const PADDY_GREEN =
-  "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=1200&q=70";
-const PADDY_MIRROR =
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=70";
-const PADDY_GOLD =
-  "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=70";
+const SUNRISE_PADDIES = "/img/defaults/sunrise-paddies.webp"; // 朝日と霧の田園全景
+const FARMER_CHECK = "/img/defaults/farmer-check.webp"; // 田を見回る農家
+const SEEDLING_WATER = "/img/defaults/seedling-water.webp"; // 水鏡と若苗の接写
+const PLANTING_MACHINE = "/img/defaults/planting-machine.webp"; // 田植え機と植え付け直後の列
+const HARVEST_GOLD = "/img/defaults/harvest-gold.webp"; // 黄金色の稲穂
 
 export const SYSTEM_DEFAULT_IMAGES = {
-  home: PADDY_GREEN,
-  talk: PADDY_MIRROR,
-  fieldDefault: PADDY_GREEN,
+  home: SUNRISE_PADDIES,
+  talk: FARMER_CHECK,
+  fieldDefault: SEEDLING_WATER,
   calendar: {
-    spring: PADDY_GREEN,
-    summer: PADDY_GREEN,
-    autumn: PADDY_GOLD,
-    winter: PADDY_MIRROR,
+    spring: PLANTING_MACHINE,
+    summer: SEEDLING_WATER,
+    autumn: HARVEST_GOLD,
+    winter: SUNRISE_PADDIES,
   } satisfies Record<CalendarSeason, string>,
   recordsCategory: {
-    水管理: PADDY_MIRROR,
-    作業: PADDY_GREEN,
-    異常: PADDY_GOLD,
-    音声: PADDY_MIRROR,
+    水管理: SEEDLING_WATER,
+    作業: PLANTING_MACHINE,
+    異常: FARMER_CHECK,
+    音声: SUNRISE_PADDIES,
   } satisfies Record<RecordCategoryLabel, string>,
 };
 

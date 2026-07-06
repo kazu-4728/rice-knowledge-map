@@ -234,7 +234,6 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
-          key={coverImageUrl}
           src={coverImageUrl}
           alt={field.name}
           className="h-full w-full object-cover animate-ken-burns-up"
