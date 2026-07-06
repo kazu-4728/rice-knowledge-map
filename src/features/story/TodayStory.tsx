@@ -5,9 +5,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { loadWeather, type WeatherData } from "../../lib/data/weather";
 import { loadRecords } from "../../lib/data/records";
 import { loadFieldAttention } from "../../lib/data/fieldAttention";
+import { loadImageSlots } from "../../lib/data/siteContent";
+import { resolveHomeHeroUrl } from "../../lib/data/media";
 import { getSeasonPhase, getGreeting, formatDateLabel } from "../../lib/season";
 import type { RecordItem } from "../../types";
-import { PaddyPhoto, RecordThumb } from "../../components/ui/PaddyPhoto";
+import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { IconClose, IconChevronRight, IconPin, IconWarningFill, SEASON_ICONS } from "../../components/ui/icons";
 
@@ -38,6 +41,8 @@ export default function TodayStory() {
   const [attention, setAttention] = useState<AttentionSummary | null>(null);
   const [latestRecord, setLatestRecord] = useState<RecordItem | null>(null);
   const [latestThumb, setLatestThumb] = useState<string | undefined>(undefined);
+  // 差し替え画像/既定生成画像の解決結果（最新記録の実写がない場合の背景）
+  const [slotHeroUrl, setSlotHeroUrl] = useState<string | undefined>(() => resolveHomeHeroUrl({}));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 表示判定（1日1回。?story=1 で強制表示）
@@ -68,6 +73,9 @@ export default function TodayStory() {
       if (cancelled || data.records.length === 0) return;
       setLatestRecord(data.records[0]);
       setLatestThumb(data.thumbUrls[data.records[0].id]);
+    }).catch(() => {});
+    loadImageSlots().then((slots) => {
+      if (!cancelled) setSlotHeroUrl(resolveHomeHeroUrl(slots));
     }).catch(() => {});
 
     return () => {
@@ -127,10 +135,12 @@ export default function TodayStory() {
       role="dialog"
       aria-label="今日の田んぼ"
     >
-      {/* 背景（朝の田園SVG + ダークオーバーレイ） */}
-      <PaddyPhoto
-        variant={card === "attention" ? "grass" : card === "record" ? "sprout" : "field"}
+      {/* 背景（実写優先: 最新記録の写真 → 差し替え画像 → 既定生成画像 → PaddyPhoto SVG） */}
+      <RemotePhoto
+        src={latestThumb ?? slotHeroUrl}
+        alt=""
         className="absolute inset-0 h-full w-full animate-story-card-in"
+        fallbackVariant={card === "attention" ? "grass" : card === "record" ? "sprout" : "field"}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-black/80" />
 

@@ -11,8 +11,9 @@ import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Button } from "../../components/ui/button";
 import TodayStory from "../story/TodayStory";
+import { Card } from "../../components/ui/card";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
-import { GlowCTACard } from "../../components/patterns/GlowCTACard";
 import { RevealCard } from "../../components/patterns/RevealCard";
 import { PlotGlowMap, type PlotGlowField } from "../../components/patterns/PlotGlowMap";
 import { useHomeSummary } from "./hooks/useHomeSummary";
@@ -53,67 +54,79 @@ export default function HomeScreen() {
     <div className="space-y-4 px-3 pb-8 pt-3">
       <TodayStory />
 
+      {/* 導入ヒーロー: 実写だけで世界観を伝える（時期説明・統計・操作は重ねない） */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={fadeRise}
+        className="overflow-hidden rounded-3xl shadow-[0_8px_24px_-12px_rgba(16,40,28,0.18)]"
+      >
+        <RemotePhoto
+          src={heroImageUrl}
+          alt="田んぼの風景"
+          className="h-36 w-full object-cover md:h-48"
+          fallbackVariant="field"
+        />
+      </motion.div>
+
       <motion.div initial="hidden" animate="show" variants={fadeRise} className="px-1">
         <SectionEyebrow className="mb-1">Manage</SectionEyebrow>
         <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">管理</h1>
         <p className="mt-0.5 text-sm text-gray-500">田んぼ全体を見わたす場所</p>
       </motion.div>
 
-      {/* 主役ヒーロー: 農事暦+次のアクション+未対応件数を1枚に統合 */}
-      <motion.div initial="hidden" animate="show" variants={fadeRise}>
-        <GlowCTACard
-          eyebrow="Today"
-          icon={<SeasonIcon className="h-6 w-6 text-emerald-200" />}
-          title={season.label}
-          description={season.hint}
-          action={!isAnon ? { label: season.action, href: "/records/new?returnTo=%2Fhome" } : undefined}
-          coverImageUrl={heroImageUrl}
-        >
+      {/* 農事暦シーズンエンジン: 淡い緑背景・濃い文字で読みやすさ優先（PR #55基準） */}
+      <motion.section
+        initial="hidden"
+        animate="show"
+        variants={fadeRise}
+        className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 p-4 shadow-sm"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80">
+            <SeasonIcon className="h-6 w-6 text-green-700" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold text-gray-900">{season.label}</p>
+            <p className="mt-0.5 text-sm text-gray-600">{season.hint}</p>
+          </div>
+        </div>
+        <Button asChild variant="primary" className="mt-3 w-full">
+          <Link href="/records/new?returnTo=%2Fhome">
+            {season.action}
+            <IconChevronRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="mt-4">
           <SeasonTimelineBar />
+        </div>
+      </motion.section>
 
-          {!isAnon && (
-            <div className="mt-4">
-              {attention?.openIssueCount != null && attention.openIssueCount > 0 ? (
-                <Link
-                  href="/records?status=open"
-                  className="flex items-center gap-2.5 rounded-2xl bg-white/10 px-3.5 py-3 transition-colors active:bg-white/15"
-                >
-                  <IconWarningFill className="h-5 w-5 shrink-0 text-amber-300" />
-                  <span className="min-w-0 flex-1 text-sm font-bold text-white">
-                    未対応の異常が{attention.openIssueCount}件あります
-                  </span>
-                  <IconChevronRight className="h-4 w-4 shrink-0 text-white/60" />
-                </Link>
-              ) : loaded && !hasIssues ? (
-                <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-3.5 py-3">
-                  <StatusBadge status="normal" />
-                  <span className="text-sm font-semibold text-emerald-100">未対応の異常はありません</span>
-                </div>
-              ) : !loaded ? (
-                <Skeleton className="h-12 w-full rounded-2xl bg-white/10" />
-              ) : null}
-
-              {/* 補足統計バー */}
-              {loaded && (
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {[
-                    { label: "田んぼ", value: attention?.fields.length ?? 0, danger: false },
-                    { label: "異常", value: attention?.totalIssue ?? 0, danger: (attention?.totalIssue ?? 0) > 0 },
-                    { label: "要確認", value: attention?.totalNeedsCheck ?? 0, danger: (attention?.totalNeedsCheck ?? 0) > 0 },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-xl bg-white/5 px-2 py-2 text-center">
-                      <p className={`font-heading text-xl font-bold leading-none ${s.danger ? "text-amber-300" : "text-white"}`}>
-                        {s.value}
-                      </p>
-                      <p className="mt-1 text-[10px] font-semibold text-white/60">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* 未対応の異常（未ログイン時は実データが取得できていないため出さない） */}
+      {!isAnon && attention?.openIssueCount != null && attention.openIssueCount > 0 && (
+        <Link href="/records?status=open" className="block active:scale-98 transition-transform">
+          <Card accent="open" className="flex items-center gap-3 bg-amber-50 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <IconWarningFill className="h-5 w-5 text-amber-600" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-800">
+                未対応の異常が{attention.openIssueCount}件あります
+              </p>
+              <p className="mt-0.5 text-xs text-amber-600">タップして確認・対応する</p>
             </div>
-          )}
-        </GlowCTACard>
-      </motion.div>
+            <StatusBadge status="open" label={`${attention.openIssueCount}件`} />
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-amber-400" />
+          </Card>
+        </Link>
+      )}
+      {!isAnon && loaded && attention?.openIssueCount === 0 && !hasIssues && (
+        <Card accent="normal" className="flex items-center gap-2 bg-green-50 p-4">
+          <StatusBadge status="normal" />
+          <p className="text-sm font-semibold text-green-700">未対応の異常はありません</p>
+        </Card>
+      )}
+      {!isAnon && !loadError && !loaded && <Skeleton className="h-14 w-full rounded-2xl" />}
 
       {/* ログイン促進 */}
       {isAnon && (
