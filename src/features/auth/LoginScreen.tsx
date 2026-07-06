@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "./useAuth";
 import { getSupabase } from "../../lib/supabase/client";
 import { IconCheck, LogoRice } from "../../components/ui/icons";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 
 // Googleログインは Supabase 側のプロバイダ設定（Google CloudのOAuthクライアント）が
 // 必要なため、設定が済むまでボタンを出さない（壊れたボタンを見せない）
@@ -80,12 +82,19 @@ function LoginScreenInner() {
   };
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md md:max-w-lg flex-col items-center bg-gray-100 px-4 pt-14">
-      <LogoRice className="h-16 w-16" />
-      <h1 className="mt-3 text-xl font-bold text-green-700">みらい稲作管理</h1>
-      <p className="mt-1 text-sm text-gray-600">家族で使う田んぼの記録アプリ</p>
+    <div className="relative mx-auto flex h-dvh max-w-md md:max-w-lg flex-col items-center bg-gray-100 px-4 pt-14">
+      <div className="absolute inset-x-0 top-0 h-48 overflow-hidden">
+        <RemotePhoto src={SYSTEM_DEFAULT_IMAGES.home} alt="" className="h-full w-full object-cover" fallbackVariant="field" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-gray-100" />
+      </div>
 
-      <div className="mt-8 w-full space-y-3">
+      <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-lg">
+        <LogoRice className="h-11 w-11" />
+      </span>
+      <h1 className="relative mt-3 text-xl font-bold text-white drop-shadow">みらい稲作管理</h1>
+      <p className="relative mt-1 text-sm text-white/90 drop-shadow">家族で使う田んぼの記録アプリ</p>
+
+      <div className="relative mt-8 w-full space-y-3">
         {!configured && !loading && (
           <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
             <p className="text-sm font-bold text-gray-900">デモモードで動作中です</p>

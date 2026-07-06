@@ -13,16 +13,18 @@ import { cn } from "@/lib/utils";
  * 角丸はAGENTS.mdの「余白・角丸のあるスマホアプリUI」方針を維持する。
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-green-700 text-white shadow-sm hover:bg-green-800",
+        primary:
+          "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.65)] hover:from-emerald-500 hover:to-green-800",
         secondary:
           "border-2 border-green-700 bg-white text-green-700 hover:bg-green-50",
         tertiary:
           "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
-        alert: "bg-amber-500 text-white shadow-sm hover:bg-amber-600",
+        alert:
+          "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-[0_8px_24px_-8px_rgba(245,158,11,0.6)] hover:from-amber-400 hover:to-amber-700",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         ghost: "hover:bg-accent hover:text-accent-foreground",

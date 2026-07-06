@@ -5,14 +5,15 @@ export type ScheduleCategory =
   | "water_in" | "water_out" | "fertilize" | "pesticide"
   | "weed" | "harvest" | "other";
 
-export const CATEGORY_LABELS: Record<ScheduleCategory, { label: string; color: string; bg: string }> = {
-  water_in:   { label: "取水",   color: "text-sky-600",   bg: "bg-sky-50"   },
-  water_out:  { label: "排水",   color: "text-blue-600",  bg: "bg-blue-50"  },
-  fertilize:  { label: "施肥",   color: "text-lime-700",  bg: "bg-lime-50"  },
-  pesticide:  { label: "農薬",   color: "text-orange-600",bg: "bg-orange-50"},
-  weed:       { label: "除草",   color: "text-green-700", bg: "bg-green-50" },
-  harvest:    { label: "収穫",   color: "text-yellow-700",bg: "bg-yellow-50"},
-  other:      { label: "その他", color: "text-gray-600",  bg: "bg-gray-50"  },
+/** カレンダーセルのドット等、濃色1トーンで示す配色（categoryStyles.tsのdotパターンに合わせる） */
+export const CATEGORY_LABELS: Record<ScheduleCategory, { label: string; color: string; bg: string; dot: string }> = {
+  water_in:   { label: "取水",   color: "text-sky-600",   bg: "bg-sky-50",   dot: "bg-sky-500"   },
+  water_out:  { label: "排水",   color: "text-blue-600",  bg: "bg-blue-50",  dot: "bg-blue-500"  },
+  fertilize:  { label: "施肥",   color: "text-lime-700",  bg: "bg-lime-50",  dot: "bg-lime-500"  },
+  pesticide:  { label: "農薬",   color: "text-orange-600",bg: "bg-orange-50",dot: "bg-orange-500"},
+  weed:       { label: "除草",   color: "text-green-700", bg: "bg-green-50", dot: "bg-green-500" },
+  harvest:    { label: "収穫",   color: "text-yellow-700",bg: "bg-yellow-50",dot: "bg-yellow-500"},
+  other:      { label: "その他", color: "text-gray-600",  bg: "bg-gray-50",  dot: "bg-gray-400"  },
 };
 
 export type ScheduleItem = {

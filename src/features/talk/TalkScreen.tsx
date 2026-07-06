@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteComment, loadTalkTimeline, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { motion } from "motion/react";
+import { fadeRise } from "../../lib/motion/variants";
+import { deleteComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
 import { deleteRecord } from "../../lib/data/recordDetail";
-import { loadFarmData } from "../../lib/data/farm";
+import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { TalkPreviewCard } from "../../components/patterns/TalkPreviewCard";
+import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +25,14 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import { useTransceiver, TransceiverOverlay, TalkMicButton } from "./Transceiver";
-import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../components/ui/icons";
+import {
+  IconCamera,
+  IconChat,
+  IconChevronRight,
+  IconPlayFill,
+  IconSprout,
+  IconTrash,
+} from "../../components/ui/icons";
 
 /**
  * 家族の統合トークルーム（田んぼOS「話す」空間）。
@@ -30,56 +41,26 @@ import { IconCamera, IconChevronRight, IconPlayFill, IconTrash } from "../../com
  * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
  */
 
-type FieldChip = { id: string; name: string };
-
 export default function TalkScreen() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
-  const [messages, setMessages] = useState<TalkMessage[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [fields, setFields] = useState<FieldChip[]>([]);
   const [filterId, setFilterId] = useState<string | null>(null);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [attentionFieldName, setAttentionFieldName] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const stickToBottomRef = useRef(true);
-  // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
-  const reloadTokenRef = useRef(0);
+
+  const timeline = useTalkTimeline(filterId);
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef, coverImageUrl } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
-  const reload = useCallback(async (fieldId: string | null) => {
-    const token = ++reloadTokenRef.current;
-    const data = await loadTalkTimeline(fieldId ? { fieldId } : undefined);
-    if (token !== reloadTokenRef.current) return; // 待っている間に新しいreloadが発行された
-    if (data.mode === "anon" || data.mode === "error") {
-      setMode(data.mode);
-      return;
-    }
-    setMode(data.mode);
-    setMessages(data.messages);
-    setHasMore(data.hasMore);
-    stickToBottomRef.current = true;
-  }, []);
-
   useEffect(() => {
-    setMode("loading");
-    reload(filterId);
-  }, [filterId, reload]);
-
-  useEffect(() => {
-    loadFarmData().then((farm) => {
-      if (farm.mode === "error") return;
-      setFields(
-        farm.fieldsGeoJSON.features.map((f) => ({
-          id: String(f.id ?? f.properties?.id ?? ""),
-          name: String(f.properties?.name ?? "名前のない田んぼ"),
-        }))
-      );
+    loadFieldAttention().then((summary) => {
+      if (summary.attentionFields.length > 0) setAttentionFieldName(summary.attentionFields[0].name || null);
     });
   }, []);
 
@@ -88,36 +69,18 @@ export default function TalkScreen() {
     if (!stickToBottomRef.current) return;
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, stickToBottomRef]);
 
-  const loadOlder = useCallback(async () => {
-    if (loadingOlder || messages.length === 0) return;
-    setLoadingOlder(true);
+  const handleLoadOlder = async () => {
     const el = listRef.current;
     const prevHeight = el?.scrollHeight ?? 0;
-    // reload と同じトークンを共有する。応答が届くまでの間に田んぼチップが切り替わった場合、
-    // 古い絞り込みの結果が現在の絞り込みへ混入するのを防ぐ
-    const token = ++reloadTokenRef.current;
-    const data = await loadTalkTimeline({
-      fieldId: filterId ?? undefined,
-      before: messages[0].atISO,
+    await loadOlder();
+    requestAnimationFrame(() => {
+      if (el) el.scrollTop = el.scrollHeight - prevHeight;
     });
-    if (token === reloadTokenRef.current && (data.mode === "live" || data.mode === "demo")) {
-      stickToBottomRef.current = false;
-      setMessages((prev) => {
-        const seen = new Set(prev.map((m) => m.key));
-        return [...data.messages.filter((m) => !seen.has(m.key)), ...prev];
-      });
-      setHasMore(data.hasMore);
-      // 読み込み前に見ていた位置を維持する
-      requestAnimationFrame(() => {
-        if (el) el.scrollTop = el.scrollHeight - prevHeight;
-      });
-    }
-    setLoadingOlder(false);
-  }, [loadingOlder, messages, filterId]);
+  };
 
-  const handleSend = useCallback(async () => {
+  const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setSending(true);
@@ -129,7 +92,7 @@ export default function TalkScreen() {
     }
     setText("");
     await reload(filterId);
-  }, [text, sending, filterId, reload, showToast]);
+  };
 
   // 自分のメッセージ（コメント・記録とも）を削除できる。確認はAlertDialogで行う
   // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
@@ -143,7 +106,7 @@ export default function TalkScreen() {
     return extras.length > 0 ? `${extras.join("と")}も一緒に削除されます。元には戻せません。` : "元には戻せません。";
   };
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = async () => {
     const m = pendingDelete;
     if (!m || deleting) return;
     setDeleting(true);
@@ -169,11 +132,11 @@ export default function TalkScreen() {
     setPendingDelete(null);
     showToast("削除しました");
     await reload(filterId);
-  }, [pendingDelete, deleting, filterId, reload, showToast]);
+  };
 
   const transceiver = useTransceiver({
     onSaved: (fieldName) => {
-      showToast(fieldName ? `🌾 ${fieldName} に送信しました` : "音声を送信しました");
+      showToast(fieldName ? `${fieldName} に送信しました` : "音声を送信しました");
       reload(filterId);
     },
     onError: (message) => showToast(message, "error"),
@@ -207,15 +170,38 @@ export default function TalkScreen() {
     );
   }
 
+  const todayCount = messages.length > 0 ? messages.filter((m) => m.dateLabel === messages[messages.length - 1].dateLabel).length : 0;
+
   return (
-    <div className="flex h-full flex-col bg-[#eef2ea]">
+    <div className="flex h-full flex-col bg-talk-surface">
+      {/* 主役ヒーロー: 「今日の会話の温度」を折りたたみ式で表示（MapSummarySheetのpeek/expand設計を踏襲） */}
+      {mode !== "loading" && (
+        <button
+          onClick={() => setHeroExpanded((v) => !v)}
+          className="shrink-0 border-b border-black/5 bg-white/60 px-3 py-2 text-left backdrop-blur-sm"
+          aria-expanded={heroExpanded}
+        >
+          <motion.div layout transition={{ type: "spring", stiffness: 320, damping: 32 }}>
+            <TalkPreviewCard
+              latestMessages={heroExpanded ? messages.slice(-2).reverse() : []}
+              todayCount={todayCount}
+              attentionFieldName={attentionFieldName}
+              coverImageUrl={coverImageUrl}
+              className={heroExpanded ? "min-h-[9rem]" : "min-h-[4.5rem]"}
+            />
+          </motion.div>
+        </button>
+      )}
+
       {/* 田んぼ絞り込みチップ */}
       <div className="shrink-0 border-b border-black/5 bg-white/80 backdrop-blur-sm">
         <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setFilterId(null)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-              filterId === null ? "bg-green-700 text-white" : "bg-gray-100 text-gray-600"
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
+              filterId === null
+                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
+                : "border border-white/60 bg-white/70 text-gray-600"
             }`}
           >
             すべて
@@ -224,11 +210,14 @@ export default function TalkScreen() {
             <button
               key={f.id}
               onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                filterId === f.id ? "bg-green-700 text-white" : "bg-gray-100 text-gray-600"
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
+                filterId === f.id
+                  ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
+                  : "border border-white/60 bg-white/70 text-gray-600"
               }`}
             >
-              🌾 {f.name}
+              <IconSprout className="h-3.5 w-3.5" />
+              {f.name}
             </button>
           ))}
         </div>
@@ -244,7 +233,9 @@ export default function TalkScreen() {
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-3xl">🌾</p>
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <IconSprout className="h-7 w-7" />
+            </span>
             <p className="text-sm font-bold text-gray-700">
               {filterName ? `「${filterName}」のやり取りはまだありません` : "まだやり取りがありません"}
             </p>
@@ -255,7 +246,7 @@ export default function TalkScreen() {
             {hasMore && (
               <div className="pb-2 text-center">
                 <button
-                  onClick={loadOlder}
+                  onClick={handleLoadOlder}
                   disabled={loadingOlder}
                   className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-500 shadow-sm"
                 >
@@ -383,14 +374,15 @@ function MessageRow({
       // 親を div role="button" 化したため、keydownはclickと違いstopPropagationだけでは
       // 止まらず親のonOpenまでバブリングする。Enter/Spaceでの二重発火を防ぐ
       onKeyDown={(e) => e.stopPropagation()}
-      className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
+      className="flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
     >
-      🌾 {m.fieldName}
+      <IconSprout className="h-3 w-3" />
+      {m.fieldName}
     </button>
   );
 
   return (
-    <div>
+    <motion.div initial="hidden" animate="show" variants={fadeRise}>
       {showDate && (
         <div className="flex justify-center py-2.5">
           <span className="rounded-full bg-black/10 px-3 py-1 text-[10px] font-semibold text-gray-600">
@@ -502,12 +494,16 @@ function MessageRow({
                     />
                   )}
                   {m.photoCount != null && m.photoCount > 1 && (
-                    <span className="text-[10px] text-gray-400">📷 {m.photoCount}枚</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                      <IconCamera className="h-3 w-3" />
+                      {m.photoCount}枚
+                    </span>
                   )}
                   {/* スレッドの存在を明示（返信の履歴は元記録に集約されている） */}
                   {m.commentCount != null && m.commentCount > 0 && (
-                    <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
-                      💬 返信{m.commentCount}件
+                    <span className="flex items-center gap-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
+                      <IconChat className="h-3 w-3" />
+                      返信{m.commentCount}件
                     </span>
                   )}
                 </div>
@@ -518,6 +514,6 @@ function MessageRow({
 
         {!m.isMine && <span className="mb-0.5 shrink-0 text-[9px] text-gray-400">{m.timeLabel}</span>}
       </div>
-    </div>
+    </motion.div>
   );
 }

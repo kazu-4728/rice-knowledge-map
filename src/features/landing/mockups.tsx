@@ -191,21 +191,5 @@ export function StoryMockup({ className = "" }: { className?: string }) {
   );
 }
 
-/** スマホフレーム（中に各モックアップを入れる） */
-export function PhoneFrame({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`relative aspect-[9/19] overflow-hidden rounded-[2.4rem] border-[6px] border-black bg-black shadow-[0_24px_80px_-16px_rgba(0,0,0,0.75)] ring-1 ring-white/15 ${className}`}
-    >
-      {/* ノッチ */}
-      <div className="absolute left-1/2 top-1.5 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-black" />
-      <div className="absolute inset-0 overflow-hidden rounded-[2rem]">{children}</div>
-    </div>
-  );
-}
+/** スマホフレーム（中に各モックアップを入れる）。components/ui/PhoneFrame.tsx へ昇格済み、ここではre-exportのみ */
+export { PhoneFrame } from "../../components/ui/PhoneFrame";

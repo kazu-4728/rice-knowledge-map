@@ -38,9 +38,27 @@ export type HeroSlide = {
   body: string;
 };
 
+/** 画面ヒーロー用カバー画像1件（差し替え可能スロット） */
+export type ImageSlot = {
+  image_path?: string;
+  image_url?: string;
+};
+
+export type CalendarSeason = "spring" | "summer" | "autumn" | "winter";
+export type RecordCategoryLabel = "水管理" | "作業" | "異常" | "音声";
+
+export type ImageSlots = {
+  home?: ImageSlot;
+  talk?: ImageSlot;
+  fieldDefault?: ImageSlot;
+  calendar?: Partial<Record<CalendarSeason, ImageSlot>>;
+  recordsCategory?: Partial<Record<RecordCategoryLabel, ImageSlot>>;
+};
+
 export type GroupSiteContentRow = {
   group_id: string;
   hero_slides: HeroSlide[];
+  image_slots: ImageSlots;
   updated_by: string | null;
   updated_at: string;
 };

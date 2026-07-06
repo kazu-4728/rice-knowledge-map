@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { loadWeather, type WeatherData } from "../../lib/data/weather";
-import { loadFarmData } from "../../lib/data/farm";
-import { excludePointBackedIssues, loadOpenIssueRecords, loadRecords } from "../../lib/data/records";
+import { loadRecords } from "../../lib/data/records";
+import { loadFieldAttention } from "../../lib/data/fieldAttention";
+import { loadImageSlots } from "../../lib/data/siteContent";
+import { resolveHomeHeroUrl } from "../../lib/data/media";
 import { getSeasonPhase, getGreeting, formatDateLabel } from "../../lib/season";
 import type { RecordItem } from "../../types";
-import { PaddyPhoto, RecordThumb } from "../../components/ui/PaddyPhoto";
+import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { IconClose, IconChevronRight, IconPin, IconWarningFill } from "../../components/ui/icons";
+import { IconClose, IconChevronRight, IconPin, IconWarningFill, SEASON_ICONS } from "../../components/ui/icons";
 
 /**
  * 「今日の田んぼ」オープニングストーリー（田んぼOS レイヤー1）
@@ -38,6 +41,8 @@ export default function TodayStory() {
   const [attention, setAttention] = useState<AttentionSummary | null>(null);
   const [latestRecord, setLatestRecord] = useState<RecordItem | null>(null);
   const [latestThumb, setLatestThumb] = useState<string | undefined>(undefined);
+  // 差し替え画像/既定生成画像の解決結果（最新記録の実写がない場合の背景）
+  const [slotHeroUrl, setSlotHeroUrl] = useState<string | undefined>(() => resolveHomeHeroUrl({}));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 表示判定（1日1回。?story=1 で強制表示）
@@ -53,27 +58,12 @@ export default function TodayStory() {
       if (!cancelled) setWeather(w);
     }).catch(() => {});
     // ピン状態の異常/要確認 + ピン変更を伴わない「記録のみ」の異常の両方を数える（MapSummarySheetと同じ考え方）
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(([farm, { records: issueRecords }]) => {
-      if (cancelled || farm.mode === "error") return;
-      const fieldNames = new Map(
-        farm.fieldsGeoJSON.features.map((f) => [
-          String(f.id ?? f.properties?.id ?? ""),
-          String(f.properties?.name ?? ""),
-        ])
-      );
-      const flagged = farm.points.filter(
-        (p) => p.status === "issue" || p.status === "needs_check"
-      );
-      // ピンに紐付いた異常記録はピン側で数え済みのため、「記録のみ」の異常だけ加算する
-      const recordOnly = excludePointBackedIssues(issueRecords, farm.points);
-      const count = flagged.length + recordOnly.length;
+    loadFieldAttention().then((summary) => {
+      if (cancelled || summary.mode === "error") return;
+      const count = summary.totalIssue + summary.totalNeedsCheck;
       if (count > 0) {
-        const names = [
-          ...new Set([
-            ...flagged.map((p) => fieldNames.get(p.fieldId) || p.name),
-            ...recordOnly.map((r) => (r.fieldId ? fieldNames.get(r.fieldId) ?? "" : "")),
-          ]),
-        ]
+        const names = summary.attentionFields
+          .map((f) => f.name)
           .filter(Boolean)
           .slice(0, 3);
         setAttention({ count, names });
@@ -83,6 +73,9 @@ export default function TodayStory() {
       if (cancelled || data.records.length === 0) return;
       setLatestRecord(data.records[0]);
       setLatestThumb(data.thumbUrls[data.records[0].id]);
+    }).catch(() => {});
+    loadImageSlots().then((slots) => {
+      if (!cancelled) setSlotHeroUrl(resolveHomeHeroUrl(slots));
     }).catch(() => {});
 
     return () => {
@@ -138,14 +131,16 @@ export default function TodayStory() {
 
   return (
     <div
-      className="absolute inset-0 z-40 overflow-hidden bg-black"
+      className="fixed inset-0 z-40 overflow-hidden bg-black"
       role="dialog"
       aria-label="今日の田んぼ"
     >
-      {/* 背景（朝の田園SVG + ダークオーバーレイ） */}
-      <PaddyPhoto
-        variant={card === "attention" ? "grass" : card === "record" ? "sprout" : "field"}
+      {/* 背景（実写優先: 最新記録の写真 → 差し替え画像 → 既定生成画像 → PaddyPhoto SVG） */}
+      <RemotePhoto
+        src={latestThumb ?? slotHeroUrl}
+        alt=""
         className="absolute inset-0 h-full w-full animate-story-card-in"
+        fallbackVariant={card === "attention" ? "grass" : card === "record" ? "sprout" : "field"}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-black/80" />
 
@@ -207,7 +202,10 @@ export default function TodayStory() {
               )}
               <div className="mt-6 rounded-2xl glass-dark p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{season.emoji}</span>
+                  {(() => {
+                    const SeasonIcon = SEASON_ICONS[season.iconKey];
+                    return <SeasonIcon className="h-6 w-6 text-emerald-300" />;
+                  })()}
                   <p className="text-lg font-bold text-white">いまは「{season.label}」の時期</p>
                 </div>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">

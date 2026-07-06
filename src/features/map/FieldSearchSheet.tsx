@@ -130,22 +130,22 @@ export default function FieldSearchSheet({
         onClick={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-col rounded-t-3xl bg-[#14231b] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_32px_rgba(0,0,0,0.5)]">
-          <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-white/30" />
+        <div className="flex flex-col rounded-t-3xl glass-light-strong px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+          <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-black/15" />
 
           {/* ── 固定ヘッダ ── */}
           <div className="mb-3 flex shrink-0 items-center justify-between">
-            <h2 className="text-base font-bold text-white">
+            <h2 className="text-base font-bold text-gray-900">
               登録田んぼ
               {showList && n > 0 && (
-                <span className="ml-1.5 text-sm font-medium text-white/50">
+                <span className="ml-1.5 text-sm font-medium text-gray-400">
                   {n}件
                 </span>
               )}
             </h2>
             <button
               onClick={onClose}
-              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
             >
               閉じる
             </button>
@@ -166,10 +166,10 @@ export default function FieldSearchSheet({
             </a>
           ) : liveEmpty ? (
             <div className="shrink-0">
-              <p className="text-sm font-bold text-white">
+              <p className="text-sm font-bold text-gray-900">
                 まず田んぼを登録しましょう
               </p>
-              <p className="mt-0.5 text-xs text-white/60">
+              <p className="mt-0.5 text-xs text-gray-500">
                 地図を動かして場所を合わせてから、田んぼの輪郭を登録できます
               </p>
               <button
@@ -186,7 +186,7 @@ export default function FieldSearchSheet({
                   className="flex items-center justify-center"
                   style={{ height: VIEWPORT_H }}
                 >
-                  <p className="text-sm text-white/50">
+                  <p className="text-sm text-gray-400">
                     {loaded
                       ? "登録された田んぼはありません"
                       : "読み込み中…"}
@@ -227,11 +227,11 @@ export default function FieldSearchSheet({
                           }}
                         >
                           <span className="h-3.5 w-3.5 shrink-0 rounded-sm bg-emerald-400" />
-                          <span className="flex-1 truncate text-sm font-semibold text-white">
+                          <span className="flex-1 truncate text-sm font-semibold text-gray-900">
                             {f.name || "名前のない田んぼ"}
                           </span>
                           {f.pendingCount != null && f.pendingCount > 0 && (
-                            <span className="shrink-0 rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-bold text-amber-300">
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
                               未対応 {f.pendingCount}
                             </span>
                           )}
@@ -241,13 +241,13 @@ export default function FieldSearchSheet({
                   </div>
 
                   {/* 上下フェードグラデーション */}
-                  <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 rounded-t-xl bg-gradient-to-b from-[#14231b] via-[#14231b]/80 to-transparent" />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 rounded-b-xl bg-gradient-to-t from-[#14231b] via-[#14231b]/80 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 rounded-t-xl bg-gradient-to-b from-white via-white/85 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 rounded-b-xl bg-gradient-to-t from-white via-white/85 to-transparent" />
                 </div>
               )}
 
               {/* ── 固定フッタ: 田んぼを登録する ── */}
-              <div className="mt-3 shrink-0 border-t border-white/10 pt-3">
+              <div className="mt-3 shrink-0 border-t border-gray-100 pt-3">
                 <button
                   onClick={onStartRegister}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-400/60 bg-emerald-400/10 py-3 text-sm font-bold text-emerald-300 transition-colors hover:bg-emerald-400/20"

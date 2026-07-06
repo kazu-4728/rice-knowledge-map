@@ -1,153 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
-import { loadFarmData, updateFieldPhoto } from "../../lib/data/farm";
-import { excludePointBackedIssues, loadOpenIssueRecords } from "../../lib/data/records";
-import { getSupabase } from "../../lib/supabase/client";
+import { motion } from "motion/react";
+import { staggerContainer, staggerItem } from "../../lib/motion/variants";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
-import { compressImage } from "../../lib/utils/imageCompress";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
-
-type FieldItem = {
-  id: string;
-  groupId: string;
-  name: string;
-  color: string;
-  areaSqm: number | null;
-  photoPath: string | null;
-};
-
-type FieldStatus = {
-  issueCount: number;
-  needsCheckCount: number;
-  lastRecordDate: string | null;
-};
-
-async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
-  const sb = getSupabase();
-  if (!sb) return null;
-  const blob = await compressImage(file);
-  const path = `groups/${groupId}/fields/${fieldId}/${crypto.randomUUID()}.jpg`;
-  const { error } = await sb.storage.from("images").upload(path, blob, { contentType: "image/jpeg" });
-  if (error) { console.warn("[fields] upload failed", error); return null; }
-  return path;
-}
+import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
+import { PlotGlowMap, type PlotGlowField } from "../../components/patterns/PlotGlowMap";
+import { useFieldsList, type FieldItem } from "../../features/fields/hooks/useFieldsList";
 
 export default function FieldsPage() {
-  const [fields, setFields] = useState<FieldItem[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [fieldStatuses, setFieldStatuses] = useState<Record<string, FieldStatus>>({});
-  const [mode, setMode] = useState<"loading" | "live" | "demo" | "anon" | "error">("loading");
+  const router = useRouter();
+  const { mode, fields, fieldStatuses, photoUrls, handlePhotoSelect, defaultCoverUrl } = useFieldsList();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  useEffect(() => {
-    const sb = getSupabase();
-    if (sb) {
-      sb.auth.getSession().then(async ({ data: sess }) => {
-        if (!sess.session) return;
-        type DateRow = { field_id: string; recorded_at: string };
-        const PAGE = 1000;
-        const allRows: DateRow[] = [];
-        for (let from = 0; ; from += PAGE) {
-          const { data: page } = await sb.from("records")
-            .select("field_id, recorded_at")
-            .not("field_id", "is", null)
-            .order("recorded_at", { ascending: false })
-            .range(from, from + PAGE - 1);
-          if (!page || page.length === 0) break;
-          allRows.push(...(page as DateRow[]));
-          if (page.length < PAGE) break;
-        }
-        const lastMap: Record<string, string> = {};
-        for (const r of allRows) {
-          if (r.field_id && !lastMap[r.field_id]) {
-            const d = new Date(r.recorded_at);
-            const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-            lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
-          }
-        }
-        setFieldStatuses((prev) => {
-          const next = { ...prev };
-          for (const [fid, date] of Object.entries(lastMap)) {
-            next[fid] = { ...next[fid], issueCount: next[fid]?.issueCount ?? 0, needsCheckCount: next[fid]?.needsCheckCount ?? 0, lastRecordDate: date };
-          }
-          return next;
-        });
-      });
-    }
-
-    Promise.all([loadFarmData(), loadOpenIssueRecords()]).then(async ([data, { records: issueRecords }]) => {
-      setMode(data.mode);
-      const items: FieldItem[] = data.fieldsGeoJSON.features.map((f) => ({
-        id: String(f.id ?? f.properties?.id ?? ""),
-        groupId: f.properties?.group_id ?? data.groupId ?? "",
-        name: String(f.properties?.name ?? ""),
-        color: String(f.properties?.color ?? "#22C55E"),
-        areaSqm: typeof f.properties?.area_sqm === "number" ? f.properties.area_sqm : null,
-        photoPath: f.properties?.photo_path ?? null,
-      }));
-      setFields(items);
-
-      const statusMap: Record<string, FieldStatus> = {};
-      for (const p of data.points) {
-        if (!p.fieldId) continue;
-        if (!statusMap[p.fieldId]) statusMap[p.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
-        if (p.status === "issue") statusMap[p.fieldId].issueCount++;
-        else if (p.status === "needs_check") statusMap[p.fieldId].needsCheckCount++;
-      }
-      // ピン変更を伴わない「記録のみ」の異常も反映する（記録だけ残して放置した
-      // 田んぼに「順調」バッジを出さない。ピン紐付き分は除外して二重集計を防ぐ）
-      for (const r of excludePointBackedIssues(issueRecords, data.points)) {
-        if (!r.fieldId) continue;
-        if (!statusMap[r.fieldId]) statusMap[r.fieldId] = { issueCount: 0, needsCheckCount: 0, lastRecordDate: null };
-        if (r.isIssue) statusMap[r.fieldId].issueCount++;
-        else statusMap[r.fieldId].needsCheckCount++;
-      }
-      setFieldStatuses((prev) => {
-        const next = { ...prev };
-        for (const [fid, s] of Object.entries(statusMap)) {
-          next[fid] = { ...next[fid], lastRecordDate: next[fid]?.lastRecordDate ?? null, issueCount: s.issueCount, needsCheckCount: s.needsCheckCount };
-        }
-        return next;
-      });
-
-      // batch signed URLs for fields with photos
-      const paths = items.flatMap((f) => f.photoPath ? [f.photoPath] : []);
-      if (paths.length > 0) {
-        const sb = getSupabase();
-        if (sb) {
-          const { data: signed } = await sb.storage.from("images").createSignedUrls(paths, 3600);
-          const map: Record<string, string> = {};
-          signed?.forEach((s, i) => { if (s.signedUrl && !s.error) map[paths[i]] = s.signedUrl; });
-          const urlMap: Record<string, string> = {};
-          items.forEach((f) => { if (f.photoPath && map[f.photoPath]) urlMap[f.id] = map[f.photoPath]; });
-          setPhotoUrls(urlMap);
-        }
-      }
-    });
-  }, []);
-
-  const handlePhotoSelect = async (field: FieldItem, file: File) => {
-    if (!field.groupId) return;
-    const path = await uploadFieldPhoto(field.groupId, field.id, file);
-    if (!path) return;
-    const saved = await updateFieldPhoto(field.id, path);
-    if (!saved) return;
-    // revoke previous blob URL to avoid memory growth
-    const prevUrl = photoUrls[field.id];
-    if (prevUrl?.startsWith("blob:")) URL.revokeObjectURL(prevUrl);
-    const url = URL.createObjectURL(file);
-    setPhotoUrls((prev) => ({ ...prev, [field.id]: url }));
-    setFields((prev) => prev.map((f) => f.id === field.id ? { ...f, photoPath: path } : f));
-  };
 
   const [areaUnit, cycleAreaUnit] = useAreaUnit();
   const formatArea = (sqm: number | null) => {
@@ -155,17 +29,26 @@ export default function FieldsPage() {
     return formatAreaSqm(sqm, areaUnit);
   };
 
+  const plotFields: PlotGlowField[] = fields.map((f) => {
+    const fs = fieldStatuses[f.id];
+    const status: PlotGlowField["status"] = fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : "normal";
+    return { id: f.id, name: f.name || "名前のない田んぼ", status };
+  });
+
   return (
     <AppShell>
       <div className="space-y-3 px-3 pb-6 pt-3">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <IconFieldGrid className="h-6 w-6 text-green-700" />
-            <h1 className="text-2xl font-bold text-gray-900">田んぼ一覧</h1>
+        <div className="px-1">
+          <SectionEyebrow className="mb-1">Fields</SectionEyebrow>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <IconFieldGrid className="h-6 w-6 text-green-700" />
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼ一覧</h1>
+            </div>
+            {mode !== "loading" && (
+              <span className="text-sm text-gray-500">{fields.length}枚</span>
+            )}
           </div>
-          {mode !== "loading" && (
-            <span className="text-sm text-gray-500">{fields.length}枚</span>
-          )}
         </div>
 
         {mode === "anon" && (
@@ -201,85 +84,100 @@ export default function FieldsPage() {
         )}
 
         {(mode === "live" || mode === "demo") && fields.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {fields.map((field) => {
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer}
+            className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+          >
+            {fields.map((field: FieldItem) => {
               const fs = fieldStatuses[field.id];
               const hasAttention = fs && (fs.issueCount > 0 || fs.needsCheckCount > 0);
               return (
-              <Card
-                key={field.id}
-                accent={fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : undefined}
-                className="relative overflow-hidden transition-transform active:scale-[0.99]"
-              >
-                <Link href={`/fields/${encodeURIComponent(field.id)}`} className="block">
-                  {/* 写真が主役のヒーロー部（Googleマップの場所カード風） */}
-                  <div className="relative h-36">
-                    <RemotePhoto
-                      src={photoUrls[field.id]}
-                      alt={field.name}
-                      className="h-full w-full object-cover"
-                      fallbackVariant="field"
-                    />
-                    {!photoUrls[field.id] && (
-                      <span className="absolute inset-0 opacity-40" style={{ background: field.color }} />
+                <motion.div key={field.id} variants={staggerItem}>
+                  <Card
+                    accent={fs?.issueCount ? "issue" : fs?.needsCheckCount ? "needs_check" : undefined}
+                    className="relative overflow-hidden transition-transform active:scale-[0.99]"
+                  >
+                    <Link href={`/fields/${encodeURIComponent(field.id)}`} className="block">
+                      {/* 写真が主役のヒーロー部（Googleマップの場所カード風） */}
+                      <div className="relative h-36">
+                        <RemotePhoto
+                          src={photoUrls[field.id] ?? defaultCoverUrl}
+                          alt={field.name}
+                          className="h-full w-full object-cover"
+                          fallbackVariant="field"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 to-transparent" />
+
+                        {/* 状態バッジ（写真の上・信号色） */}
+                        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                          {fs?.issueCount ? <StatusBadge status="issue" label={`異常${fs.issueCount}`} /> : null}
+                          {fs?.needsCheckCount ? <StatusBadge status="needs_check" label={`要確認${fs.needsCheckCount}`} /> : null}
+                          {!hasAttention && fs?.lastRecordDate ? <StatusBadge status="normal" label="順調" /> : null}
+                        </div>
+
+                        {/* 田んぼ名と面積（写真の上） */}
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <p className="truncate text-lg font-bold text-white drop-shadow">
+                            {field.name || "名前のない田んぼ"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 情報行 */}
+                      <div className="flex items-center gap-2 px-3 py-2.5">
+                        {formatArea(field.areaSqm) && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); } }}
+                            className="shrink-0 border-b border-dotted border-gray-300 text-sm font-bold text-gray-700 active:opacity-60"
+                          >
+                            {formatArea(field.areaSqm)}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-right text-xs text-gray-400">
+                          {fs?.lastRecordDate ? `最終記録 ${fs.lastRecordDate}` : "記録なし"}
+                        </span>
+                      </div>
+                    </Link>
+                    {field.groupId && (
+                      <>
+                        <button
+                          onClick={() => fileInputRefs.current[field.id]?.click()}
+                          className="absolute right-2 top-24 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm"
+                          aria-label="写真を変更"
+                        >
+                          <IconCamera className="h-3.5 w-3.5" />
+                        </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          ref={(el) => { fileInputRefs.current[field.id] = el; }}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(field, f); e.currentTarget.value = ""; }}
+                        />
+                      </>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 to-transparent" />
-
-                    {/* 状態バッジ（写真の上・信号色） */}
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-                      {fs?.issueCount ? <StatusBadge status="issue" label={`異常${fs.issueCount}`} /> : null}
-                      {fs?.needsCheckCount ? <StatusBadge status="needs_check" label={`要確認${fs.needsCheckCount}`} /> : null}
-                      {!hasAttention && fs?.lastRecordDate ? <StatusBadge status="normal" label="順調" /> : null}
-                    </div>
-
-                    {/* 田んぼ名と面積（写真の上） */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="truncate text-lg font-bold text-white drop-shadow">
-                        {field.name || "名前のない田んぼ"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 情報行 */}
-                  <div className="flex items-center gap-2 px-3 py-2.5">
-                    {formatArea(field.areaSqm) && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); }}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); cycleAreaUnit(); } }}
-                        className="shrink-0 border-b border-dotted border-gray-300 text-sm font-bold text-gray-700 active:opacity-60"
-                      >
-                        {formatArea(field.areaSqm)}
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-right text-xs text-gray-400">
-                      {fs?.lastRecordDate ? `最終記録 ${fs.lastRecordDate}` : "記録なし"}
-                    </span>
-                  </div>
-                </Link>
-                {field.groupId && (
-                  <>
-                    <button
-                      onClick={() => fileInputRefs.current[field.id]?.click()}
-                      className="absolute right-2 top-24 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm"
-                      aria-label="写真を変更"
-                    >
-                      <IconCamera className="h-3.5 w-3.5" />
-                    </button>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      ref={(el) => { fileInputRefs.current[field.id] = el; }}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(field, f); e.currentTarget.value = ""; }}
-                    />
-                  </>
-                )}
-              </Card>
-            );
+                  </Card>
+                </motion.div>
+              );
             })}
-          </div>
+          </motion.div>
+        )}
+
+        {/* 補助表示: 状態の俯瞰（信号色ポリゴン）。主役は上の実写カードグリッド */}
+        {(mode === "live" || mode === "demo") && plotFields.length > 0 && (
+          <motion.div initial="hidden" animate="show" variants={staggerItem} className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="mb-2 text-xs font-bold text-gray-500">状態を地図で見る</p>
+            <PlotGlowMap
+              fields={plotFields}
+              onSelect={(id) => router.push(`/fields/${encodeURIComponent(id)}`)}
+              className="aspect-[3/1]"
+            />
+          </motion.div>
         )}
 
         <Button asChild variant="secondary" size="lg" className="w-full border-dashed">

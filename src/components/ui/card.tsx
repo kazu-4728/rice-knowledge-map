@@ -13,17 +13,27 @@ const CARD_ACCENT: Record<StatusKey, string> = {
   monitoring: "border-l-4 border-l-gray-400",
 };
 
+/** カードの階調（情報の優先度を影の強さで表現する） */
+const ELEVATION: Record<"flat" | "raised" | "floating", string> = {
+  flat: "shadow-[0_1px_4px_-1px_rgba(16,40,28,0.08)]",
+  raised: "shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]",
+  floating: "shadow-[0_16px_40px_-12px_rgba(16,40,28,0.28)]",
+};
+
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   /** 左端に信号色のアクセントバーを付ける（田んぼOS共通の優先度表現） */
   accent?: StatusKey;
+  /** 影の階調（既定はraised。密度の高い一覧はflat、強調ブロックはfloating） */
+  elevation?: "flat" | "raised" | "floating";
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, accent, ...props }, ref) => (
+  ({ className, accent, elevation = "raised", ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
+        "rounded-2xl border border-border bg-card text-card-foreground",
+        ELEVATION[elevation],
         accent && CARD_ACCENT[accent],
         className
       )}

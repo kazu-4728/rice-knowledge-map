@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { RemotePhoto } from "./RemotePhoto";
-import { IconSliders } from "./icons";
+import { IconChevronLeft, IconChevronRight, IconSliders } from "./icons";
 
 type Props = {
   beforeUrl?: string;
@@ -18,6 +18,7 @@ type Props = {
  */
 export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, afterLabel, className }: Props) {
   const [percent, setPercent] = useState(50);
+  const [touched, setTouched] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
@@ -30,6 +31,7 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    setTouched(true);
     draggingRef.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     updateFromClientX(e.clientX);
@@ -99,7 +101,14 @@ export default function PhotoCompareSlider({ beforeUrl, afterUrl, beforeLabel, a
         style={{ left: `${percent}%` }}
       >
         <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/90 shadow" />
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md">
+        {/* 初回操作前は「ドラッグできる」ことをパルス+左右矢印で視覚的に誘導する */}
+        {!touched && (
+          <>
+            <IconChevronLeft className="absolute right-full mr-1 h-4 w-4 text-white drop-shadow animate-hint-pulse" />
+            <IconChevronRight className="absolute left-full ml-1 h-4 w-4 text-white drop-shadow animate-hint-pulse" />
+          </>
+        )}
+        <span className={`flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md ${!touched ? "animate-hint-pulse" : ""}`}>
           <IconSliders className="h-4 w-4 text-green-700" />
         </span>
       </div>

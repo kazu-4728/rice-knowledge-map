@@ -8,6 +8,8 @@ import {
   IconPinFill,
   IconSprout,
 } from "../../components/ui/icons";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 
 type Section = {
   id: string;
@@ -102,13 +104,17 @@ const changelog = [
 export default function GuideContent() {
   return (
     <div className="space-y-4 px-3 pb-8 pt-3">
-      <div className="rounded-2xl bg-green-50 px-4 py-3">
-        <p className="text-sm font-bold text-green-800">
-          みらい稲作管理 — 使い方ガイド
-        </p>
-        <p className="mt-1 text-xs text-gray-600">
-          家族で田んぼの記録を共有し、稲作の知恵を次の年へ引き継ぐアプリです。
-        </p>
+      <div className="relative overflow-hidden rounded-2xl">
+        <RemotePhoto src={SYSTEM_DEFAULT_IMAGES.fieldDefault} alt="" className="h-28 w-full object-cover" fallbackVariant="field" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 px-4 py-3">
+          <p className="text-sm font-bold text-white drop-shadow">
+            みらい稲作管理 — 使い方ガイド
+          </p>
+          <p className="mt-1 text-xs text-white/85 drop-shadow">
+            家族で田んぼの記録を共有し、稲作の知恵を次の年へ引き継ぐアプリです。
+          </p>
+        </div>
       </div>
 
       {sections.map(({ id, Icon, title, steps }) => (

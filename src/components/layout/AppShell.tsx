@@ -51,11 +51,13 @@ export default function AppShell({
                   {backLabel}
                 </Link>
               )}
-              {/* mobile hamburger — on right when back button present, on left otherwise; hidden on lg+ */}
+              {/* mobile menu起動ボタン — on right when back button present, on left otherwise; hidden on lg+
+                  常設ボトムタブは導入せず、必要な時に呼び出すオンデマンド型を維持しつつ、
+                  タップ領域を広げ・ガラス質感のピルにして発見しやすく・押しやすくする */}
               <button
                 onClick={() => setDrawerOpen(true)}
                 aria-label="メニューを開く"
-                className={`absolute flex h-9 w-9 items-center justify-center rounded-lg text-white hover:bg-white/10 lg:hidden ${backDynamic || backHref ? "right-12" : "left-2"}`}
+                className={`absolute flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)] backdrop-blur-sm transition-all active:scale-95 active:bg-white/25 lg:hidden ${backDynamic || backHref ? "right-11" : "left-2"}`}
               >
                 <IconMenu className="h-5.5 w-5.5" />
               </button>

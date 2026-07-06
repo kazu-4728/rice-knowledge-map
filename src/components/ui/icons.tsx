@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import type { JSX, SVGProps } from "react";
 import {
   Home,
   Map,
@@ -31,7 +31,15 @@ import {
   Sprout as LucideSprout,
   X,
   Trash2,
+  Tractor,
+  Droplets,
+  Leaf,
+  Sun,
+  Wheat,
+  Moon,
+  Snowflake,
 } from "lucide-react";
+import type { SeasonIconKey } from "../../lib/season";
 
 /**
  * アプリ共通アイコンセット。
@@ -249,3 +257,43 @@ export function IconClose(props: IconProps) {
 export function IconTrash(props: IconProps) {
   return <Trash2 strokeWidth={1.8} aria-hidden="true" {...props} />;
 }
+
+export function IconTractor(props: IconProps) {
+  return <Tractor strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconDroplets(props: IconProps) {
+  return <Droplets strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconLeaf(props: IconProps) {
+  return <Leaf strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconSun(props: IconProps) {
+  return <Sun strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconWheat(props: IconProps) {
+  return <Wheat strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconMoon(props: IconProps) {
+  return <Moon strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconSnowflake(props: IconProps) {
+  return <Snowflake strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+/** 農事暦フェーズのアイコン種別→アイコンのマッピング（season.tsのiconKeyに対応） */
+export const SEASON_ICONS: Record<SeasonIconKey, (props: IconProps) => JSX.Element> = {
+  tractor: IconTractor,
+  droplets: IconDroplets,
+  sprout: IconSprout,
+  leaf: IconLeaf,
+  sun: IconSun,
+  wheat: IconWheat,
+  moon: IconMoon,
+  snowflake: IconSnowflake,
+};

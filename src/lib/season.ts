@@ -6,6 +6,17 @@
  * DBには依存しない純粋関数のみを置く。
  */
 
+/** 季節フェーズのアイコン種別（表示側でlucide-reactアイコンにマッピングする） */
+export type SeasonIconKey =
+  | "tractor"
+  | "droplets"
+  | "sprout"
+  | "leaf"
+  | "sun"
+  | "wheat"
+  | "moon"
+  | "snowflake";
+
 export type SeasonPhaseKey =
   | "offseason"      // 農閑期・乾土
   | "soil_prep"      // 田起こし・育苗
@@ -22,7 +33,7 @@ export type SeasonPhase = {
   /** フェーズ名（画面表示用） */
   label: string;
   /** フェーズの絵文字（ストーリー・シーズンバー用） */
-  emoji: string;
+  iconKey: SeasonIconKey;
   /** 「今なにをする時期か」の一言ヒント */
   hint: string;
   /** 記録を促すアクション文（ネクストアクションカード用） */
@@ -36,7 +47,7 @@ export type SeasonPhase = {
 type PhaseDef = {
   key: SeasonPhaseKey;
   label: string;
-  emoji: string;
+  iconKey: SeasonIconKey;
   hint: string;
   action: string;
   /** 開始日（月, 日）。次のフェーズ開始日の前日まで続く */
@@ -45,23 +56,23 @@ type PhaseDef = {
 
 /** 日本の一般的な水稲作の年間フェーズ（開始日順） */
 const PHASES: PhaseDef[] = [
-  { key: "soil_prep", label: "田起こし・育苗", emoji: "🚜", start: [3, 1],
+  { key: "soil_prep", label: "田起こし・育苗", iconKey: "tractor", start: [3, 1],
     hint: "土づくりと苗の準備がはじまる時期です", action: "田起こしや育苗の様子を記録する" },
-  { key: "puddling", label: "代掻き", emoji: "💧", start: [4, 20],
+  { key: "puddling", label: "代掻き", iconKey: "droplets", start: [4, 20],
     hint: "田んぼに水を入れて土をならす時期です", action: "代掻きの進み具合を記録する" },
-  { key: "planting", label: "田植え", emoji: "🌱", start: [5, 10],
+  { key: "planting", label: "田植え", iconKey: "sprout", start: [5, 10],
     hint: "田植えの最盛期です", action: "田植えの完了を写真で記録する" },
-  { key: "tillering", label: "分げつ・水管理", emoji: "🌿", start: [6, 1],
+  { key: "tillering", label: "分げつ・水管理", iconKey: "leaf", start: [6, 1],
     hint: "水位の管理が大切な時期です", action: "水位や生育の様子を記録する" },
-  { key: "midseason_drain", label: "中干し", emoji: "☀️", start: [6, 25],
+  { key: "midseason_drain", label: "中干し", iconKey: "sun", start: [6, 25],
     hint: "田んぼの水を抜いて根を強くする時期です", action: "中干しの状態を記録する" },
-  { key: "heading", label: "出穂・開花", emoji: "🌾", start: [7, 25],
+  { key: "heading", label: "出穂・開花", iconKey: "wheat", start: [7, 25],
     hint: "穂が出る大事な時期。水を切らさないように", action: "出穂の様子を写真で記録する" },
-  { key: "ripening", label: "登熟", emoji: "🌕", start: [8, 20],
+  { key: "ripening", label: "登熟", iconKey: "moon", start: [8, 20],
     hint: "実りが進む時期。落水のタイミングを見極めて", action: "稲穂の色づきを記録する" },
-  { key: "harvest", label: "収穫", emoji: "🌾", start: [9, 20],
+  { key: "harvest", label: "収穫", iconKey: "wheat", start: [9, 20],
     hint: "いよいよ収穫の時期です", action: "収穫の記録を残す" },
-  { key: "offseason", label: "農閑期", emoji: "❄️", start: [11, 1],
+  { key: "offseason", label: "農閑期", iconKey: "snowflake", start: [11, 1],
     hint: "来シーズンへ向けた準備と振り返りの時期です", action: "今年の振り返りを記録する" },
 ];
 
@@ -132,7 +143,7 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
   return {
     key: current.key,
     label: current.label,
-    emoji: current.emoji,
+    iconKey: current.iconKey,
     hint: current.hint,
     action: current.action,
     progress,
@@ -143,7 +154,7 @@ export function getSeasonPhase(date: Date = new Date()): SeasonPhase {
 export type SeasonTimelineEntry = {
   key: SeasonPhaseKey;
   label: string;
-  emoji: string;
+  iconKey: SeasonIconKey;
   hint: string;
   /** 年間（田起こし開始〜翌年2月末）に占める開始位置 0..1 */
   startFraction: number;
@@ -169,7 +180,7 @@ export function getSeasonTimeline(date: Date = new Date()): SeasonTimelineEntry[
     return {
       key: def.key,
       label: def.label,
-      emoji: def.emoji,
+      iconKey: def.iconKey,
       hint: def.hint,
       startFraction: Math.max(0, Math.min(1, start / total)),
       endFraction: Math.max(0, Math.min(1, end / total)),

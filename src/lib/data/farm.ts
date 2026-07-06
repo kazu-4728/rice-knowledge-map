@@ -4,6 +4,7 @@ import type { FarmFieldRow, FieldPointRow } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { fieldGeoJSON, fieldPoints } from "../../data/dummy";
 import { computeApproxAreaSqm } from "../utils/geo";
+import { compressImage } from "../utils/imageCompress";
 
 const FIELD_COLORS = ["#3B82F6", "#EAB308", "#22C55E", "#A855F7", "#F97316", "#EC4899"];
 
@@ -278,6 +279,67 @@ export async function updateFieldPhoto(fieldId: string, photoPath: string): Prom
     .select("id");
   if (error) { console.warn("[farm] updateFieldPhoto failed", error); return false; }
   return !!(data && data.length > 0);
+}
+
+/**
+ * 田んぼ写真をStorageへアップロードする（DB更新は別途updateFieldPhoto()で行う）。
+ * 以前は fields/page.tsx と FieldDetailScreen.tsx にそれぞれ同一実装が重複していたため統合。
+ */
+export async function uploadFieldPhoto(groupId: string, fieldId: string, file: File): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const blob = await compressImage(file);
+  const path = `groups/${groupId}/fields/${fieldId}/${crypto.randomUUID()}.jpg`;
+  const { error } = await sb.storage.from("images").upload(path, blob, { contentType: "image/jpeg" });
+  if (error) { console.warn("[farm] uploadFieldPhoto failed", error); return null; }
+  return path;
+}
+
+/** Storage上の画像パス群に署名URLを一括発行する（有効期限3600秒） */
+export async function getSignedPhotoUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const sb = getSupabase();
+  if (!sb) return {};
+  const { data: signed, error } = await sb.storage.from("images").createSignedUrls(paths, 3600);
+  if (error) { console.warn("[farm] getSignedPhotoUrls failed", error); return {}; }
+  const map: Record<string, string> = {};
+  signed?.forEach((s, i) => { if (s.signedUrl && !s.error) map[paths[i]] = s.signedUrl; });
+  return map;
+}
+
+/**
+ * 全田んぼの最終記録日を一括取得する（田んぼ一覧のカードに表示）。
+ * PostgRESTの既定上限（1000件）を超える場合に備えページングして全件走査する。
+ * 未ログイン・未設定時は空マップを返す。
+ */
+export async function loadFieldLastRecordDates(): Promise<Record<string, string>> {
+  const sb = getSupabase();
+  if (!sb) return {};
+  const { data: sess } = await sb.auth.getSession();
+  if (!sess.session) return {};
+
+  type DateRow = { field_id: string; recorded_at: string };
+  const PAGE = 1000;
+  const allRows: DateRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data: page } = await sb.from("records")
+      .select("field_id, recorded_at")
+      .not("field_id", "is", null)
+      .order("recorded_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (!page || page.length === 0) break;
+    allRows.push(...(page as DateRow[]));
+    if (page.length < PAGE) break;
+  }
+  const lastMap: Record<string, string> = {};
+  for (const r of allRows) {
+    if (r.field_id && !lastMap[r.field_id]) {
+      const d = new Date(r.recorded_at);
+      const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+      lastMap[r.field_id] = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`;
+    }
+  }
+  return lastMap;
 }
 
 export type SaveFieldPointResult = "saved" | "demo" | "error";

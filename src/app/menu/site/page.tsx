@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "../../../components/layout/AppShell";
 import SiteContentEditor from "../../../features/menu/SiteContentEditor";
+import ImageSlotsEditor from "../../../features/menu/ImageSlotsEditor";
 import { getMyRole, ensureGroupId } from "../../../lib/data/farm";
 
 export default function SiteSettingsPage() {
@@ -50,6 +51,12 @@ export default function SiteSettingsPage() {
           ホーム画面のヒーロースライドを編集できます。写真を差し替えたり文章を変更して家族に合わせたトップページを作れます。
         </p>
         <SiteContentEditor />
+
+        <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">各画面のカバー写真</h2>
+        <p className="mb-3 text-xs text-gray-500">
+          ホーム・トーク・田んぼ・カレンダー・記録の一覧で、写真が未登録のときに使う既定の写真を差し替えられます。
+        </p>
+        <ImageSlotsEditor />
       </div>
     </AppShell>
   );
