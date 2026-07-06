@@ -89,8 +89,8 @@ export default function RecordsScreen() {
           <StatHero
             eyebrow="Records"
             stats={[
-              { label: "総記録数", value: records.length },
-              { label: "今月", value: thisMonthCount },
+              { label: "読み込み済み", value: records.length },
+              { label: "読み込み分・今月", value: thisMonthCount },
               { label: "表示中", value: groups.reduce((s, g) => s + g.items.length, 0) },
             ]}
             trendBars={categoryCounts.map(({ cat, count }) => ({
