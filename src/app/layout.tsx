@@ -9,14 +9,14 @@ import "../styles/globals.css";
 const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
-  variable: "--font-sans",
+  variable: "--font-noto-sans-jp",
   display: "swap",
 });
 
 const zenKakuGothicNew = Zen_Kaku_Gothic_New({
   subsets: ["latin"],
   weight: ["500", "700", "900"],
-  variable: "--font-heading",
+  variable: "--font-zen-kaku-gothic",
   display: "swap",
 });
 
