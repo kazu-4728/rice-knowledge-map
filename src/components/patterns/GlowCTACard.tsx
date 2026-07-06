@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { IconChevronRight } from "../ui/icons";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { RemotePhoto } from "../ui/RemotePhoto";
 
 const TONE_GRADIENT: Record<"emerald" | "amber" | "sky", string> = {
   emerald: "from-emerald-800 via-emerald-700 to-green-900",
@@ -23,9 +24,16 @@ const TONE_GLOW_B: Record<"emerald" | "amber" | "sky", string> = {
   sky: "bg-cyan-200/20",
 };
 
+const TONE_SCRIM: Record<"emerald" | "amber" | "sky", string> = {
+  emerald: "from-emerald-950/40 via-emerald-950/60 to-emerald-950/90",
+  amber: "from-amber-950/40 via-amber-950/60 to-amber-950/90",
+  sky: "from-sky-950/40 via-sky-950/60 to-sky-950/90",
+};
+
 /**
  * ランディング最終CTAの「bg-gradient-to-br + 2つのblur-3xl円」グローカードを部品化。
  * /home の農事暦ヒーロー・/fields/[id] の統計ヒーロー等で使う。
+ * coverImageUrl を渡すと実写を背景にし、可読性のためグラデーションのスクリムを重ねる。
  */
 export function GlowCTACard({
   tone = "emerald",
@@ -36,6 +44,7 @@ export function GlowCTACard({
   action,
   children,
   className,
+  coverImageUrl,
 }: {
   tone?: "emerald" | "amber" | "sky";
   icon?: ReactNode;
@@ -45,17 +54,33 @@ export function GlowCTACard({
   action?: { label: string; href: string };
   children?: ReactNode;
   className?: string;
+  coverImageUrl?: string;
 }) {
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-3xl bg-gradient-to-br p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.6)]",
-        TONE_GRADIENT[tone],
+        "relative overflow-hidden rounded-3xl p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.6)]",
+        !coverImageUrl && "bg-gradient-to-br",
+        !coverImageUrl && TONE_GRADIENT[tone],
         className
       )}
     >
-      <span className={cn("pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full blur-3xl", TONE_GLOW_A[tone])} />
-      <span className={cn("pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full blur-3xl", TONE_GLOW_B[tone])} />
+      {coverImageUrl ? (
+        <>
+          <RemotePhoto
+            src={coverImageUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            fallbackVariant="field"
+          />
+          <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-b", TONE_SCRIM[tone])} />
+        </>
+      ) : (
+        <>
+          <span className={cn("pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full blur-3xl", TONE_GLOW_A[tone])} />
+          <span className={cn("pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full blur-3xl", TONE_GLOW_B[tone])} />
+        </>
+      )}
       <div className="relative">
         {eyebrow && <SectionEyebrow tone="dark" className="mb-2">{eyebrow}</SectionEyebrow>}
         <div className="flex items-start gap-3">

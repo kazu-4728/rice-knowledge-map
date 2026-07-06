@@ -25,7 +25,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const { schedules, schedulesByDate, fields, canEdit, createItem, toggleItem, deleteItem } = useCalendarMonth(viewYear, viewMonth);
+  const { schedules, schedulesByDate, fields, canEdit, createItem, toggleItem, deleteItem, coverImageUrl } = useCalendarMonth(viewYear, viewMonth);
   const season = useMemo(() => getSeasonPhase(), []);
 
   // 入力フォーム状態
@@ -95,6 +95,7 @@ export default function CalendarScreen() {
         hint={season.hint}
         yearProgress={season.yearProgress}
         nextScheduleLabel={nextScheduleLabel}
+        coverImageUrl={coverImageUrl}
       >
         <div className="mt-3 flex items-center justify-between">
           <button onClick={() => {

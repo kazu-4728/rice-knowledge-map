@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } from "../../../lib/data/farm";
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
+import { loadImageSlots } from "../../../lib/data/siteContent";
+import { resolveFieldCoverUrl } from "../../../lib/data/media";
 import type { FieldPoint, RecordItem } from "../../../types";
 
 /** ピンの状態の要対応順（issue > needs_check > normal > resolved） */
@@ -45,6 +47,8 @@ export type FieldDetail = {
   categoryCounts: { cat: RecordItem["category"]; count: number }[];
   lastRecord: RecordItem | undefined;
   handlePhotoSelect: (file: File) => Promise<void>;
+  /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定） */
+  coverImageUrl: string;
 };
 
 /**
@@ -58,6 +62,11 @@ export function useFieldDetail(fieldId: string): FieldDetail {
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [defaultCoverUrl, setDefaultCoverUrl] = useState(() => resolveFieldCoverUrl(undefined, {}));
+
+  useEffect(() => {
+    loadImageSlots().then((slots) => setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots)));
+  }, []);
 
   useEffect(() => {
     // この田んぼの記録を全件取得する（状態サマリーの未対応集計が最新100件外の古い異常を
@@ -155,6 +164,7 @@ export function useFieldDetail(fieldId: string): FieldDetail {
   }, [records]);
 
   const lastRecord = records[0]; // loadRecords は新しい順に返す
+  const coverImageUrl = field.photoUrl ?? defaultCoverUrl;
 
   return {
     loading,
@@ -170,5 +180,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     categoryCounts,
     lastRecord,
     handlePhotoSelect,
+    coverImageUrl,
   };
 }

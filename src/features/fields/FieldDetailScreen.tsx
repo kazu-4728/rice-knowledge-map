@@ -187,6 +187,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     categoryCounts,
     lastRecord,
     handlePhotoSelect,
+    coverImageUrl,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -233,15 +234,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
-          key={field.photoUrl ?? "fallback"}
-          src={field.photoUrl ?? undefined}
+          key={coverImageUrl}
+          src={coverImageUrl}
           alt={field.name}
           className="h-full w-full object-cover animate-ken-burns-up"
           fallbackVariant="field"
         />
-        {!field.photoUrl && (
-          <span className="absolute inset-0 opacity-40" style={{ background: field.color }} />
-        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h1 className="text-xl font-bold text-white drop-shadow">{field.name || "名前のない田んぼ"}</h1>

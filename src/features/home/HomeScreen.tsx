@@ -29,7 +29,7 @@ import {
 } from "../../components/ui/icons";
 
 export default function HomeScreen() {
-  const { attention, recentRecords, thumbUrls, recordsMode, loaded, loadError, isAnon } = useHomeSummary();
+  const { attention, recentRecords, thumbUrls, recordsMode, loaded, loadError, isAnon, heroImageUrl } = useHomeSummary();
   const season = useMemo(() => getSeasonPhase(), []);
   const SeasonIcon = SEASON_ICONS[season.iconKey];
 
@@ -67,6 +67,7 @@ export default function HomeScreen() {
           title={season.label}
           description={season.hint}
           action={!isAnon ? { label: season.action, href: "/records/new?returnTo=%2Fhome" } : undefined}
+          coverImageUrl={heroImageUrl}
         >
           <SeasonTimelineBar />
 

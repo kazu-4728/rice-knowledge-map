@@ -9,6 +9,8 @@ import {
   loadFieldLastRecordDates,
 } from "../../../lib/data/farm";
 import { excludePointBackedIssues, loadOpenIssueRecords } from "../../../lib/data/records";
+import { loadImageSlots } from "../../../lib/data/siteContent";
+import { resolveFieldCoverUrl } from "../../../lib/data/media";
 
 export type FieldItem = {
   id: string;
@@ -31,6 +33,8 @@ export type FieldsList = {
   fieldStatuses: Record<string, FieldStatus>;
   photoUrls: Record<string, string>;
   handlePhotoSelect: (field: FieldItem, file: File) => Promise<void>;
+  /** 写真未登録の田んぼに使う既定カバー実写（差し替え>システム既定の順で解決済み） */
+  defaultCoverUrl: string;
 };
 
 /** /fields一覧のデータ取得を1本化するフック（Supabase直呼びはlib/data/farm.ts経由に統一済み） */
@@ -39,8 +43,11 @@ export function useFieldsList(): FieldsList {
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [fieldStatuses, setFieldStatuses] = useState<Record<string, FieldStatus>>({});
   const [mode, setMode] = useState<FieldsList["mode"]>("loading");
+  const [defaultCoverUrl, setDefaultCoverUrl] = useState(() => resolveFieldCoverUrl(undefined, {}));
 
   useEffect(() => {
+    loadImageSlots().then((slots) => setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots)));
+
     loadFieldLastRecordDates().then((lastMap) => {
       setFieldStatuses((prev) => {
         const next = { ...prev };
@@ -116,5 +123,5 @@ export function useFieldsList(): FieldsList {
     setFields((prev) => prev.map((f) => (f.id === field.id ? { ...f, photoPath: path } : f)));
   };
 
-  return { mode, fields, fieldStatuses, photoUrls, handlePhotoSelect };
+  return { mode, fields, fieldStatuses, photoUrls, handlePhotoSelect, defaultCoverUrl };
 }

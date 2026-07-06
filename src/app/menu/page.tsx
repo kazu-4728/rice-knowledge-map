@@ -5,6 +5,8 @@ import InviteButton from "../../features/auth/InviteButton";
 import { SUB_NAV_ITEMS } from "../../components/layout/navItems";
 import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
 import { RevealCard } from "../../components/patterns/RevealCard";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 import {
   IconChevronRight,
   IconUsers,
@@ -22,9 +24,13 @@ export default function MenuPage() {
   return (
     <AppShell backDynamic backLabel="戻る">
       <div className="space-y-3 px-3 pb-6 pt-3">
-        <div className="px-1">
-          <SectionEyebrow className="mb-1">Settings</SectionEyebrow>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">設定・管理</h1>
+        <div className="relative overflow-hidden rounded-2xl">
+          <RemotePhoto src={SYSTEM_DEFAULT_IMAGES.home} alt="" className="h-24 w-full object-cover" fallbackVariant="field" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/5" />
+          <div className="absolute inset-x-0 bottom-0 px-1 pb-2 pt-1">
+            <SectionEyebrow tone="dark" className="mb-1 px-3">Settings</SectionEyebrow>
+            <h1 className="px-3 font-heading text-2xl font-bold tracking-tight text-white drop-shadow">設定・管理</h1>
+          </div>
         </div>
 
         {/* アカウント / ログイン */}

@@ -20,7 +20,7 @@ import { useFieldsList, type FieldItem } from "../../features/fields/hooks/useFi
 
 export default function FieldsPage() {
   const router = useRouter();
-  const { mode, fields, fieldStatuses, photoUrls, handlePhotoSelect } = useFieldsList();
+  const { mode, fields, fieldStatuses, photoUrls, handlePhotoSelect, defaultCoverUrl } = useFieldsList();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [areaUnit, cycleAreaUnit] = useAreaUnit();
@@ -50,17 +50,6 @@ export default function FieldsPage() {
             )}
           </div>
         </div>
-
-        {/* 主役ヒーロー: 田んぼの状態を地図的に俯瞰 */}
-        {(mode === "live" || mode === "demo") && plotFields.length > 0 && (
-          <motion.div initial="hidden" animate="show" variants={staggerItem}>
-            <PlotGlowMap
-              fields={plotFields}
-              onSelect={(id) => router.push(`/fields/${encodeURIComponent(id)}`)}
-              className="aspect-[2/1]"
-            />
-          </motion.div>
-        )}
 
         {mode === "anon" && (
           <Link
@@ -114,14 +103,11 @@ export default function FieldsPage() {
                       {/* 写真が主役のヒーロー部（Googleマップの場所カード風） */}
                       <div className="relative h-36">
                         <RemotePhoto
-                          src={photoUrls[field.id]}
+                          src={photoUrls[field.id] ?? defaultCoverUrl}
                           alt={field.name}
                           className="h-full w-full object-cover"
                           fallbackVariant="field"
                         />
-                        {!photoUrls[field.id] && (
-                          <span className="absolute inset-0 opacity-40" style={{ background: field.color }} />
-                        )}
                         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 to-transparent" />
 
                         {/* 状態バッジ（写真の上・信号色） */}
@@ -179,6 +165,18 @@ export default function FieldsPage() {
                 </motion.div>
               );
             })}
+          </motion.div>
+        )}
+
+        {/* 補助表示: 状態の俯瞰（信号色ポリゴン）。主役は上の実写カードグリッド */}
+        {(mode === "live" || mode === "demo") && plotFields.length > 0 && (
+          <motion.div initial="hidden" animate="show" variants={staggerItem} className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="mb-2 text-xs font-bold text-gray-500">状態を地図で見る</p>
+            <PlotGlowMap
+              fields={plotFields}
+              onSelect={(id) => router.push(`/fields/${encodeURIComponent(id)}`)}
+              className="aspect-[3/1]"
+            />
           </motion.div>
         )}
 

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadTalkTimeline, type TalkMessage } from "../../../lib/data/talk";
 import { loadFarmData } from "../../../lib/data/farm";
+import { loadImageSlots } from "../../../lib/data/siteContent";
+import { resolveTalkCoverUrl } from "../../../lib/data/media";
 
 export type TalkFieldChip = { id: string; name: string };
 
@@ -20,6 +22,7 @@ export type TalkTimeline = {
    * 実際のscrollTop操作はコンポーネント側（DOM副作用）が担当する。
    */
   stickToBottomRef: React.RefObject<boolean>;
+  coverImageUrl: string;
 };
 
 /**
@@ -35,6 +38,7 @@ export function useTalkTimeline(filterId: string | null): TalkTimeline {
   const stickToBottomRef = useRef(true);
   // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）
   const reloadTokenRef = useRef(0);
+  const [coverImageUrl, setCoverImageUrl] = useState(() => resolveTalkCoverUrl({}));
 
   const reload = useCallback(async (fieldId: string | null) => {
     const token = ++reloadTokenRef.current;
@@ -54,6 +58,10 @@ export function useTalkTimeline(filterId: string | null): TalkTimeline {
     setMode("loading");
     reload(filterId);
   }, [filterId, reload]);
+
+  useEffect(() => {
+    loadImageSlots().then((slots) => setCoverImageUrl(resolveTalkCoverUrl(slots)));
+  }, []);
 
   useEffect(() => {
     loadFarmData().then((farm) => {
@@ -88,5 +96,5 @@ export function useTalkTimeline(filterId: string | null): TalkTimeline {
     setLoadingOlder(false);
   }, [loadingOlder, messages, filterId]);
 
-  return { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef };
+  return { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef, coverImageUrl };
 }

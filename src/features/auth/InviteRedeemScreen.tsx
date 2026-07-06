@@ -6,6 +6,8 @@ import { getSupabase } from "../../lib/supabase/client";
 import { useAuth } from "./useAuth";
 import AccountSection from "./AccountSection";
 import { IconCheck, IconUsers, IconWarningFill, LogoRice } from "../../components/ui/icons";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 
 const PENDING_KEY = "rkm_pending_invite_token";
 
@@ -74,12 +76,19 @@ export default function InviteRedeemScreen() {
   }, [configured, loading, session, state]);
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md md:max-w-lg flex-col items-center bg-gray-100 px-4 pt-16">
-      <LogoRice className="h-16 w-16" />
-      <h1 className="mt-3 text-xl font-bold text-green-700">みらい稲作管理</h1>
-      <p className="mt-1 text-sm text-gray-600">家族グループへの招待</p>
+    <div className="relative mx-auto flex h-dvh max-w-md md:max-w-lg flex-col items-center bg-gray-100 px-4 pt-16">
+      <div className="absolute inset-x-0 top-0 h-48 overflow-hidden">
+        <RemotePhoto src={SYSTEM_DEFAULT_IMAGES.talk} alt="" className="h-full w-full object-cover" fallbackVariant="water" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-gray-100" />
+      </div>
 
-      <div className="mt-6 w-full space-y-3">
+      <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-lg">
+        <LogoRice className="h-11 w-11" />
+      </span>
+      <h1 className="relative mt-3 text-xl font-bold text-white drop-shadow">みらい稲作管理</h1>
+      <p className="relative mt-1 text-sm text-white/90 drop-shadow">家族グループへの招待</p>
+
+      <div className="relative mt-6 w-full space-y-3">
         {(state === "idle" || state === "redeeming") && (
           <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
             <p className="text-sm text-gray-600">招待を確認しています…</p>

@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { loadRecords, isUnresolvedIssue, type RecordsData } from "../../../lib/data/records";
+import { loadImageSlots } from "../../../lib/data/siteContent";
+import { resolveRecordCoverUrl } from "../../../lib/data/media";
+import type { ImageSlots } from "../../../lib/supabase/types";
 import type { RecordItem } from "../../../types";
 
 export type RecordsFilterLabel = "すべて" | "写真" | "音声" | "作業" | "水管理";
@@ -35,6 +38,7 @@ export type RecordsList = {
   mode: RecordsData["mode"] | "loading";
   records: RecordItem[];
   groups: RecordsListGroup[];
+  /** 実写があればそれを、写真記録で実写未登録ならカテゴリ別の既定実写を解決済みで返す */
   thumbUrls: Record<string, string>;
   categoryCounts: { cat: RecordItem["category"]; count: number }[];
 };
@@ -47,7 +51,8 @@ export type RecordsList = {
 export function useRecordsList(opts: RecordsListOptions): RecordsList {
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [mode, setMode] = useState<RecordsData["mode"] | "loading">("loading");
-  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [rawThumbUrls, setRawThumbUrls] = useState<Record<string, string>>({});
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
     // 未対応（status=open）導線では古い未対応が最新100件の外に出ることがあるため全件取得する
@@ -55,9 +60,24 @@ export function useRecordsList(opts: RecordsListOptions): RecordsList {
     loadRecords(opts.statusFilter === "open" ? { all: true } : undefined).then((data) => {
       setRecords(data.records);
       setMode(data.mode);
-      setThumbUrls(data.thumbUrls);
+      setRawThumbUrls(data.thumbUrls);
     });
   }, [opts.statusFilter]);
+
+  useEffect(() => {
+    loadImageSlots().then(setImageSlots);
+  }, []);
+
+  // 写真記録で実写が未登録の場合はカテゴリ別の既定実写を補う
+  const thumbUrls = useMemo(() => {
+    const merged = { ...rawThumbUrls };
+    for (const record of records) {
+      if (record.media === "photo" && !merged[record.id]) {
+        merged[record.id] = resolveRecordCoverUrl(undefined, record.category, imageSlots);
+      }
+    }
+    return merged;
+  }, [rawThumbUrls, records, imageSlots]);
 
   const visibleRecords = useMemo(() => {
     return records.filter((record) => {

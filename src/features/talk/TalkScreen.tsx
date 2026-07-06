@@ -54,7 +54,7 @@ export default function TalkScreen() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const timeline = useTalkTimeline(filterId);
-  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef } = timeline;
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef, coverImageUrl } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
@@ -178,7 +178,7 @@ export default function TalkScreen() {
       {mode !== "loading" && (
         <button
           onClick={() => setHeroExpanded((v) => !v)}
-          className="shrink-0 border-b border-black/5 bg-white/60 px-3 pt-2 text-left backdrop-blur-sm"
+          className="shrink-0 border-b border-black/5 bg-white/60 px-3 py-2 text-left backdrop-blur-sm"
           aria-expanded={heroExpanded}
         >
           <motion.div layout transition={{ type: "spring", stiffness: 320, damping: 32 }}>
@@ -186,7 +186,8 @@ export default function TalkScreen() {
               latestMessages={heroExpanded ? messages.slice(-2).reverse() : []}
               todayCount={todayCount}
               attentionFieldName={attentionFieldName}
-              className="bg-transparent p-0 pb-2"
+              coverImageUrl={coverImageUrl}
+              className={heroExpanded ? "min-h-[9rem]" : "min-h-[4.5rem]"}
             />
           </motion.div>
         </button>
