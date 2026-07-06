@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { loadWeather, type WeatherData } from "../../lib/data/weather";
 import { loadRecords } from "../../lib/data/records";
@@ -34,6 +35,8 @@ function todayKey(): string {
 }
 
 export default function TodayStory() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   // 数値indexではなくカードのキーで現在位置を持つ（非同期でカードが差し込まれても現在のカードが変わらない）
   const [currentKey, setCurrentKey] = useState<CardKey>("greeting");
@@ -100,6 +103,11 @@ export default function TodayStory() {
     if (timerRef.current) clearTimeout(timerRef.current);
     setVisible(false);
   }, []);
+
+  const openMap = useCallback(() => {
+    close();
+    if (pathname !== "/map") router.push("/map");
+  }, [close, pathname, router]);
 
   const next = useCallback(() => {
     const i = cards.indexOf(currentKey);
@@ -272,7 +280,7 @@ export default function TodayStory() {
                 いい一日を 🌾
               </p>
               <button
-                onClick={close}
+                onClick={openMap}
                 className="relative z-20 mt-8 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-emerald-500 py-4 text-lg font-bold text-white shadow-[0_4px_24px_rgba(16,185,129,0.5)] transition-transform active:scale-95"
               >
                 マップを開く
