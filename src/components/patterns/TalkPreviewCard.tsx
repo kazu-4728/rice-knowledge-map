@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * ランディングの TalkMockup（吹き出しUIの縮小版）の実データ化。
- * /talk の折りたたみヒーローで「今日の会話の温度」を可視化する。
+ * /talk の折りたたみヒーローで最近の会話の温度を可視化する。
  * coverImageUrl でグループ/田んぼの実写をカバーにし、白いチャットUIだけで終わらせない。
  */
 export function TalkPreviewCard({
@@ -50,7 +50,7 @@ export function TalkPreviewCard({
             <IconChat className="h-4 w-4" />
           </span>
           <p className={cn("text-sm font-bold", coverImageUrl ? "text-white" : "text-gray-900")}>
-            今日は{todayCount}件のやり取り
+            最近のやり取り {todayCount}件
           </p>
           {attentionFieldName && (
             <span className="ml-auto flex animate-float-y items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
