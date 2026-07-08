@@ -2,9 +2,25 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-06-26）
+## 適用状況（2026-07-09）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0006 適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0008相当まで適用済み**。
+  ただし `0007` / `0008` 相当の変更は、Supabase側のmigration履歴名とリポジトリ内ファイル名が一致していない。
+- 実DBでは `group_site_content.image_slots` が存在し、`jsonb not null default jsonb_build_object()` として適用済み。
+  Supabase migration履歴上は、2026-07-06に以下の4件として記録されている。
+  - `add_image_slots_to_group_site_content`
+  - `set_image_slots_default`
+  - `backfill_image_slots`
+  - `require_image_slots`
+- 実DBでは公開Storageバケット `app-defaults` が存在し、以下5ファイルが格納済み。
+  - `sunrise-paddies.webp`
+  - `farmer-check.webp`
+  - `seedling-water.webp`
+  - `planting-machine.webp`
+  - `harvest-gold.webp`
+- 注意: `app-defaults` バケットは実DBに存在するが、`list_migrations` では
+  `0008_app_defaults_bucket` 相当の履歴名は確認できない。バケット作成とファイル投入は
+  migration履歴外で行われた可能性が高い。
 - セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
   `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
   **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
@@ -40,10 +56,21 @@ Supabase関連のファイルを置くディレクトリです。
   - `farm_schedules` の INSERT / UPDATE / DELETE を owner / editor に制限（0005 では全メンバーが書き込み可だった）
   - `field_id` と `group_id` の整合性チェックトリガー追加
   - 適用済み: PR #29 と同時
+- `0007_hero_image_slots.sql` — 画面ヒーロー用の差し替え可能画像スロット
+  - `group_site_content.image_slots`（jsonb）カラム追加
+  - 実DBでは適用済み。ただしSupabase migration履歴上は本ファイル名ではなく、
+    `add_image_slots_to_group_site_content` / `set_image_slots_default` /
+    `backfill_image_slots` / `require_image_slots` の4件として記録されている。
+  - リポジトリ内SQLは、上記4手順の最終状態をローカル再構築用に1本化したもの。
+- `0008_app_defaults_bucket.sql` — システム既定画像用の公開Storageバケット
+  - `app-defaults` バケット作成（public）
+  - 実DBではバケットと既定WebP 5枚の存在を確認済み。
+  - ただしSupabase migration履歴上に本ファイル名相当の履歴は確認できない。
+  - SQLで再現できるのはバケット作成のみ。既定WebP 5枚はStorageオブジェクトとして別途投入が必要。
 
 ## 今後migrationを追加するとき
 
-1. `0007_xxx.sql` のように連番でこのディレクトリに追加する
+1. `0009_xxx.sql` のように連番でこのディレクトリに追加する
 2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
    （docs/NEGATIVE_ACTIONS.md 参照）
 3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
