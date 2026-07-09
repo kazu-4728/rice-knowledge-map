@@ -23,7 +23,12 @@ async function uploadSiteImage(groupId: string, file: File): Promise<string | nu
   return path;
 }
 
-export default function SiteContentEditor() {
+export default function SiteContentEditor({
+  onSlidesChange,
+}: {
+  /** 保存前の編集中の内容も含めて、最新のslidesを親へ通知する（プレビュー表示用） */
+  onSlidesChange?: (slides: HeroSlide[]) => void;
+}) {
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -36,6 +41,10 @@ export default function SiteContentEditor() {
       setGroupId(result.groupId);
     });
   }, []);
+
+  useEffect(() => {
+    onSlidesChange?.(slides);
+  }, [slides, onSlidesChange]);
 
   const updateSlide = (index: number, patch: Partial<HeroSlide>) => {
     setSlides((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
