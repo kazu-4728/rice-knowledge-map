@@ -50,11 +50,19 @@ export default function TodayStory() {
 
   // 表示判定（1日1回。?story=1 で強制表示）
   useEffect(() => {
-    const force = new URLSearchParams(window.location.search).get("story") === "1";
+    const params = new URLSearchParams(window.location.search);
+    const force = params.get("story") === "1";
     const shown = localStorage.getItem(STORAGE_KEY) === todayKey();
     if (!force && shown) return;
     setVisible(true);
     localStorage.setItem(STORAGE_KEY, todayKey());
+
+    // 強制表示を消費したら ?story=1 をURLに残さない
+    if (force) {
+      params.delete("story");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }
 
     let cancelled = false;
     loadWeather().then((w) => {
@@ -84,7 +92,7 @@ export default function TodayStory() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pathname, router]);
 
   const season = useMemo(() => getSeasonPhase(), []);
 
