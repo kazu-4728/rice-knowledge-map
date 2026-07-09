@@ -9,11 +9,13 @@ import ImageSlotsEditor from "../../../features/menu/ImageSlotsEditor";
 import LandingPreview from "../../../features/menu/LandingPreview";
 import { IconChevronRight } from "../../../components/ui/icons";
 import { getMyRole, ensureGroupId } from "../../../lib/data/farm";
+import { DEFAULT_SLIDES, type HeroSlide } from "../../../lib/data/siteContent";
 
 export default function SiteSettingsPage() {
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [showLandingPreview, setShowLandingPreview] = useState(false);
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
 
   useEffect(() => {
     (async () => {
@@ -71,13 +73,13 @@ export default function SiteSettingsPage() {
             <IconChevronRight className="h-4 w-4 text-gray-400" />
           </Link>
         </div>
-        {showLandingPreview && <LandingPreview />}
+        {showLandingPreview && <LandingPreview slides={heroSlides} />}
 
         <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">ランディングページのヒーロースライド</h2>
         <p className="mb-4 text-xs text-gray-500">
-          ログイン前に表示されるランディングページ（トップ画面）の写真・文章を編集できます。ここでの変更は「ランディングを確認」から見られます。
+          ログイン前に表示されるランディングページ（トップ画面）の写真・文章を編集できます。保存前の編集中の内容も「ランディングを確認」にそのまま反映されます。
         </p>
-        <SiteContentEditor />
+        <SiteContentEditor onSlidesChange={setHeroSlides} />
 
         <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">各画面のカバー写真</h2>
         <p className="mb-3 text-xs text-gray-500">

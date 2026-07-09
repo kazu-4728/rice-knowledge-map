@@ -1,21 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import HeroBackdrop from "../landing/HeroBackdrop";
-import { loadSiteContent, type HeroSlide } from "../../lib/data/siteContent";
+import type { HeroSlide } from "../../lib/data/siteContent";
 
-/** /menu/site から呼び出す、ランディングページ（未ログイン時の入口）のヒーロー確認用プレビュー */
-export default function LandingPreview() {
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    loadSiteContent().then((r) => {
-      setSlides(r.slides);
-      setLoaded(true);
-    });
-  }, []);
-
+/** /menu/site から呼び出す、ランディングページ（未ログイン時の入口）のヒーロー確認用プレビュー。
+ * 保存前の編集中の内容もそのまま表示する（slidesは呼び出し元から渡す）。 */
+export default function LandingPreview({ slides }: { slides: HeroSlide[] }) {
   const hero = slides[0];
 
   return (
@@ -32,11 +22,6 @@ export default function LandingPreview() {
           <p className="mt-1 line-clamp-2 text-xs text-white/80">{hero.body}</p>
         )}
       </div>
-      {!loaded && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 text-xs text-white/70">
-          読み込み中…
-        </div>
-      )}
     </div>
   );
 }
