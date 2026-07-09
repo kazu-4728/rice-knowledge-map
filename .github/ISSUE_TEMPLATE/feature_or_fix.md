@@ -40,7 +40,7 @@ assignees: ""
 
 -
 - `npx tsc --noEmit`、`npm run lint`、`npm run build` が通る
-- 実機確認（iPhone Safari / PWA / PCブラウザ）で golden path を確認する
+- 実機確認（iPhone Safari / PWA / PCブラウザ）で主要な利用導線を確認する
 
 ## 注意
 
