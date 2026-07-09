@@ -9,6 +9,12 @@ export default function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
   const withImages = slides.filter((s) => s.image_url);
   const total = withImages.length;
 
+  // スライドの編集・削除でtotalが縮んだ際、currentが範囲外に残って
+  // 全スライドがopacity: 0になり写真が消えたままにならないよう丸める
+  useEffect(() => {
+    setCurrent((c) => (total > 0 && c >= total ? 0 : c));
+  }, [total]);
+
   useEffect(() => {
     if (total <= 1) return;
     const t = setTimeout(() => setCurrent((c) => (c + 1) % total), 6000);
