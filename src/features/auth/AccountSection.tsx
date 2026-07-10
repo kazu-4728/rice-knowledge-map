@@ -1,17 +1,50 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "./useAuth";
-import { IconCheck, IconUserFill } from "../../components/ui/icons";
+import { loadMyDisplayName, updateMyDisplayName } from "../../lib/data/profile";
+import { MemberAvatar } from "../../components/ui/avatar";
+import { IconCheck, IconPencil, IconUserFill } from "../../components/ui/icons";
 
 type Props = {
   /** ログイン後に戻すパス（例 "/invite"）。省略時はトップ */
   redirectPath?: string;
 };
 
-/** アカウントカード。ログイン状態の表示と /login への誘導 */
+/** アカウントカード。ログイン状態の表示・表示名の変更・/login への誘導 */
 export default function AccountSection({ redirectPath }: Props = {}) {
   const { configured, loading, session, signOut } = useAuth();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    loadMyDisplayName().then((name) => setDisplayName(name));
+  }, [session]);
+
+  const startEdit = () => {
+    setDraft(displayName ?? "");
+    setMessage(null);
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    const { error } = await updateMyDisplayName(draft);
+    setSaving(false);
+    if (error) {
+      setMessage({ text: error, isError: true });
+      return;
+    }
+    setDisplayName(draft.trim());
+    setEditing(false);
+    setMessage({ text: "表示名を変更しました", isError: false });
+  };
 
   if (loading) {
     return (
@@ -41,13 +74,18 @@ export default function AccountSection({ redirectPath }: Props = {}) {
     return (
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
-            <IconUserFill className="h-5 w-5 text-green-700" />
-          </span>
+          {/* タイムラインと同じアバター表示にして「家族にこう見える」を一致させる */}
+          {displayName ? (
+            <MemberAvatar name={displayName} className="h-10 w-10 text-base" />
+          ) : (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
+              <IconUserFill className="h-5 w-5 text-green-700" />
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
-              ログイン中
-              <IconCheck className="h-4 w-4 text-green-600" strokeWidth={2.4} />
+              <span className="truncate">{displayName || "名前未設定"}</span>
+              <IconCheck className="h-4 w-4 shrink-0 text-green-600" strokeWidth={2.4} />
             </p>
             <p className="truncate text-xs text-gray-500">{session.user.email}</p>
           </div>
@@ -58,6 +96,58 @@ export default function AccountSection({ redirectPath }: Props = {}) {
             ログアウト
           </button>
         </div>
+
+        {/* 表示名の変更。記録・今日の流れで「誰の投稿か」を示す名前 */}
+        {editing ? (
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+                maxLength={20}
+                placeholder="例: お父さん / 太郎"
+                autoFocus
+                className="h-10 min-w-0 flex-1 rounded-xl border border-gray-300 px-3 text-[16px] text-gray-900 focus:border-green-600 focus:outline-none"
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="h-10 shrink-0 rounded-xl bg-green-700 px-4 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {saving ? "保存中…" : "保存"}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                disabled={saving}
+                className="h-10 shrink-0 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-600"
+              >
+                やめる
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              「今日の流れ」や記録で家族に表示される名前です（20文字まで）
+            </p>
+          </div>
+        ) : (
+          <button
+            onClick={startEdit}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gray-50 py-2.5 text-sm font-semibold text-gray-700 transition-colors active:bg-gray-100"
+          >
+            <IconPencil className="h-4 w-4" />
+            表示名を変更する
+          </button>
+        )}
+        {message && (
+          <p className={`mt-2 text-xs font-semibold ${message.isError ? "text-red-600" : "text-green-700"}`}>
+            {message.text}
+          </p>
+        )}
       </section>
     );
   }

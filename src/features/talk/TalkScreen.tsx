@@ -7,13 +7,13 @@ import { motion } from "motion/react";
 import { fadeRise } from "../../lib/motion/variants";
 import { deleteComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
 import { deleteRecord } from "../../lib/data/recordDetail";
-import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { useToast } from "../../components/ui/Toast";
 import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
-import { TalkPreviewCard } from "../../components/patterns/TalkPreviewCard";
+import { Chip } from "../../components/ui/Chip";
+import { TYPE_TO_CATEGORY } from "../../lib/data/records";
 import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
@@ -29,13 +29,39 @@ import {
   IconCamera,
   IconChat,
   IconChevronRight,
+  IconDrop,
+  IconMic,
   IconPlayFill,
   IconSprout,
   IconTrash,
+  IconWarningFill,
 } from "../../components/ui/icons";
 
+/** 記録カテゴリ（既存の記録一覧と同じ4分類）+「会話」。今日の流れのフィルターチップに使う */
+type FlowCategory = "すべて" | "作業" | "水管理" | "異常" | "音声" | "会話";
+
+const CATEGORY_CHIPS: { label: FlowCategory; icon: typeof IconSprout | null }[] = [
+  { label: "すべて", icon: null },
+  { label: "作業", icon: IconSprout },
+  { label: "水管理", icon: IconDrop },
+  { label: "異常", icon: IconWarningFill },
+  { label: "音声", icon: IconMic },
+  { label: "会話", icon: IconChat },
+];
+
 /**
- * 家族の統合トークルーム（田んぼOS「話す」空間）。
+ * メッセージの分類を判定する（記録はrecord_type→カテゴリ表、コメントは「会話」固定）。
+ * record_type='other' は入力バーから送った「ひとこと」テキスト（sendTalkText）のため、
+ * records.ts の TYPE_TO_CATEGORY（/records用、other→作業）とは別に「会話」として扱う。
+ */
+function messageCategory(m: TalkMessage): FlowCategory {
+  if (m.kind === "comment" || m.recordType === "other") return "会話";
+  const type = (m.recordType ?? "other") as keyof typeof TYPE_TO_CATEGORY;
+  return TYPE_TO_CATEGORY[type] ?? "作業";
+}
+
+/**
+ * 家族の「今日の流れ」（田んぼOSのトーク+記録を統合した空間）。
  * 全田んぼの記録・コメントが1本のタイムラインに時系列で流れる。
  * メッセージの田んぼチップをタップするとその田んぼだけに絞り込める
  * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
@@ -45,8 +71,7 @@ export default function TalkScreen() {
   const router = useRouter();
   const { showToast } = useToast();
   const [filterId, setFilterId] = useState<string | null>(null);
-  const [heroExpanded, setHeroExpanded] = useState(false);
-  const [attentionFieldName, setAttentionFieldName] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<FlowCategory>("すべて");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
@@ -54,15 +79,12 @@ export default function TalkScreen() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const timeline = useTalkTimeline(filterId);
-  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef, coverImageUrl } = timeline;
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
-  useEffect(() => {
-    loadFieldAttention().then((summary) => {
-      if (summary.attentionFields.length > 0) setAttentionFieldName(summary.attentionFields[0].name || null);
-    });
-  }, []);
+  const filteredMessages =
+    categoryFilter === "すべて" ? messages : messages.filter((m) => messageCategory(m) === categoryFilter);
 
   // 初期表示・新着時に最下部へスクロール
   useEffect(() => {
@@ -145,7 +167,7 @@ export default function TalkScreen() {
   if (mode === "anon") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-base font-bold text-gray-900">ログインすると家族のトークが表示されます</p>
+        <p className="text-base font-bold text-gray-900">ログインすると家族の今日の流れが表示されます</p>
         <Link
           href="/login?redirect=%2Ftalk"
           className="rounded-full bg-green-700 px-8 py-3.5 text-sm font-bold text-white"
@@ -159,7 +181,7 @@ export default function TalkScreen() {
   if (mode === "error") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-sm text-gray-600">トークを読み込めませんでした。通信環境を確認してください。</p>
+        <p className="text-sm text-gray-600">今日の流れを読み込めませんでした。通信環境を確認してください。</p>
         <button
           onClick={() => reload(filterId)}
           className="rounded-full border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700"
@@ -170,55 +192,42 @@ export default function TalkScreen() {
     );
   }
 
-  const todayCount = messages.length > 0 ? messages.filter((m) => m.dateLabel === messages[messages.length - 1].dateLabel).length : 0;
-
   return (
-    <div className="flex h-full flex-col bg-talk-surface">
-      {/* 主役ヒーロー: 「今日の会話の温度」を折りたたみ式で表示（MapSummarySheetのpeek/expand設計を踏襲） */}
-      {mode !== "loading" && (
-        <button
-          onClick={() => setHeroExpanded((v) => !v)}
-          className="shrink-0 border-b border-black/5 bg-white/60 px-3 py-2 text-left backdrop-blur-sm"
-          aria-expanded={heroExpanded}
-        >
-          <motion.div layout transition={{ type: "spring", stiffness: 320, damping: 32 }}>
-            <TalkPreviewCard
-              latestMessages={heroExpanded ? messages.slice(-2).reverse() : []}
-              todayCount={todayCount}
-              attentionFieldName={attentionFieldName}
-              coverImageUrl={coverImageUrl}
-              className={heroExpanded ? "min-h-[9rem]" : "min-h-[4.5rem]"}
-            />
-          </motion.div>
-        </button>
-      )}
+    <div className="flex h-full flex-col bg-flow-cream">
+      {/* 画面タイトル（文字階層1）。ブロックは タイトル/チップ/タイムライン/入力バー の4つに収める */}
+      <div className="shrink-0 px-4 pb-1 pt-3">
+        <h1 className="font-heading text-lg font-bold text-gray-900">今日の流れ</h1>
+      </div>
 
-      {/* 田んぼ絞り込みチップ */}
-      <div className="shrink-0 border-b border-black/5 bg-white/80 backdrop-blur-sm">
-        <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
-          <button
-            onClick={() => setFilterId(null)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
-              filterId === null
-                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
-                : "border border-white/60 bg-white/70 text-gray-600"
-            }`}
-          >
-            すべて
-          </button>
-          {fields.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
-              className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
-                filterId === f.id
-                  ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
-                  : "border border-white/60 bg-white/70 text-gray-600"
-              }`}
+      {/* カテゴリ絞り込みチップ */}
+      <div className="shrink-0">
+        <div className="flex gap-1.5 overflow-x-auto px-3 pt-1" style={{ scrollbarWidth: "none" }}>
+          {CATEGORY_CHIPS.map(({ label, icon: Icon }) => (
+            <Chip
+              key={label}
+              active={categoryFilter === label}
+              onClick={() => setCategoryFilter(label)}
+              icon={Icon ? <Icon className="h-3.5 w-3.5" /> : undefined}
             >
-              <IconSprout className="h-3.5 w-3.5" />
+              {label}
+            </Chip>
+          ))}
+        </div>
+
+        {/* 田んぼ絞り込みチップ */}
+        <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
+          <Chip active={filterId === null} onClick={() => setFilterId(null)}>
+            すべての田んぼ
+          </Chip>
+          {fields.map((f) => (
+            <Chip
+              key={f.id}
+              active={filterId === f.id}
+              onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
+              icon={<IconSprout className="h-3.5 w-3.5" />}
+            >
               {f.name}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
@@ -227,22 +236,14 @@ export default function TalkScreen() {
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {mode === "loading" ? (
           <div className="space-y-3 pt-2">
-            <Skeleton className="ml-10 h-16 w-56 rounded-2xl" />
-            <Skeleton className="ml-auto h-10 w-44 rounded-2xl" />
-            <Skeleton className="ml-10 h-40 w-60 rounded-2xl" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <IconSprout className="h-7 w-7" />
-            </span>
-            <p className="text-sm font-bold text-gray-700">
-              {filterName ? `「${filterName}」のやり取りはまだありません` : "まだやり取りがありません"}
-            </p>
-            <p className="text-xs text-gray-500">下のカメラやマイクから、最初の記録を送ってみましょう</p>
+            <Skeleton className="ml-14 h-16 rounded-2xl" />
+            <Skeleton className="ml-14 h-40 rounded-2xl" />
+            <Skeleton className="ml-14 h-16 rounded-2xl" />
           </div>
         ) : (
           <>
+            {/* 絞り込みで現在ページに一致がなくても、hasMoreなら過去ページに
+                一致がある可能性があるため空状態と排他にしない */}
             {hasMore && (
               <div className="pb-2 text-center">
                 <button
@@ -254,21 +255,39 @@ export default function TalkScreen() {
                 </button>
               </div>
             )}
-            {messages.map((m, i) => (
-              <MessageRow
-                key={m.key}
-                message={m}
-                showDate={i === 0 || messages[i - 1].dateLabel !== m.dateLabel}
-                showAuthor={!m.isMine && (i === 0 || messages[i - 1].author !== m.author || messages[i - 1].dateLabel !== m.dateLabel)}
-                onOpen={() => router.push(`/records/${m.recordId}`)}
-                onFieldTap={(id) => setFilterId(id)}
-                onDelete={
-                  // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
-                  // 家族の誤削除を防ぐため他人のメッセージには出さない
-                  m.isMine ? () => setPendingDelete(m) : undefined
-                }
-              />
-            ))}
+            {filteredMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-flow-green-soft text-flow-green">
+                  <IconSprout className="h-7 w-7" />
+                </span>
+                <p className="text-sm font-bold text-gray-700">
+                  {categoryFilter !== "すべて"
+                    ? `「${categoryFilter}」のやり取りはまだありません`
+                    : filterName
+                      ? `「${filterName}」のやり取りはまだありません`
+                      : "まだやり取りがありません"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {hasMore ? "上の「以前のやり取りを見る」から遡れます" : "下のカメラやマイクから、最初の記録を送ってみましょう"}
+                </p>
+              </div>
+            ) : (
+              filteredMessages.map((m, i) => (
+                <TimelineEntry
+                  key={m.key}
+                  message={m}
+                  showDate={i === 0 || filteredMessages[i - 1].dateLabel !== m.dateLabel}
+                  isLast={i === filteredMessages.length - 1}
+                  onOpen={() => router.push(`/records/${m.recordId}`)}
+                  onFieldTap={(id) => setFilterId(id)}
+                  onDelete={
+                    // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
+                    // 家族の誤削除を防ぐため他人のメッセージには出さない
+                    m.isMine ? () => setPendingDelete(m) : undefined
+                  }
+                />
+              ))
+            )}
           </>
         )}
       </div>
@@ -287,7 +306,7 @@ export default function TalkScreen() {
           <Link
             href={`/records/new?returnTo=%2Ftalk${filterId ? `&field=${encodeURIComponent(filterId)}` : ""}`}
             aria-label="写真で記録"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-green-700 transition-colors active:bg-emerald-100"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green-soft text-flow-green transition-colors active:bg-flow-green-soft/70"
           >
             <IconCamera className="h-5.5 w-5.5" />
           </Link>
@@ -317,7 +336,7 @@ export default function TalkScreen() {
               onClick={handleSend}
               disabled={sending}
               aria-label="送信"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform active:scale-95 disabled:opacity-50"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green text-white transition-transform active:scale-95 disabled:opacity-50"
             >
               <IconChevronRight className="h-6 w-6" />
             </button>
@@ -349,17 +368,23 @@ export default function TalkScreen() {
   );
 }
 
-function MessageRow({
+/**
+ * タイムラインの1エントリ（モック「今日の流れ」の縦タイムライン構造）。
+ * 左に時刻の軸（時刻+ノード+縦線）、右に統一カード。自分/他人で左右を振り分けない
+ * （チャットではなく「今日の出来事の流れ」として全員分を1本の軸に載せる）。
+ */
+function TimelineEntry({
   message: m,
   showDate,
-  showAuthor,
+  isLast,
   onOpen,
   onFieldTap,
   onDelete,
 }: {
   message: TalkMessage;
   showDate: boolean;
-  showAuthor: boolean;
+  /** 最後のエントリは軸の縦線を伸ばさない */
+  isLast: boolean;
   onOpen: () => void;
   onFieldTap: (fieldId: string) => void;
   /** 自分のコメント/ひとことのみ削除可能（undefinedなら非表示） */
@@ -374,113 +399,110 @@ function MessageRow({
       // 親を div role="button" 化したため、keydownはclickと違いstopPropagationだけでは
       // 止まらず親のonOpenまでバブリングする。Enter/Spaceでの二重発火を防ぐ
       onKeyDown={(e) => e.stopPropagation()}
-      className="flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
+      className="flex items-center gap-1 rounded-full bg-flow-green-soft px-2 py-0.5 text-[10px] font-bold text-flow-green"
     >
       <IconSprout className="h-3 w-3" />
       {m.fieldName}
     </button>
   );
 
+  const openHandlers = {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: onOpen,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      // audio等のネストしたフォーカス可能要素のkeydownまで拾わないよう、
+      // コンテナ自身がフォーカスされている時だけEnter/Spaceを処理する
+      if (e.target !== e.currentTarget) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+  };
+
   return (
     <motion.div initial="hidden" animate="show" variants={fadeRise}>
+      {/* 日付見出し（文字階層2）。モック同様に左寄せ+カレンダーへの導線 */}
       {showDate && (
-        <div className="flex justify-center py-2.5">
-          <span className="rounded-full bg-black/10 px-3 py-1 text-[10px] font-semibold text-gray-600">
-            {m.dateLabel}
-          </span>
+        <div className="flex items-center justify-between px-1 pb-2 pt-3">
+          <span className="font-heading text-sm font-bold text-gray-800">{m.dateLabel}</span>
+          <Link href="/calendar" className="text-xs font-semibold text-flow-green">
+            カレンダー
+          </Link>
         </div>
       )}
-      <div className={`flex items-end gap-2 pb-1.5 ${m.isMine ? "justify-end" : ""}`}>
-        {!m.isMine && (
-          <span className="w-8 shrink-0">
-            {showAuthor && <MemberAvatar name={m.author} />}
-          </span>
-        )}
-        {m.isMine && (
-          <span className="mb-0.5 flex shrink-0 flex-col items-end gap-1.5">
+      <div className="flex gap-2">
+        {/* 時刻の軸 */}
+        <span className="w-10 shrink-0 pt-0.5 text-right text-[11px] font-semibold tabular-nums text-gray-500">
+          {m.timeLabel}
+        </span>
+        <span className="relative w-3 shrink-0" aria-hidden>
+          <span className="absolute left-1/2 top-1.5 h-2 w-2 -translate-x-1/2 rounded-full bg-flow-green" />
+          {!isLast && (
+            <span className="absolute -bottom-1 left-1/2 top-4 w-px -translate-x-1/2 bg-flow-green/20" />
+          )}
+        </span>
+
+        {/* 本文カード */}
+        <div className="min-w-0 flex-1 pb-4">
+          <div className="flex items-center gap-1.5 pb-1">
+            <MemberAvatar name={m.author} className="h-5 w-5 text-[9px]" />
+            <span className="text-xs font-semibold text-gray-600">{m.author}</span>
             {onDelete && (
               <button
                 onClick={onDelete}
                 aria-label="このメッセージを削除"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors active:bg-red-50 active:text-red-500"
+                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-red-50 active:text-red-500"
               >
-                <IconTrash className="h-4.5 w-4.5" />
+                <IconTrash className="h-4 w-4" />
               </button>
             )}
-            <span className="text-[9px] text-gray-400">{m.timeLabel}</span>
-          </span>
-        )}
-
-        <div className={`max-w-[76%] ${m.isMine ? "items-end" : ""}`}>
-          {showAuthor && (
-            <p className="mb-0.5 ml-1 text-[10px] font-semibold text-gray-500">{m.author}</p>
-          )}
+          </div>
 
           {m.kind === "comment" ? (
             // fieldChip がボタンのためネストボタンを避け、div+role="button" で代用する
             <div
-              role="button"
-              tabIndex={0}
-              onClick={onOpen}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen();
-                }
-              }}
-              className={`block cursor-pointer rounded-2xl px-3 py-2 text-left text-sm leading-relaxed shadow-sm ${
-                m.isMine
-                  ? "rounded-br-sm bg-green-600 text-white"
-                  : "rounded-bl-sm bg-white text-gray-800"
-              }`}
+              {...openHandlers}
+              className="cursor-pointer rounded-2xl bg-white px-4 py-3 text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
             >
               {/* 返信先の記録を引用表示（どのメッセージへの返信かを明示。タップで元記録=スレッドへ） */}
               {m.recordTitle && (
-                <span
-                  className={`mb-1 block truncate border-l-2 pl-2 text-[11px] ${
-                    m.isMine ? "border-white/50 text-white/80" : "border-emerald-400 text-gray-500"
-                  }`}
-                >
+                <span className="mb-1 block truncate border-l-2 border-flow-green/40 pl-2 text-[11px] text-gray-500">
                   ↩ {m.fieldName ? `${m.fieldName}・` : ""}
                   {m.recordTitle}
                 </span>
               )}
-              {!m.isMine && !m.recordTitle && fieldChip && <span className="mr-1.5">{fieldChip}</span>}
-              {m.text}
+              <p className="text-sm leading-relaxed text-gray-800">{m.text}</p>
+              {!m.recordTitle && fieldChip && <div className="mt-1.5 flex">{fieldChip}</div>}
             </div>
           ) : (
             <div
-              role="button"
-              tabIndex={0}
-              onClick={onOpen}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen();
-                }
-              }}
-              className={`block cursor-pointer overflow-hidden rounded-2xl text-left shadow-sm ${
-                m.isMine ? "rounded-br-sm border border-emerald-200 bg-emerald-50" : "rounded-bl-sm bg-white"
-              }`}
+              {...openHandlers}
+              className="cursor-pointer overflow-hidden rounded-2xl bg-white text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
             >
+              {/* 写真は主役: カード幅いっぱいで統一した比率に切り出す */}
               {m.photoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element -- 署名URLの記録写真
-                <img src={m.photoUrl} alt="" className="h-40 w-60 max-w-full object-cover" />
+                <img src={m.photoUrl} alt="" className="aspect-[16/10] w-full object-cover" />
               )}
-              {m.audioUrl && (
-                <div className="flex items-center gap-2 px-3 pt-2.5" onClick={(e) => e.stopPropagation()}>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-                    <IconPlayFill className="h-4 w-4" />
-                  </span>
-                  <audio controls preload="none" src={m.audioUrl} className="h-9 w-44 max-w-full" />
-                </div>
-              )}
-              <div className="px-3 py-2">
+              <div className="px-4 py-3">
                 <p className="text-sm font-bold leading-snug text-gray-900">{m.title}</p>
                 {m.note && m.note !== m.title && (
                   <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-600">{m.note}</p>
                 )}
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {m.audioUrl && (
+                  <div
+                    className="mt-2 flex items-center gap-2 rounded-full bg-flow-green-soft py-1.5 pl-1.5 pr-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flow-green text-white">
+                      <IconPlayFill className="h-3.5 w-3.5" />
+                    </span>
+                    <audio controls preload="none" src={m.audioUrl} className="h-8 w-full min-w-0" />
+                  </div>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {fieldChip}
                   {/* records.status は既定値が 'open' のため、異常系（isIssue）以外の
                       ふつうの記録（写真/作業/ひとこと等）にまで「未対応」を出さない。
@@ -511,8 +533,6 @@ function MessageRow({
             </div>
           )}
         </div>
-
-        {!m.isMine && <span className="mb-0.5 shrink-0 text-[9px] text-gray-400">{m.timeLabel}</span>}
       </div>
     </motion.div>
   );

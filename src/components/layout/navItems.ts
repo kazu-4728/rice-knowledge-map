@@ -13,12 +13,12 @@ import {
 /**
  * 田んぼOSの3空間+設定（主要ナビ4系統）
  * - マップ: 開く場所（地図が起点）
- * - トーク: 話す場所（/talk = 家族の統合トークルーム1本。田んぼ別ルームは作らない）
+ * - 今日の流れ: 話す場所（/talk = 記録+会話を統合した1本のタイムライン。田んぼ別ルームは作らない）
  * - 管理: 見わたす場所（状況・カレンダー・エクスポート）
  */
 export const NAV_ITEMS = [
   { href: "/map", label: "マップ", Icon: IconMap },
-  { href: "/talk", label: "トーク", Icon: IconChat },
+  { href: "/talk", label: "今日の流れ", Icon: IconChat },
   { href: "/home", label: "管理", Icon: IconHome },
   { href: "/menu", label: "設定", Icon: IconGear },
 ] as const;
