@@ -36,9 +36,12 @@ export async function updateMyDisplayName(name: string): Promise<{ error: string
   const user = sessionData.session?.user;
   if (!user) return { error: "ログインが必要です" };
 
-  const { error } = await sb
+  const { data, error } = await sb
     .from("profiles")
     .update({ display_name: trimmed })
-    .eq("id", user.id);
-  return { error: error?.message ?? null };
+    .eq("id", user.id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "変更できませんでした" };
+  return { error: null };
 }
