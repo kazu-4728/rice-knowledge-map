@@ -401,6 +401,9 @@ function TimelineEntry({
     tabIndex: 0,
     onClick: onOpen,
     onKeyDown: (e: React.KeyboardEvent) => {
+      // audio等のネストしたフォーカス可能要素のkeydownまで拾わないよう、
+      // コンテナ自身がフォーカスされている時だけEnter/Spaceを処理する
+      if (e.target !== e.currentTarget) return;
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         onOpen();
