@@ -25,9 +25,23 @@
     --input: oklch(0.915 0.015 155);
     --ring: oklch(0.527 0.154 150.069);
     --radius: 0.625rem;
-    --talk-surface: oklch(0.965 0.02 145);
+    /* --- 田んぼOS「今日の流れ」デザイントークン（Issue #65・フェーズ1）
+       色は3系統（クリーム地・深緑・白）+ StatusBadgeの状態チップのみをアクセントとする。
+       新規画面（今日の流れ等）はこの3系統だけを使い、旧画面の個別色は増やさない。 --- */
+    --flow-cream: oklch(0.97 0.018 85);
+    --flow-cream-strong: oklch(0.945 0.024 80);
+    --flow-green: oklch(0.34 0.07 155);
+    --flow-green-soft: oklch(0.94 0.03 150);
   }
 }
+
+/* 文字階層（4段階・今日の流れで採用。既存画面へ遡って適用はしない）:
+   1. 画面タイトル   text-lg font-bold（font-heading）
+   2. セクション/日付見出し  text-sm font-bold text-gray-700
+   3. カード本文     text-sm font-semibold text-gray-900
+   4. 補助（時刻・件数） text-xs text-gray-500
+   余白: カード内 px-4 py-3 / カード間 space-y-3 / セクション間 space-y-5
+   角丸: カード rounded-2xl / チップ・アバター rounded-full（--radius を踏襲） */
 
 @theme inline {
   --font-sans: var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif;
@@ -51,7 +65,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-talk-surface: var(--talk-surface);
+  --color-flow-cream: var(--flow-cream);
+  --color-flow-cream-strong: var(--flow-cream-strong);
+  --color-flow-green: var(--flow-green);
+  --color-flow-green-soft: var(--flow-green-soft);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

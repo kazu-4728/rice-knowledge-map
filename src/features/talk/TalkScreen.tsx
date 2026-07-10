@@ -13,7 +13,9 @@ import { MemberAvatar } from "../../components/ui/avatar";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { Chip } from "../../components/ui/Chip";
 import { TalkPreviewCard } from "../../components/patterns/TalkPreviewCard";
+import { TYPE_TO_CATEGORY } from "../../lib/data/records";
 import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
@@ -29,13 +31,35 @@ import {
   IconCamera,
   IconChat,
   IconChevronRight,
+  IconDrop,
+  IconMic,
   IconPlayFill,
   IconSprout,
   IconTrash,
+  IconWarningFill,
 } from "../../components/ui/icons";
 
+/** 記録カテゴリ（既存の記録一覧と同じ4分類）+「会話」。今日の流れのフィルターチップに使う */
+type FlowCategory = "すべて" | "作業" | "水管理" | "異常" | "音声" | "会話";
+
+const CATEGORY_CHIPS: { label: FlowCategory; icon: typeof IconSprout | null }[] = [
+  { label: "すべて", icon: null },
+  { label: "作業", icon: IconSprout },
+  { label: "水管理", icon: IconDrop },
+  { label: "異常", icon: IconWarningFill },
+  { label: "音声", icon: IconMic },
+  { label: "会話", icon: IconChat },
+];
+
+/** メッセージの分類を判定する（記録はrecord_type→カテゴリ表、コメントは「会話」固定） */
+function messageCategory(m: TalkMessage): FlowCategory {
+  if (m.kind === "comment") return "会話";
+  const type = (m.recordType ?? "other") as keyof typeof TYPE_TO_CATEGORY;
+  return TYPE_TO_CATEGORY[type] ?? "作業";
+}
+
 /**
- * 家族の統合トークルーム（田んぼOS「話す」空間）。
+ * 家族の「今日の流れ」（田んぼOSのトーク+記録を統合した空間）。
  * 全田んぼの記録・コメントが1本のタイムラインに時系列で流れる。
  * メッセージの田んぼチップをタップするとその田んぼだけに絞り込める
  * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
@@ -45,6 +69,7 @@ export default function TalkScreen() {
   const router = useRouter();
   const { showToast } = useToast();
   const [filterId, setFilterId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<FlowCategory>("すべて");
   const [heroExpanded, setHeroExpanded] = useState(false);
   const [attentionFieldName, setAttentionFieldName] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -57,6 +82,9 @@ export default function TalkScreen() {
   const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef, coverImageUrl } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
+
+  const filteredMessages =
+    categoryFilter === "すべて" ? messages : messages.filter((m) => messageCategory(m) === categoryFilter);
 
   useEffect(() => {
     loadFieldAttention().then((summary) => {
@@ -173,7 +201,7 @@ export default function TalkScreen() {
   const todayCount = messages.length > 0 ? messages.filter((m) => m.dateLabel === messages[messages.length - 1].dateLabel).length : 0;
 
   return (
-    <div className="flex h-full flex-col bg-talk-surface">
+    <div className="flex h-full flex-col bg-flow-cream">
       {/* 主役ヒーロー: 「今日の会話の温度」を折りたたみ式で表示（MapSummarySheetのpeek/expand設計を踏襲） */}
       {mode !== "loading" && (
         <button
@@ -193,32 +221,35 @@ export default function TalkScreen() {
         </button>
       )}
 
-      {/* 田んぼ絞り込みチップ */}
-      <div className="shrink-0 border-b border-black/5 bg-white/80 backdrop-blur-sm">
-        <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
-          <button
-            onClick={() => setFilterId(null)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
-              filterId === null
-                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
-                : "border border-white/60 bg-white/70 text-gray-600"
-            }`}
-          >
-            すべて
-          </button>
-          {fields.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
-              className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all ${
-                filterId === f.id
-                  ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_16px_-4px_rgba(16,185,129,0.6)]"
-                  : "border border-white/60 bg-white/70 text-gray-600"
-              }`}
+      {/* カテゴリ絞り込みチップ */}
+      <div className="shrink-0 border-b border-black/5 bg-flow-cream-strong">
+        <div className="flex gap-1.5 overflow-x-auto px-3 pt-2" style={{ scrollbarWidth: "none" }}>
+          {CATEGORY_CHIPS.map(({ label, icon: Icon }) => (
+            <Chip
+              key={label}
+              active={categoryFilter === label}
+              onClick={() => setCategoryFilter(label)}
+              icon={Icon ? <Icon className="h-3.5 w-3.5" /> : undefined}
             >
-              <IconSprout className="h-3.5 w-3.5" />
+              {label}
+            </Chip>
+          ))}
+        </div>
+
+        {/* 田んぼ絞り込みチップ */}
+        <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
+          <Chip active={filterId === null} onClick={() => setFilterId(null)}>
+            すべての田んぼ
+          </Chip>
+          {fields.map((f) => (
+            <Chip
+              key={f.id}
+              active={filterId === f.id}
+              onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
+              icon={<IconSprout className="h-3.5 w-3.5" />}
+            >
               {f.name}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
@@ -231,13 +262,17 @@ export default function TalkScreen() {
             <Skeleton className="ml-auto h-10 w-44 rounded-2xl" />
             <Skeleton className="ml-10 h-40 w-60 rounded-2xl" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : filteredMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-flow-green-soft text-flow-green">
               <IconSprout className="h-7 w-7" />
             </span>
             <p className="text-sm font-bold text-gray-700">
-              {filterName ? `「${filterName}」のやり取りはまだありません` : "まだやり取りがありません"}
+              {categoryFilter !== "すべて"
+                ? `「${categoryFilter}」のやり取りはまだありません`
+                : filterName
+                  ? `「${filterName}」のやり取りはまだありません`
+                  : "まだやり取りがありません"}
             </p>
             <p className="text-xs text-gray-500">下のカメラやマイクから、最初の記録を送ってみましょう</p>
           </div>
@@ -254,12 +289,15 @@ export default function TalkScreen() {
                 </button>
               </div>
             )}
-            {messages.map((m, i) => (
+            {filteredMessages.map((m, i) => (
               <MessageRow
                 key={m.key}
                 message={m}
-                showDate={i === 0 || messages[i - 1].dateLabel !== m.dateLabel}
-                showAuthor={!m.isMine && (i === 0 || messages[i - 1].author !== m.author || messages[i - 1].dateLabel !== m.dateLabel)}
+                showDate={i === 0 || filteredMessages[i - 1].dateLabel !== m.dateLabel}
+                showAuthor={
+                  !m.isMine &&
+                  (i === 0 || filteredMessages[i - 1].author !== m.author || filteredMessages[i - 1].dateLabel !== m.dateLabel)
+                }
                 onOpen={() => router.push(`/records/${m.recordId}`)}
                 onFieldTap={(id) => setFilterId(id)}
                 onDelete={
@@ -287,7 +325,7 @@ export default function TalkScreen() {
           <Link
             href={`/records/new?returnTo=%2Ftalk${filterId ? `&field=${encodeURIComponent(filterId)}` : ""}`}
             aria-label="写真で記録"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-green-700 transition-colors active:bg-emerald-100"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green-soft text-flow-green transition-colors active:bg-flow-green-soft/70"
           >
             <IconCamera className="h-5.5 w-5.5" />
           </Link>
@@ -317,7 +355,7 @@ export default function TalkScreen() {
               onClick={handleSend}
               disabled={sending}
               aria-label="送信"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform active:scale-95 disabled:opacity-50"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green text-white transition-transform active:scale-95 disabled:opacity-50"
             >
               <IconChevronRight className="h-6 w-6" />
             </button>
@@ -430,7 +468,7 @@ function MessageRow({
               }}
               className={`block cursor-pointer rounded-2xl px-3 py-2 text-left text-sm leading-relaxed shadow-sm ${
                 m.isMine
-                  ? "rounded-br-sm bg-green-600 text-white"
+                  ? "rounded-br-sm bg-flow-green text-white"
                   : "rounded-bl-sm bg-white text-gray-800"
               }`}
             >

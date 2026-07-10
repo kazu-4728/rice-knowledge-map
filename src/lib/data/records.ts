@@ -20,7 +20,8 @@ const DEMO: RecordsData = { mode: "demo", records: recentRecords, thumbUrls: {} 
 const ANON: RecordsData = { mode: "anon", records: [], thumbUrls: {} };
 const ERROR: RecordsData = { mode: "error", records: [], thumbUrls: {} };
 
-const TYPE_TO_CATEGORY: Record<RecordRow["record_type"], RecordItem["category"]> = {
+/** record_type → 表示カテゴリの対応表（今日の流れのカテゴリ絞り込みでも使用） */
+export const TYPE_TO_CATEGORY: Record<RecordRow["record_type"], RecordItem["category"]> = {
   water: "水管理",
   work: "作業",
   issue: "異常",

@@ -44,7 +44,7 @@ export function TalkPreviewCard({
           <span
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-full",
-              coverImageUrl ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"
+              coverImageUrl ? "bg-white/20 text-white" : "bg-flow-green-soft text-flow-green"
             )}
           >
             <IconChat className="h-4 w-4" />
