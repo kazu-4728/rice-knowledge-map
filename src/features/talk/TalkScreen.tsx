@@ -49,9 +49,13 @@ const CATEGORY_CHIPS: { label: FlowCategory; icon: typeof IconSprout | null }[] 
   { label: "会話", icon: IconChat },
 ];
 
-/** メッセージの分類を判定する（記録はrecord_type→カテゴリ表、コメントは「会話」固定） */
+/**
+ * メッセージの分類を判定する（記録はrecord_type→カテゴリ表、コメントは「会話」固定）。
+ * record_type='other' は入力バーから送った「ひとこと」テキスト（sendTalkText）のため、
+ * records.ts の TYPE_TO_CATEGORY（/records用、other→作業）とは別に「会話」として扱う。
+ */
 function messageCategory(m: TalkMessage): FlowCategory {
-  if (m.kind === "comment") return "会話";
+  if (m.kind === "comment" || m.recordType === "other") return "会話";
   const type = (m.recordType ?? "other") as keyof typeof TYPE_TO_CATEGORY;
   return TYPE_TO_CATEGORY[type] ?? "作業";
 }
@@ -236,22 +240,10 @@ export default function TalkScreen() {
             <Skeleton className="ml-14 h-40 rounded-2xl" />
             <Skeleton className="ml-14 h-16 rounded-2xl" />
           </div>
-        ) : filteredMessages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-flow-green-soft text-flow-green">
-              <IconSprout className="h-7 w-7" />
-            </span>
-            <p className="text-sm font-bold text-gray-700">
-              {categoryFilter !== "すべて"
-                ? `「${categoryFilter}」のやり取りはまだありません`
-                : filterName
-                  ? `「${filterName}」のやり取りはまだありません`
-                  : "まだやり取りがありません"}
-            </p>
-            <p className="text-xs text-gray-500">下のカメラやマイクから、最初の記録を送ってみましょう</p>
-          </div>
         ) : (
           <>
+            {/* 絞り込みで現在ページに一致がなくても、hasMoreなら過去ページに
+                一致がある可能性があるため空状態と排他にしない */}
             {hasMore && (
               <div className="pb-2 text-center">
                 <button
@@ -263,21 +255,39 @@ export default function TalkScreen() {
                 </button>
               </div>
             )}
-            {filteredMessages.map((m, i) => (
-              <TimelineEntry
-                key={m.key}
-                message={m}
-                showDate={i === 0 || filteredMessages[i - 1].dateLabel !== m.dateLabel}
-                isLast={i === filteredMessages.length - 1}
-                onOpen={() => router.push(`/records/${m.recordId}`)}
-                onFieldTap={(id) => setFilterId(id)}
-                onDelete={
-                  // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
-                  // 家族の誤削除を防ぐため他人のメッセージには出さない
-                  m.isMine ? () => setPendingDelete(m) : undefined
-                }
-              />
-            ))}
+            {filteredMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-flow-green-soft text-flow-green">
+                  <IconSprout className="h-7 w-7" />
+                </span>
+                <p className="text-sm font-bold text-gray-700">
+                  {categoryFilter !== "すべて"
+                    ? `「${categoryFilter}」のやり取りはまだありません`
+                    : filterName
+                      ? `「${filterName}」のやり取りはまだありません`
+                      : "まだやり取りがありません"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {hasMore ? "上の「以前のやり取りを見る」から遡れます" : "下のカメラやマイクから、最初の記録を送ってみましょう"}
+                </p>
+              </div>
+            ) : (
+              filteredMessages.map((m, i) => (
+                <TimelineEntry
+                  key={m.key}
+                  message={m}
+                  showDate={i === 0 || filteredMessages[i - 1].dateLabel !== m.dateLabel}
+                  isLast={i === filteredMessages.length - 1}
+                  onOpen={() => router.push(`/records/${m.recordId}`)}
+                  onFieldTap={(id) => setFilterId(id)}
+                  onDelete={
+                    // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
+                    // 家族の誤削除を防ぐため他人のメッセージには出さない
+                    m.isMine ? () => setPendingDelete(m) : undefined
+                  }
+                />
+              ))
+            )}
           </>
         )}
       </div>
