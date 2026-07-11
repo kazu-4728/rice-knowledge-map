@@ -23,7 +23,7 @@ type Props = {
   visible: boolean;
   onExpandChange?: (expanded: boolean) => void;
   /** 「最初の田んぼを登録する」CTAタップ時。同一ページ内のMapCanvasの場所合わせを起動する（Issue #69） */
-  onRegisterField?: () => void;
+  onRegisterField: () => void;
 };
 
 type NextAction =
@@ -58,21 +58,25 @@ export default function MapSummarySheet({ visible, onExpandChange, onRegisterFie
 
     // 未対応の異常/要確認レコードを田んぼ単位で取得（次の一手・要注意リストの両方に使う）
     // 記録の有無（0件判定）も同時に取得する（Issue #69）
-    Promise.all([loadFieldAttention(), loadHasAnyRecord()]).then(([summary, hasRecord]) => {
-      if (cancelled) return;
-      setOpenIssueCount(summary.openIssueCount);
+    Promise.all([loadFieldAttention(), loadHasAnyRecord()])
+      .then(([summary, hasRecord]) => {
+        if (cancelled) return;
+        setOpenIssueCount(summary.openIssueCount);
 
-      // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
-      if (summary.mode === "error") {
-        setErrored(true);
-        return;
-      }
+        // 取得失敗時は空データを「田んぼ0枚」として見せず、サマリー自体を出さない
+        if (summary.mode === "error") {
+          setErrored(true);
+          return;
+        }
 
-      setFieldCount(summary.fields.length);
-      setAttentionFields(summary.attentionFields);
-      setHasAnyRecord(hasRecord);
-      setLoaded(true);
-    });
+        setFieldCount(summary.fields.length);
+        setAttentionFields(summary.attentionFields);
+        setHasAnyRecord(hasRecord);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setErrored(true);
+      });
 
     return () => {
       cancelled = true;

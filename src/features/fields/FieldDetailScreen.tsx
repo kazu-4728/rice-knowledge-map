@@ -314,7 +314,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 <StatusBadge
                   dark
                   status={overallStatus}
-                  label={overallStatus === "normal" ? "順調" : `要対応 ${attentionCount}件`}
+                  label={
+                    overallStatus === "normal"
+                      ? "順調"
+                      : overallStatus === "issue"
+                        ? `要対応 ${attentionCount}件`
+                        : `要確認 ${attentionCount}件`
+                  }
                 />
               )}
             </div>
