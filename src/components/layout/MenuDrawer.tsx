@@ -52,16 +52,16 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </DrawerClose>
         </div>
 
-        {/* 主要3タブ（3空間+管理レイヤー）: 大きいアイコンタイルのグリッド */}
+        {/* 主要4タブ（3空間+田んぼストーリー+管理レイヤー）: 大きいアイコンタイルのグリッド */}
         <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-4 pb-3">
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-4 gap-2">
             {NAV_ITEMS.map(({ href, label, Icon }) => {
               const active = isNavActive(href, pathname);
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`flex flex-col items-center gap-1.5 rounded-2xl px-2 py-3.5 text-xs font-bold transition-all active:scale-95 ${
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl px-1.5 py-3.5 text-[11px] font-bold transition-all active:scale-95 ${
                     active
                       ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.65)]"
                       : "bg-gray-50 text-gray-700"

@@ -135,9 +135,13 @@ function polygonCentroid(coords: number[][]): [number, number] {
 type MapCanvasProps = {
   onModeChange?: (mode: string) => void;
   hideControls?: boolean;
+  /** 値が変化するたびに場所合わせ（新規登録）を外部から起動する（Issue #69。同一ページ内の兄弟コンポーネントからの呼び出し用） */
+  registerTrigger?: number;
+  /** 新規田んぼの保存が成功した直後に呼ばれる（Issue #69。MapSummarySheet側の集計再取得のトリガー用） */
+  onFieldRegistered?: () => void;
 };
 
-export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps) {
+export default function MapCanvas({ onModeChange, hideControls, registerTrigger, onFieldRegistered }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -365,8 +369,10 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
           setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
         setToast("田んぼを保存しました");
+        onFieldRegistered?.();
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有保存されます）");
+        onFieldRegistered?.();
       } else {
         setToast("保存に失敗しました。通信環境を確認してください");
       }
@@ -381,6 +387,20 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
     clearTimeout(previewTimerRef.current);
     setMode({ kind: "placing" });
   };
+
+  // 外部（MapSummarySheetの「最初の田んぼを登録する」CTA）からの起動（Issue #69）。
+  // registerTrigger は同一ページ内の兄弟コンポーネントが押下ごとにインクリメントする値で、
+  // 初回値（0）では発火しない。MapCanvasはdynamic importのため、地図読み込み中のタップで
+  // registerTriggerが先に進んでからマウントされるケースがある。prevを現在値で初期化すると
+  // そのタップが「既に処理済み」とみなされ発火し損ねるため、未初期化(undefined)から始める。
+  const prevRegisterTriggerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (registerTrigger === undefined) return;
+    if (prevRegisterTriggerRef.current !== registerTrigger) {
+      prevRegisterTriggerRef.current = registerTrigger;
+      if (registerTrigger > 0 && !isDrawingOrNamingRef.current) startPlacing(null);
+    }
+  }, [registerTrigger]);
 
   /** placing →「この場所で輪郭を描く」: 初めて描画モードへ入る */
   const beginDrawing = () => {
