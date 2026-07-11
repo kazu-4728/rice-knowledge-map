@@ -3,7 +3,7 @@ import type { Variants } from "motion/react";
 /**
  * 田んぼOS共通のmotion variant。
  * ランディングページの reveal パターン（下から浮き上がるフェードイン）を
- * 日常画面（/home /records /talk /calendar 等）のリスト・カードにも展開する。
+ * 日常画面（/map /records /talk /calendar 等）のリスト・カードにも展開する。
  * 常時ループする環境演出（fab-glow等）はCSS keyframesのまま担当を分ける。
  */
 

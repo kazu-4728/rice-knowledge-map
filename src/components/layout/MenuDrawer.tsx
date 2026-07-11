@@ -52,9 +52,9 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </DrawerClose>
         </div>
 
-        {/* 主要4系統: 大きいアイコンタイルのグリッド（オンデマンド起動時に一目で選べるように） */}
+        {/* 主要3タブ（3空間+管理レイヤー）: 大きいアイコンタイルのグリッド */}
         <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-4 pb-3">
-          <div className="grid grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5">
             {NAV_ITEMS.map(({ href, label, Icon }) => {
               const active = isNavActive(href, pathname);
               return (

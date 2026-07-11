@@ -4,26 +4,24 @@ import {
   IconDocDown,
   IconFieldGrid,
   IconGear,
-  IconHome,
   IconMap,
   IconPencil,
   IconSprout,
 } from "../ui/icons";
 
 /**
- * 田んぼOSの3空間+設定（主要ナビ4系統）
- * - マップ: 開く場所（地図が起点）
- * - 今日の流れ: 話す場所（/talk = 記録+会話を統合した1本のタイムライン。田んぼ別ルームは作らない）
- * - 管理: 見わたす場所（状況・カレンダー・エクスポート）
+ * 田んぼOSの3空間+管理レイヤー（Issue #64。フェーズ3で「田んぼストーリー」を追加し4タブになる）
+ * - 現場OS: 今なにが起きてる? 次なにする?（マップ+旧ホームを統合）
+ * - 今日の流れ: 今日みんな何した?（記録+会話を統合した1本のタイムライン）
+ * - メニュー: 管理レイヤー（カレンダー・エクスポート・設定等を日常導線から退避）
  */
 export const NAV_ITEMS = [
-  { href: "/map", label: "マップ", Icon: IconMap },
+  { href: "/map", label: "現場OS", Icon: IconMap },
   { href: "/talk", label: "今日の流れ", Icon: IconChat },
-  { href: "/home", label: "管理", Icon: IconHome },
-  { href: "/menu", label: "設定", Icon: IconGear },
+  { href: "/menu", label: "メニュー", Icon: IconGear },
 ] as const;
 
-/** 管理空間の下にぶら下がる二次導線（ドロワー・SideNavの「その他」セクション） */
+/** 管理レイヤーの二次導線（ドロワー・SideNav・/menuの「その他」セクション） */
 export const SUB_NAV_ITEMS = [
   { href: "/records", label: "記録一覧", Icon: IconPencil },
   { href: "/fields", label: "田んぼ一覧", Icon: IconFieldGrid },
@@ -33,6 +31,5 @@ export const SUB_NAV_ITEMS = [
 ] as const;
 
 export function isNavActive(href: string, pathname: string): boolean {
-  if (href === "/home") return pathname === "/home";
   return pathname === href || pathname.startsWith(href + "/");
 }

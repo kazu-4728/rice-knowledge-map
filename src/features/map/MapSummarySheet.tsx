@@ -1,37 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { loadRecords } from "../../lib/data/records";
 import { loadFieldAttention, type FieldAttention } from "../../lib/data/fieldAttention";
 import { getSeasonPhase } from "../../lib/season";
 
-import type { RecordItem } from "../../types";
-import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
-import {
-  IconCamera,
-  IconChat,
-  IconChevronRight,
-  IconFieldGrid,
-  IconHome,
-  IconPin,
-  IconWarningFill,
-  SEASON_ICONS,
-} from "../../components/ui/icons";
-
-type AttentionField = FieldAttention;
-
-type NextAction = {
-  key: string;
-  Icon: (props: { className?: string }) => JSX.Element;
-  label: string;
-  sub?: string;
-  href: string;
-  tone: "alert" | "normal";
-};
+import { IconChevronRight, IconWarningFill, SEASON_ICONS } from "../../components/ui/icons";
 
 type Props = {
   visible: boolean;
@@ -39,14 +16,17 @@ type Props = {
 };
 
 /**
- * マップ下部のダークガラス・サマリーシート（田んぼOS レイヤー2+6）
- * 折りたたみ時はピークバー、展開時はネクストアクション+状態サマリー+最近の記録。
+ * 現場OS下部のサマリーシート（Issue #67: ホーム+マップ統合）。
+ * オーナーレビュー（PR #68）を受け、展開内容を3領域に絞った:
+ * 次の一手（異常時のCTA、平常時は季節ヒントの補足文） / 現在状態（状態サマリー） /
+ * 要注意の田んぼ。「今日の流れ」「メニュー」は主ナビ本体にあるため、
+ * シート内に重複導線（家族のアクティビティ・管理メニューリンク）は置かない。
+ * 記録の起点はマップ右下のFAB（写真/音声/異常報告）に一本化する。
+ * 配色はフェーズ1のデザイントークン（クリーム地・深緑・白+状態チップのみアクセント）。
  */
 export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const [fieldCount, setFieldCount] = useState(0);
-  const [attentionFields, setAttentionFields] = useState<AttentionField[]>([]);
-  const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
-  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [attentionFields, setAttentionFields] = useState<FieldAttention[]>([]);
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -55,7 +35,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   useEffect(() => {
     let cancelled = false;
 
-    // 未対応の異常/要確認レコードを田んぼ単位で取得（バッジ件数と要注意リストの両方に使う）
+    // 未対応の異常/要確認レコードを田んぼ単位で取得（次の一手・要注意リストの両方に使う）
     loadFieldAttention().then((summary) => {
       if (cancelled) return;
       setOpenIssueCount(summary.openIssueCount);
@@ -69,12 +49,6 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
       setFieldCount(summary.fields.length);
       setAttentionFields(summary.attentionFields);
       setLoaded(true);
-    });
-
-    loadRecords({ limit: 5 }).then((data) => {
-      if (cancelled) return;
-      setRecentRecords(data.records);
-      setThumbUrls(data.thumbUrls);
     });
 
     return () => {
@@ -99,7 +73,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
 
   const season = useMemo(() => getSeasonPhase(), []);
 
-  // 信号色の合計（大型タイポのサマリー用）
+  // 信号色の合計（状態サマリー用）
   const totals = useMemo(() => {
     let issue = 0;
     let needsCheck = 0;
@@ -110,47 +84,23 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     return { issue, needsCheck };
   }, [attentionFields]);
 
-  // ネクストアクション（レイヤー6: 次に何をすべきかを常に示す）
-  const nextActions = useMemo((): NextAction[] => {
-    const actions: NextAction[] = [];
-    const SeasonIcon = SEASON_ICONS[season.iconKey];
+  // 次の一手: 未対応の異常があれば対応CTA、なければ季節ヒントの補足文のみ（別カードにしない）
+  const nextAction = useMemo(() => {
     if (openIssueCount !== null && openIssueCount > 0) {
       const top = attentionFields[0];
-      actions.push({
-        key: "issues",
-        Icon: IconWarningFill,
-        label: `未対応を確認する（${openIssueCount}件）`,
-        sub: top?.name ? `まずは「${top.name}」から` : undefined,
+      return {
+        kind: "issue" as const,
+        // TODO(フェーズ2残課題): 現状は記録一覧への遷移。理想は最優先の田んぼへ
+        // /map?field=... で地図上を直接注視させる導線だが、MapCanvasの初期ナビは
+        // マウント時の一度きりの map "load" イベントでのみURLパラメータを読むため、
+        // 既にマウント済みの/mapへの遷移では再度flyToされない。次フェーズで対応する。
         href: "/records?status=open",
-        tone: "alert",
-      });
+        label: `未対応の異常を確認する（${openIssueCount}件）`,
+        sub: top?.name ? `まずは「${top.name}」から` : undefined,
+      };
     }
-    const latest = recentRecords[0];
-    const today = new Date();
-    const hasTodayRecord =
-      !!latest &&
-      new Date(latest.recordedAt).toDateString() === today.toDateString();
-    if (!hasTodayRecord) {
-      actions.push({
-        key: "today-record",
-        Icon: IconCamera,
-        label: "今日の記録を残す",
-        sub: `${season.label}: ${season.action}`,
-        href: "/records/new?returnTo=%2Fmap",
-        tone: "normal",
-      });
-    } else {
-      actions.push({
-        key: "season",
-        Icon: SeasonIcon,
-        label: season.action,
-        sub: `いまは「${season.label}」の時期`,
-        href: "/records/new?returnTo=%2Fmap",
-        tone: "normal",
-      });
-    }
-    return actions.slice(0, 2);
-  }, [openIssueCount, attentionFields, recentRecords, season]);
+    return { kind: "season" as const, label: season.label, sub: season.hint };
+  }, [openIssueCount, attentionFields, season]);
 
   if (!visible || errored) return null;
 
@@ -160,11 +110,11 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
         <motion.div
           layout
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
-          className={`flex flex-col rounded-t-3xl glass-light-strong ${
-            expanded ? "max-h-[72dvh]" : "max-h-[9.5rem]"
+          className={`flex flex-col rounded-t-3xl bg-white/95 shadow-[0_-8px_32px_-8px_rgba(20,60,40,0.22)] backdrop-blur ${
+            expanded ? "max-h-[72dvh]" : "max-h-[11.5rem]"
           } overflow-hidden`}
         >
-          {/* ピークヘッダー（常時表示。折りたたみ時も「次にやること」が1件見えるようにする） */}
+          {/* ピークヘッダー（常時表示。現在状態の要約） */}
           <button
             onClick={toggleExpand}
             aria-expanded={expanded}
@@ -199,67 +149,52 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                 }`}
               />
             </div>
-            {/* 折りたたみ時のピーク表示: 展開せずとも「次にやること」の先頭1件が見える */}
-            {!expanded && loaded && nextActions[0] && (
-              <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
-                {(() => {
-                  const PeekIcon = nextActions[0].Icon;
-                  return <PeekIcon className="h-5 w-5 shrink-0 text-emerald-700" />;
-                })()}
-                <span className="min-w-0 flex-1 truncate text-left text-sm font-bold text-gray-800">
-                  {nextActions[0].label}
-                </span>
-                <IconChevronRight className="h-4 w-4 shrink-0 text-emerald-600" />
-              </div>
-            )}
           </button>
+
+          {/* 次の一手（折りたたみ時も見える。異常時=対応CTA、平常時=季節ヒント） */}
+          {loaded && (
+            <div className="shrink-0 px-4 pb-3">
+              {nextAction.kind === "issue" ? (
+                <Link
+                  href={nextAction.href}
+                  className="flex items-center gap-3 rounded-2xl bg-flow-green px-4 py-3 text-white transition-transform active:scale-[0.98]"
+                >
+                  <IconWarningFill className="h-6 w-6 shrink-0 text-amber-300" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-bold">{nextAction.label}</span>
+                    {nextAction.sub && (
+                      <span className="mt-0.5 block truncate text-xs text-white/75">{nextAction.sub}</span>
+                    )}
+                  </span>
+                  <IconChevronRight className="h-5 w-5 shrink-0 text-white/70" />
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl bg-flow-cream px-4 py-3">
+                  {(() => {
+                    const SeasonIcon = SEASON_ICONS[season.iconKey];
+                    return <SeasonIcon className="h-6 w-6 shrink-0 text-flow-green" />;
+                  })()}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-900">{nextAction.label}</p>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">{nextAction.sub}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 展開コンテンツ（折りたたみ時は描画しない: ピークバーからのはみ出し防止） */}
           <div
             className={`min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] ${expanded ? "" : "hidden"}`}
           >
-            {/* ネクストアクション（次に何をすべきか） */}
-            <section className="mb-4">
-              <h3 className="pb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                次にやること
-              </h3>
-              <ul className="space-y-2">
-                {nextActions.map((a) => (
-                  <li key={a.key}>
-                    <Link
-                      href={a.href}
-                      className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-transform active:scale-[0.98] ${
-                        a.tone === "alert"
-                          ? "border-red-200 bg-red-50"
-                          : "border-emerald-200 bg-emerald-50"
-                      }`}
-                    >
-                      <a.Icon className={`h-6 w-6 shrink-0 ${a.tone === "alert" ? "text-red-600" : "text-emerald-700"}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-base font-bold text-gray-900">
-                          {a.label}
-                        </span>
-                        {a.sub && (
-                          <span className="mt-0.5 block truncate text-xs text-gray-500">
-                            {a.sub}
-                          </span>
-                        )}
-                      </span>
-                      <IconChevronRight className="h-5 w-5 shrink-0 text-gray-400" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            {/* 状態サマリー（大型タイポ・信号色） */}
+            {/* 現在状態（大型タイポ・信号色） */}
             <section className="mb-4 grid grid-cols-3 gap-2">
               {[
                 { label: "田んぼ", value: fieldCount, unit: "枚", color: "text-gray-900" },
                 { label: "異常", value: totals.issue, unit: "件", color: totals.issue > 0 ? "text-red-600" : "text-gray-300" },
                 { label: "要確認", value: totals.needsCheck, unit: "件", color: totals.needsCheck > 0 ? "text-amber-600" : "text-gray-300" },
               ].map((s) => (
-                <div key={s.label} className="rounded-2xl bg-gray-50 px-3 py-3 text-center">
+                <div key={s.label} className="rounded-2xl bg-flow-cream px-3 py-3 text-center">
                   <p className={`font-heading text-3xl font-bold leading-none ${s.color}`}>
                     {s.value}
                     <span className="ml-0.5 text-xs font-semibold text-gray-400">{s.unit}</span>
@@ -271,19 +206,17 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
 
             {/* 要注意の田んぼ */}
             {attentionFields.length > 0 && (
-              <section className="mb-4">
+              <section>
                 <div className="flex items-center gap-1.5 pb-2">
                   <IconWarningFill className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                    要注意の田んぼ
-                  </h3>
+                  <h3 className="text-xs font-bold text-gray-500">要注意の田んぼ</h3>
                 </div>
                 <ul className="space-y-1.5">
                   {attentionFields.slice(0, 3).map((af) => (
                     <li key={af.id}>
                       <Link
                         href={`/fields/${encodeURIComponent(af.id)}`}
-                        className="flex items-center gap-2.5 rounded-2xl bg-gray-50 px-3.5 py-3 transition-colors active:bg-gray-100"
+                        className="flex items-center gap-2.5 rounded-2xl bg-flow-cream px-3.5 py-3 transition-colors active:bg-flow-cream-strong"
                       >
                         <span className="flex-1 truncate text-sm font-bold text-gray-900">
                           {af.name || "名前のない田んぼ"}
@@ -300,77 +233,6 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                 </ul>
               </section>
             )}
-
-            {/* 最近の記録 */}
-            {recentRecords.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between pb-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                    最近の記録
-                  </h3>
-                  <Link
-                    href="/talk"
-                    className="flex items-center gap-0.5 text-xs font-bold text-emerald-700"
-                  >
-                    トークで見る
-                    <IconChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-                <ul className="space-y-1">
-                  {recentRecords.map((record) => (
-                    <li key={record.id}>
-                      <Link
-                        href={`/records/${record.id}`}
-                        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors active:bg-gray-100"
-                      >
-                        <RecordThumb
-                          media={record.media}
-                          variant={
-                            record.category === "作業"
-                              ? "grass"
-                              : record.category === "異常"
-                                ? "sprout"
-                                : "water"
-                          }
-                          duration={record.audioDuration}
-                          thumbUrl={thumbUrls[record.id]}
-                          className="h-11 w-16 shrink-0 rounded-xl"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-gray-900">
-                            {record.title}
-                          </p>
-                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-gray-500">
-                            <IconPin className="h-3 w-3" />
-                            {record.fieldName}
-                            <span className="text-gray-300">|</span>
-                            {record.time}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* 3空間へのクイックリンク */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {[
-                { href: "/talk", label: "トーク", Icon: IconChat },
-                { href: "/home", label: "管理", Icon: IconHome },
-                { href: "/fields", label: "田んぼ一覧", Icon: IconFieldGrid },
-              ].map(({ href, label, Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-gray-50 py-3 text-xs font-bold text-gray-700 transition-colors active:bg-gray-100"
-                >
-                  <Icon className="h-5.5 w-5.5 text-emerald-600" />
-                  {label}
-                </Link>
-              ))}
-            </div>
           </div>
         </motion.div>
       </div>
