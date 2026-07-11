@@ -3,21 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { loadRecords } from "../../lib/data/records";
 import { loadFieldAttention, type FieldAttention } from "../../lib/data/fieldAttention";
 import { getSeasonPhase } from "../../lib/season";
 
-import type { RecordItem } from "../../types";
-import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
-import {
-  IconChevronRight,
-  IconGear,
-  IconPin,
-  IconWarningFill,
-  SEASON_ICONS,
-} from "../../components/ui/icons";
+import { IconChevronRight, IconWarningFill, SEASON_ICONS } from "../../components/ui/icons";
 
 type Props = {
   visible: boolean;
@@ -26,16 +17,16 @@ type Props = {
 
 /**
  * 現場OS下部のサマリーシート（Issue #67: ホーム+マップ統合）。
- * 「今なにが起きてる? 次なにする?」に答える。記録の起点はマップ右下のFAB
- * （写真/音声/異常報告）に一本化し、シートのCTAは未対応の異常があるときだけ
- * 「未対応を確認」を出す（常設CTAを増やさない）。
+ * オーナーレビュー（PR #68）を受け、展開内容を3領域に絞った:
+ * 次の一手（異常時のCTA、平常時は季節ヒントの補足文） / 現在状態（状態サマリー） /
+ * 要注意の田んぼ。「今日の流れ」「メニュー」は主ナビ本体にあるため、
+ * シート内に重複導線（家族のアクティビティ・管理メニューリンク）は置かない。
+ * 記録の起点はマップ右下のFAB（写真/音声/異常報告）に一本化する。
  * 配色はフェーズ1のデザイントークン（クリーム地・深緑・白+状態チップのみアクセント）。
  */
 export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   const [fieldCount, setFieldCount] = useState(0);
   const [attentionFields, setAttentionFields] = useState<FieldAttention[]>([]);
-  const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
-  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [openIssueCount, setOpenIssueCount] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -44,7 +35,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
   useEffect(() => {
     let cancelled = false;
 
-    // 未対応の異常/要確認レコードを田んぼ単位で取得（CTA切替と要注意リストの両方に使う）
+    // 未対応の異常/要確認レコードを田んぼ単位で取得（次の一手・要注意リストの両方に使う）
     loadFieldAttention().then((summary) => {
       if (cancelled) return;
       setOpenIssueCount(summary.openIssueCount);
@@ -58,12 +49,6 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
       setFieldCount(summary.fields.length);
       setAttentionFields(summary.attentionFields);
       setLoaded(true);
-    });
-
-    loadRecords({ limit: 5 }).then((data) => {
-      if (cancelled) return;
-      setRecentRecords(data.records);
-      setThumbUrls(data.thumbUrls);
     });
 
     return () => {
@@ -99,17 +84,23 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
     return { issue, needsCheck };
   }, [attentionFields]);
 
-  // 異常CTA: 未対応の異常があるときだけ表示する
-  // （記録の起点はマップ右下のFABに一本化し、平常時の常設CTAを増やさない）
-  const issueCta = useMemo(() => {
-    if (openIssueCount === null || openIssueCount === 0) return null;
-    const top = attentionFields[0];
-    return {
-      href: "/records?status=open",
-      label: `未対応の異常を確認する（${openIssueCount}件）`,
-      sub: top?.name ? `まずは「${top.name}」から` : undefined,
-    };
-  }, [openIssueCount, attentionFields]);
+  // 次の一手: 未対応の異常があれば対応CTA、なければ季節ヒントの補足文のみ（別カードにしない）
+  const nextAction = useMemo(() => {
+    if (openIssueCount !== null && openIssueCount > 0) {
+      const top = attentionFields[0];
+      return {
+        kind: "issue" as const,
+        // TODO(フェーズ2残課題): 現状は記録一覧への遷移。理想は最優先の田んぼへ
+        // /map?field=... で地図上を直接注視させる導線だが、MapCanvasの初期ナビは
+        // マウント時の一度きりの map "load" イベントでのみURLパラメータを読むため、
+        // 既にマウント済みの/mapへの遷移では再度flyToされない。次フェーズで対応する。
+        href: "/records?status=open",
+        label: `未対応の異常を確認する（${openIssueCount}件）`,
+        sub: top?.name ? `まずは「${top.name}」から` : undefined,
+      };
+    }
+    return { kind: "season" as const, label: season.label, sub: season.hint };
+  }, [openIssueCount, attentionFields, season]);
 
   if (!visible || errored) return null;
 
@@ -120,10 +111,10 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
           layout
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
           className={`flex flex-col rounded-t-3xl bg-white/95 shadow-[0_-8px_32px_-8px_rgba(20,60,40,0.22)] backdrop-blur ${
-            expanded ? "max-h-[72dvh]" : "max-h-[10.5rem]"
+            expanded ? "max-h-[72dvh]" : "max-h-[11.5rem]"
           } overflow-hidden`}
         >
-          {/* ピークヘッダー（常時表示） */}
+          {/* ピークヘッダー（常時表示。現在状態の要約） */}
           <button
             onClick={toggleExpand}
             aria-expanded={expanded}
@@ -160,22 +151,35 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
             </div>
           </button>
 
-          {/* 異常CTA（未対応の異常があるときだけ折りたたみ時も見える） */}
-          {loaded && issueCta && (
+          {/* 次の一手（折りたたみ時も見える。異常時=対応CTA、平常時=季節ヒント） */}
+          {loaded && (
             <div className="shrink-0 px-4 pb-3">
-              <Link
-                href={issueCta.href}
-                className="flex items-center gap-3 rounded-2xl bg-flow-green px-4 py-3 text-white transition-transform active:scale-[0.98]"
-              >
-                <IconWarningFill className="h-6 w-6 shrink-0 text-amber-300" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-bold">{issueCta.label}</span>
-                  {issueCta.sub && (
-                    <span className="mt-0.5 block truncate text-xs text-white/75">{issueCta.sub}</span>
-                  )}
-                </span>
-                <IconChevronRight className="h-5 w-5 shrink-0 text-white/70" />
-              </Link>
+              {nextAction.kind === "issue" ? (
+                <Link
+                  href={nextAction.href}
+                  className="flex items-center gap-3 rounded-2xl bg-flow-green px-4 py-3 text-white transition-transform active:scale-[0.98]"
+                >
+                  <IconWarningFill className="h-6 w-6 shrink-0 text-amber-300" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-bold">{nextAction.label}</span>
+                    {nextAction.sub && (
+                      <span className="mt-0.5 block truncate text-xs text-white/75">{nextAction.sub}</span>
+                    )}
+                  </span>
+                  <IconChevronRight className="h-5 w-5 shrink-0 text-white/70" />
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl bg-flow-cream px-4 py-3">
+                  {(() => {
+                    const SeasonIcon = SEASON_ICONS[season.iconKey];
+                    return <SeasonIcon className="h-6 w-6 shrink-0 text-flow-green" />;
+                  })()}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-900">{nextAction.label}</p>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">{nextAction.sub}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -183,19 +187,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
           <div
             className={`min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] ${expanded ? "" : "hidden"}`}
           >
-            {/* 季節の目安（旧ホームの農事暦から移設） */}
-            <section className="mb-4 flex items-center gap-3 rounded-2xl bg-flow-cream px-3.5 py-3">
-              {(() => {
-                const SeasonIcon = SEASON_ICONS[season.iconKey];
-                return <SeasonIcon className="h-6 w-6 shrink-0 text-flow-green" />;
-              })()}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-gray-900">{season.label}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{season.hint}</p>
-              </div>
-            </section>
-
-            {/* 状態サマリー（大型タイポ・信号色） */}
+            {/* 現在状態（大型タイポ・信号色） */}
             <section className="mb-4 grid grid-cols-3 gap-2">
               {[
                 { label: "田んぼ", value: fieldCount, unit: "枚", color: "text-gray-900" },
@@ -214,7 +206,7 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
 
             {/* 要注意の田んぼ */}
             {attentionFields.length > 0 && (
-              <section className="mb-4">
+              <section>
                 <div className="flex items-center gap-1.5 pb-2">
                   <IconWarningFill className="h-4 w-4 text-amber-500" />
                   <h3 className="text-xs font-bold text-gray-500">要注意の田んぼ</h3>
@@ -241,69 +233,6 @@ export default function MapSummarySheet({ visible, onExpandChange }: Props) {
                 </ul>
               </section>
             )}
-
-            {/* 家族のアクティビティ（詳細は今日の流れに集約されている） */}
-            {recentRecords.length > 0 && (
-              <section className="mb-4">
-                <div className="flex items-center justify-between pb-2">
-                  <h3 className="text-xs font-bold text-gray-500">家族のアクティビティ</h3>
-                  <Link
-                    href="/talk"
-                    className="flex items-center gap-0.5 text-xs font-bold text-flow-green"
-                  >
-                    今日の流れで見る
-                    <IconChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-                <ul className="space-y-1">
-                  {recentRecords.map((record) => (
-                    <li key={record.id}>
-                      <Link
-                        href={`/records/${record.id}`}
-                        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors active:bg-flow-cream"
-                      >
-                        <RecordThumb
-                          media={record.media}
-                          variant={
-                            record.category === "作業"
-                              ? "grass"
-                              : record.category === "異常"
-                                ? "sprout"
-                                : "water"
-                          }
-                          duration={record.audioDuration}
-                          thumbUrl={thumbUrls[record.id]}
-                          className="h-11 w-16 shrink-0 rounded-xl"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-gray-900">
-                            {record.title}
-                          </p>
-                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-gray-500">
-                            <IconPin className="h-3 w-3" />
-                            {record.fieldName}
-                            <span className="text-gray-300">|</span>
-                            {record.time}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* 管理レイヤーへの退避導線（カレンダー・エクスポート等はメニューに集約） */}
-            <Link
-              href="/menu"
-              className="flex items-center gap-3 rounded-2xl bg-flow-cream px-3.5 py-3 transition-colors active:bg-flow-cream-strong"
-            >
-              <IconGear className="h-5 w-5 shrink-0 text-flow-green" />
-              <span className="flex-1 text-sm font-bold text-gray-800">
-                カレンダー・エクスポートなどの管理メニュー
-              </span>
-              <IconChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-            </Link>
           </div>
         </motion.div>
       </div>
