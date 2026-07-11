@@ -14,7 +14,6 @@ import { Button } from "../../components/ui/button";
 import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
-import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
 import { PlotGlowMap, type PlotGlowField } from "../../components/patterns/PlotGlowMap";
 import { useFieldsList, type FieldItem } from "../../features/fields/hooks/useFieldsList";
 
@@ -37,18 +36,18 @@ export default function FieldsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-3 px-3 pb-6 pt-3">
+      <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
         <div className="px-1">
-          <SectionEyebrow className="mb-1">Fields</SectionEyebrow>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <IconFieldGrid className="h-6 w-6 text-green-700" />
-              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼ一覧</h1>
+              <IconFieldGrid className="h-6 w-6 text-flow-green" />
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼストーリー</h1>
             </div>
             {mode !== "loading" && (
               <span className="text-sm text-gray-500">{fields.length}枚</span>
             )}
           </div>
+          <p className="mt-0.5 text-sm text-gray-500">田んぼごとの成長を記録して振り返る</p>
         </div>
 
         {mode === "anon" && (

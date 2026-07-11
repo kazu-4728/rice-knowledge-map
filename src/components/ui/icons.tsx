@@ -38,6 +38,7 @@ import {
   Wheat,
   Moon,
   Snowflake,
+  Share2,
 } from "lucide-react";
 import type { SeasonIconKey } from "../../lib/season";
 
@@ -183,6 +184,10 @@ export function IconCheck(props: IconProps) {
 
 export function IconClipboard(props: IconProps) {
   return <Clipboard strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconShare(props: IconProps) {
+  return <Share2 strokeWidth={1.8} aria-hidden="true" {...props} />;
 }
 
 export function IconDocDown(props: IconProps) {

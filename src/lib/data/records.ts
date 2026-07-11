@@ -132,6 +132,29 @@ function formatDate(iso: string): { date: string; time: string } {
 }
 
 /**
+ * ログイン済みグループに記録が1件以上あるかを軽量に判定する（Issue #69: 現場OSの初回利用者向けCTA）。
+ * 一覧取得（loadRecords）とは別に、件数ではなく有無だけを1行取得で確認する。
+ * 未設定/未ログイン時はnullを返し、呼び出し側は「判定不能=通常状態として扱う」を選べる。
+ */
+export async function loadHasAnyRecord(): Promise<boolean | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData.session) return null;
+    const { data, error } = await sb.from("records").select("id").limit(1);
+    if (error) {
+      console.warn("[records] hasAnyRecord check failed", error);
+      return null;
+    }
+    return (data?.length ?? 0) > 0;
+  } catch (err) {
+    console.warn("[records] hasAnyRecord check error", err);
+    return null;
+  }
+}
+
+/**
  * 記録一覧を読み込む。サンプルを出すのはSupabase未設定のデモ環境のみ。
  * ログイン済みで0件のときは空の実データを返す（呼び出し側が空状態UIを出す）。
  */

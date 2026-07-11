@@ -135,9 +135,11 @@ function polygonCentroid(coords: number[][]): [number, number] {
 type MapCanvasProps = {
   onModeChange?: (mode: string) => void;
   hideControls?: boolean;
+  /** 値が変化するたびに場所合わせ（新規登録）を外部から起動する（Issue #69。同一ページ内の兄弟コンポーネントからの呼び出し用） */
+  registerTrigger?: number;
 };
 
-export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps) {
+export default function MapCanvas({ onModeChange, hideControls, registerTrigger }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -381,6 +383,18 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
     clearTimeout(previewTimerRef.current);
     setMode({ kind: "placing" });
   };
+
+  // 外部（MapSummarySheetの「最初の田んぼを登録する」CTA）からの起動（Issue #69）。
+  // registerTrigger は同一ページ内の兄弟コンポーネントが押下ごとにインクリメントする値で、
+  // 初回マウント時（undefined/0）は発火しない。
+  const prevRegisterTriggerRef = useRef(registerTrigger);
+  useEffect(() => {
+    if (registerTrigger === undefined) return;
+    if (prevRegisterTriggerRef.current !== registerTrigger) {
+      prevRegisterTriggerRef.current = registerTrigger;
+      if (!isDrawingOrNamingRef.current) startPlacing(null);
+    }
+  }, [registerTrigger]);
 
   /** placing →「この場所で輪郭を描く」: 初めて描画モードへ入る */
   const beginDrawing = () => {

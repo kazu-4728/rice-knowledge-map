@@ -14,12 +14,13 @@ const MapCanvas = dynamic(() => import("./MapCanvas"), {
 type Props = {
   onModeChange?: (mode: string) => void;
   hideControls?: boolean;
+  registerTrigger?: number;
 };
 
-export default function MapClientWrapper({ onModeChange, hideControls }: Props) {
+export default function MapClientWrapper({ onModeChange, hideControls, registerTrigger }: Props) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <MapCanvas onModeChange={onModeChange} hideControls={hideControls} />
+      <MapCanvas onModeChange={onModeChange} hideControls={hideControls} registerTrigger={registerTrigger} />
     </div>
   );
 }

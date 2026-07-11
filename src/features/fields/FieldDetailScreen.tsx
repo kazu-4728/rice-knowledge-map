@@ -15,9 +15,10 @@ import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyles";
-import { GlowCTACard } from "../../components/patterns/GlowCTACard";
-import { AlternatingFeatureRow } from "../../components/patterns/AlternatingFeatureRow";
+import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
+import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
+import { shareFieldStory } from "../../lib/utils/share";
 import type { FieldPoint } from "../../types";
 import {
   IconCamera,
@@ -26,6 +27,7 @@ import {
   IconFieldGrid,
   IconMic,
   IconPinFill,
+  IconShare,
   IconSprout,
   IconWarningFill,
   IconWaves,
@@ -203,7 +205,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-3 px-3 pb-6 pt-3">
+      <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
         <div className="h-48 animate-pulse rounded-2xl bg-gray-200" />
         <div className="h-16 animate-pulse rounded-2xl bg-gray-200" />
         <div className="h-24 animate-pulse rounded-2xl bg-gray-200" />
@@ -213,10 +215,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   if (notFound) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 px-6 pt-20 text-center">
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-flow-cream px-6 pt-20 text-center">
         <p className="text-base font-bold text-gray-900">田んぼが見つかりません</p>
         <p className="text-sm text-gray-500">削除されたか、アクセス権限がない可能性があります。</p>
-        <Link href="/fields" className="rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white">
+        <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
           田んぼ一覧に戻る
         </Link>
       </div>
@@ -228,9 +230,24 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     : "—";
   const hasAttention = attention.length > 0 || openRecords.length > 0;
   const pointById = new Map(points.map((p) => [p.id, p]));
+  // 状態チップ（色のアクセントは状態チップのみに絞る田んぼOSデザイン原則）
+  const overallStatus: StatusKey = attention.some((p) => p.status === "issue") || openRecords.length > 0
+    ? "issue"
+    : attention.length > 0
+      ? "needs_check"
+      : "normal";
+  const attentionCount = attention.length + openRecords.length;
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/fields/${encodeURIComponent(fieldId)}`;
+    const statusLabel = hasAttention ? "気になるところがあります" : "順調に育っています";
+    const result = await shareFieldStory({ fieldName: field.name || "名前のない田んぼ", statusLabel, url });
+    if (result === "copied") showToast("リンクをコピーしました。LINEなどに貼り付けて共有できます");
+    else if (result === "failed") showToast("共有に失敗しました", "error");
+  };
 
   return (
-    <div className="space-y-3 px-3 pb-6 pt-3">
+    <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
@@ -284,29 +301,34 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* 主役ヒーロー: 統計+状態サマリー+記録アクションを1枚に統合 */}
-      <GlowCTACard
-        tone={hasAttention ? "amber" : "emerald"}
-        icon={hasAttention ? <IconWarningFill className="h-6 w-6 text-amber-200" /> : <IconPinFill className="h-6 w-6 text-emerald-200" />}
-        title={
-          hasAttention
-            ? [
-                attention.length > 0 ? `要対応のポイント${attention.length}件` : null,
-                openRecords.length > 0 ? `未対応の異常記録${openRecords.length}件` : null,
-              ].filter(Boolean).join(" ・ ")
-            : points.length > 0
-              ? (points.every((p) => p.status === "normal") ? "異常なし・順調です" : "要対応はありません")
-              : "ポイントが未登録です"
-        }
-        description={
-          hasAttention
-            ? "下の「記録」タブ、または「ポイントの状態」で確認してください"
-            : points.length > 0
-              ? `登録ポイント${points.length}件${points.every((p) => p.status === "normal") ? "はすべて正常です" : ""}`
-              : "マップで入水口・異常箇所などを登録できます"
-        }
-      >
-        <div className="grid grid-cols-4 divide-x divide-white/15 rounded-2xl bg-white/10 py-2.5">
+      {/* 主役ヒーロー: 統計+状態サマリー+記録アクションを1枚に統合（色は深緑単色+状態チップのみアクセント） */}
+      <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+            <IconPinFill className="h-6 w-6 text-white/90" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="font-heading text-lg font-bold">{field.name || "名前のない田んぼ"}</p>
+              {points.length > 0 && (
+                <StatusBadge
+                  dark
+                  status={overallStatus}
+                  label={overallStatus === "normal" ? "順調" : `要対応 ${attentionCount}件`}
+                />
+              )}
+            </div>
+            <p className="mt-0.5 text-sm text-white/85">
+              {hasAttention
+                ? "下の「記録」タブ、または「ポイントの状態」で確認してください"
+                : points.length > 0
+                  ? `登録ポイント${points.length}件はすべて正常です`
+                  : "マップで入水口・異常箇所などを登録できます"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-4 divide-x divide-white/15 rounded-2xl bg-white/10 py-2.5">
           <div className="px-1 text-center">
             <p className="font-heading text-lg font-bold">{field.areaSqm !== null ? formatArea(field.areaSqm) : "—"}</p>
             <p className="mt-0.5 text-[11px] text-white/60">面積</p>
@@ -361,7 +383,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             </Link>
           </Button>
         </div>
-      </GlowCTACard>
+      </section>
+
+      {/* 家族LINEへの手動共有（Issue #70・段階1: リンク+テキストのみ） */}
+      <Button variant="secondary" className="w-full" onClick={handleShare}>
+        <IconShare className="h-4 w-4" />
+        家族にLINEで共有
+      </Button>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList aria-label="田んぼ詳細の表示切り替え">
@@ -372,15 +400,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           ))}
         </TabsList>
 
-        {/* 概要タブ: ポイントの状態とカテゴリ内訳を左右段組みで */}
-        <TabsContent value="overview" className="mt-3">
+        {/* 概要タブ: ポイントの状態一覧 */}
+        <TabsContent value="overview" className="mt-3 space-y-2">
           {points.length > 0 ? (
-            <AlternatingFeatureRow
-              eyebrow="Points"
-              title="ポイントの状態"
-              visual={
-                <ul className="space-y-2">
-                  {sortedPoints.map((point) => {
+            <>
+              <SectionHeading level={3}>ポイントの状態</SectionHeading>
+              <ul className="space-y-2">
+                {sortedPoints.map((point) => {
                     const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
                     const status = POINT_STATUS_META[point.status];
                     return (
@@ -404,9 +430,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                       </li>
                     );
                   })}
-                </ul>
-              }
-            />
+              </ul>
+            </>
           ) : (
             <Link href="/map" className="block active:scale-98 transition-transform">
               <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
