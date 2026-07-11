@@ -1366,10 +1366,10 @@ export default function MapCanvas({ onModeChange, hideControls }: MapCanvasProps
               </span>
             </button>
           </div>
-          {/* トークへの常設導線（ドロワーを開かなくても届くように） */}
+          {/* 今日の流れへの常設導線（ドロワーを開かなくても届くように） */}
           <Link
             href="/talk"
-            aria-label="家族のトークを開く"
+            aria-label="今日の流れを開く"
             className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600"
           >
             <IconChat className="h-5.5 w-5.5" />

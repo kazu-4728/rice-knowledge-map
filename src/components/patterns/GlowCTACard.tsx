@@ -32,7 +32,7 @@ const TONE_SCRIM: Record<"emerald" | "amber" | "sky", string> = {
 
 /**
  * ランディング最終CTAの「bg-gradient-to-br + 2つのblur-3xl円」グローカードを部品化。
- * /home の農事暦ヒーロー・/fields/[id] の統計ヒーロー等で使う。
+ * /fields/[id] の統計ヒーロー等で使う。
  * coverImageUrl を渡すと実写を背景にし、可読性のためグラデーションのスクリムを重ねる。
  */
 export function GlowCTACard({

@@ -216,7 +216,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       <div className="flex flex-col items-center justify-center gap-4 px-6 pt-20 text-center">
         <p className="text-base font-bold text-gray-900">田んぼが見つかりません</p>
         <p className="text-sm text-gray-500">削除されたか、アクセス権限がない可能性があります。</p>
-        <Link href="/home" className="rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white">
+        <Link href="/fields" className="rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white">
           田んぼ一覧に戻る
         </Link>
       </div>

@@ -53,7 +53,7 @@ export default function ConfirmRecordScreen() {
     const result = await saveRecord(draft);
     if (result.status === "saved") {
       clearRecordDraft();
-      const dest = returnTo ?? "/home";
+      const dest = returnTo ?? "/map";
       if (dest === "/records" || dest.startsWith("/fields/")) {
         markJustSaved();
       }
