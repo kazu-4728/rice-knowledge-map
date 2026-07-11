@@ -59,7 +59,11 @@ async function resolveImagePaths<T extends Record<string, ImageSlot | undefined>
 
 async function resolveImageSlots(
   sb: NonNullable<ReturnType<typeof getSupabase>>,
-  raw: ImageSlots
+  raw: ImageSlots,
+  // ホームバナー5件の署名URL解決は/homeと編集画面（ImageSlotsEditor）だけで必要。
+  // calendar/records/fields等の軽量呼び出し（loadImageSlots既定）では不要な
+  // createSignedUrlsを避けるため既定はfalseにする
+  includeHomeBanners = false
 ): Promise<ImageSlots> {
   const top = await resolveImagePaths(sb, {
     home: raw.home,
@@ -70,7 +74,8 @@ async function resolveImageSlots(
   const recordsCategory = raw.recordsCategory
     ? await resolveImagePaths(sb, raw.recordsCategory)
     : undefined;
-  const homeBanners = raw.homeBanners ? await resolveImagePaths(sb, raw.homeBanners) : undefined;
+  const homeBanners =
+    includeHomeBanners && raw.homeBanners ? await resolveImagePaths(sb, raw.homeBanners) : undefined;
   return { ...top, calendar, recordsCategory, homeBanners };
 }
 
@@ -111,13 +116,17 @@ export async function loadSiteContent(): Promise<SiteContentResult> {
       : s
   );
 
-  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {});
+  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {}, true);
 
   return { mode: "live", groupId, slides, imageSlots };
 }
 
-/** 各画面ヒーロー用にimage_slotsだけを取得する軽量版。hero_slidesは取得せず、image_pathは署名URLへ変換する。 */
-export async function loadImageSlots(): Promise<ImageSlots> {
+/**
+ * 各画面ヒーロー用にimage_slotsだけを取得する軽量版。hero_slidesは取得せず、image_pathは署名URLへ変換する。
+ * ホームバナー（homeBanners）は既定で解決しない。ImageSlotsEditor（オーナー編集画面）が
+ * 全スロットを表示・編集する場合のみ includeHomeBanners=true を渡す
+ */
+export async function loadImageSlots(includeHomeBanners = false): Promise<ImageSlots> {
   const sb = getSupabase();
   if (!sb) return {};
 
@@ -134,7 +143,7 @@ export async function loadImageSlots(): Promise<ImageSlots> {
     .maybeSingle();
 
   const row = data as Pick<GroupSiteContentRow, "image_slots"> | null;
-  return resolveImageSlots(sb, row?.image_slots ?? {});
+  return resolveImageSlots(sb, row?.image_slots ?? {}, includeHomeBanners);
 }
 
 export async function saveSiteContent(

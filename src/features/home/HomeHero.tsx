@@ -35,30 +35,36 @@ export function HomeHero({ slides }: { slides: HeroSlide[] }) {
     return () => clearTimeout(t);
   }, [current, total, playing]);
 
-  if (total === 0) return null;
-
   const goTo = (i: number) => setCurrent(((i % total) + total) % total);
-  const slide = list[current];
+  // slidesが空（データ取得直後の一瞬など）でも高さのある枠を維持し、
+  // ヒーロー領域そのものが消えてレイアウトがジャンプするのを避ける
+  const slide = list[current] as HeroSlide | undefined;
 
   return (
     <section className="relative overflow-hidden rounded-3xl bg-[#0b1811] text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.6)]">
       <div className="relative aspect-[4/5] sm:aspect-[16/9]">
-        {list.map((s, i) => (
-          <div
-            key={i}
-            className="absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
-            style={{ opacity: i === current ? 1 : 0 }}
-            aria-hidden={i !== current}
-          >
-            <RemotePhoto src={s.image_url} alt="" className="h-full w-full object-cover" fallbackVariant="field" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
-          </div>
-        ))}
+        {total === 0 ? (
+          <RemotePhoto src={undefined} alt="" className="h-full w-full object-cover" fallbackVariant="field" />
+        ) : (
+          list.map((s, i) => (
+            <div
+              key={i}
+              className="absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
+              style={{ opacity: i === current ? 1 : 0 }}
+              aria-hidden={i !== current}
+            >
+              <RemotePhoto src={s.image_url} alt="" className="h-full w-full object-cover" fallbackVariant="field" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+            </div>
+          ))
+        )}
 
-        <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
-          <h2 className="text-xl font-bold leading-snug drop-shadow sm:text-2xl">{slide.title}</h2>
-          <p className="mt-2 max-w-md text-sm leading-relaxed text-white/85 drop-shadow">{slide.body}</p>
-        </div>
+        {slide && (
+          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
+            <h2 className="text-xl font-bold leading-snug drop-shadow sm:text-2xl">{slide.title}</h2>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/85 drop-shadow">{slide.body}</p>
+          </div>
+        )}
 
         {total > 1 && (
           <>

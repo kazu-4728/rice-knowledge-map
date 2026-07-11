@@ -99,7 +99,7 @@ export default function ImageSlotsEditor() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    loadImageSlots().then(setSlots);
+    loadImageSlots(true).then(setSlots);
     ensureGroupId().then(setGroupId);
   }, []);
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
 import { RevealCard } from "../../components/patterns/RevealCard";
-import { loadSiteContent, type HeroSlide } from "../../lib/data/siteContent";
+import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 import type { ImageSlots } from "../../lib/supabase/types";
 import { shareContent } from "../../lib/utils/share";
@@ -27,7 +27,8 @@ function ComingSoonRow({ label }: { label: string }) {
 
 export default function HomeScreen() {
   const { showToast } = useToast();
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  // 取得完了までの空白/レイアウトジャンプを避けるため既定スライドで初期化する
+  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
