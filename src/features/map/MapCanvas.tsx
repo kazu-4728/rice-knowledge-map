@@ -386,13 +386,15 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger 
 
   // 外部（MapSummarySheetの「最初の田んぼを登録する」CTA）からの起動（Issue #69）。
   // registerTrigger は同一ページ内の兄弟コンポーネントが押下ごとにインクリメントする値で、
-  // 初回マウント時（undefined/0）は発火しない。
-  const prevRegisterTriggerRef = useRef(registerTrigger);
+  // 初回値（0）では発火しない。MapCanvasはdynamic importのため、地図読み込み中のタップで
+  // registerTriggerが先に進んでからマウントされるケースがある。prevを現在値で初期化すると
+  // そのタップが「既に処理済み」とみなされ発火し損ねるため、未初期化(undefined)から始める。
+  const prevRegisterTriggerRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (registerTrigger === undefined) return;
     if (prevRegisterTriggerRef.current !== registerTrigger) {
       prevRegisterTriggerRef.current = registerTrigger;
-      if (!isDrawingOrNamingRef.current) startPlacing(null);
+      if (registerTrigger > 0 && !isDrawingOrNamingRef.current) startPlacing(null);
     }
   }, [registerTrigger]);
 

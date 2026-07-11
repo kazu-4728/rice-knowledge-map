@@ -231,11 +231,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const hasAttention = attention.length > 0 || openRecords.length > 0;
   const pointById = new Map(points.map((p) => [p.id, p]));
   // 状態チップ（色のアクセントは状態チップのみに絞る田んぼOSデザイン原則）
-  const overallStatus: StatusKey = attention.some((p) => p.status === "issue") || openRecords.length > 0
-    ? "issue"
-    : attention.length > 0
-      ? "needs_check"
-      : "normal";
+  const overallStatus: StatusKey =
+    attention.some((p) => p.status === "issue") || openRecords.some((r) => r.status === "open")
+      ? "issue"
+      : attention.length > 0 || openRecords.length > 0
+        ? "needs_check"
+        : "normal";
   const attentionCount = attention.length + openRecords.length;
 
   const handleShare = async () => {
