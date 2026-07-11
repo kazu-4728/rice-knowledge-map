@@ -72,7 +72,7 @@ export default function LandingScreen() {
 
   useEffect(() => {
     if (!loading && session) {
-      router.replace("/map");
+      router.replace("/home");
     }
   }, [loading, session, router]);
 
@@ -83,7 +83,7 @@ export default function LandingScreen() {
     });
   }, []);
 
-  const enter = () => router.push("/map");
+  const enter = () => router.push("/home");
   const hero = slides[0];
 
   return (

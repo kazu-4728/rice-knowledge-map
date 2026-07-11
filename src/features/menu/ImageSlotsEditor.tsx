@@ -19,7 +19,12 @@ type SlotKey =
   | "recordsCategory.水管理"
   | "recordsCategory.作業"
   | "recordsCategory.異常"
-  | "recordsCategory.音声";
+  | "recordsCategory.音声"
+  | "homeBanners.map"
+  | "homeBanners.talk"
+  | "homeBanners.family"
+  | "homeBanners.story"
+  | "homeBanners.line";
 
 const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "home", label: "ホームのヒーロー" },
@@ -33,6 +38,11 @@ const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "recordsCategory.作業", label: "記録の既定カバー（作業）" },
   { key: "recordsCategory.異常", label: "記録の既定カバー（異常）" },
   { key: "recordsCategory.音声", label: "記録の既定カバー（音声）" },
+  { key: "homeBanners.map", label: "ホームのバナー（田んぼを見る）" },
+  { key: "homeBanners.talk", label: "ホームのバナー（今日の記録を残す）" },
+  { key: "homeBanners.family", label: "ホームのバナー（家族の動きを見る）" },
+  { key: "homeBanners.story", label: "ホームのバナー（育ち方を振り返る）" },
+  { key: "homeBanners.line", label: "ホームのバナー（LINEで家族に共有する）" },
 ];
 
 function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
@@ -43,6 +53,10 @@ function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
   if (key.startsWith("recordsCategory.")) {
     const cat = key.split(".")[1] as keyof NonNullable<ImageSlots["recordsCategory"]>;
     return slots.recordsCategory?.[cat];
+  }
+  if (key.startsWith("homeBanners.")) {
+    const banner = key.split(".")[1] as keyof NonNullable<ImageSlots["homeBanners"]>;
+    return slots.homeBanners?.[banner];
   }
   return slots[key as "home" | "talk" | "fieldDefault"];
 }
@@ -55,6 +69,10 @@ function setSlot(slots: ImageSlots, key: SlotKey, slot: ImageSlot): ImageSlots {
   if (key.startsWith("recordsCategory.")) {
     const cat = key.split(".")[1] as keyof NonNullable<ImageSlots["recordsCategory"]>;
     return { ...slots, recordsCategory: { ...slots.recordsCategory, [cat]: slot } };
+  }
+  if (key.startsWith("homeBanners.")) {
+    const banner = key.split(".")[1] as keyof NonNullable<ImageSlots["homeBanners"]>;
+    return { ...slots, homeBanners: { ...slots.homeBanners, [banner]: slot } };
   }
   return { ...slots, [key]: slot };
 }
@@ -120,6 +138,15 @@ export default function ImageSlotsEditor() {
             作業: strip(slots.recordsCategory.作業),
             異常: strip(slots.recordsCategory.異常),
             音声: strip(slots.recordsCategory.音声),
+          }
+        : undefined,
+      homeBanners: slots.homeBanners
+        ? {
+            map: strip(slots.homeBanners.map),
+            talk: strip(slots.homeBanners.talk),
+            family: strip(slots.homeBanners.family),
+            story: strip(slots.homeBanners.story),
+            line: strip(slots.homeBanners.line),
           }
         : undefined,
     };

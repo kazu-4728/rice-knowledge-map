@@ -1,9 +1,16 @@
-import { redirect } from "next/navigation";
+import AppShell from "../../components/layout/AppShell";
+import HomeScreen from "../../features/home/HomeScreen";
+
+export const metadata = { title: "ホーム | みらい稲作管理" };
 
 /**
- * 旧ホーム（管理）はフェーズ2で現場OS（/map）へ統合された（Issue #67）。
- * 旧URLのブックマーク・PWA起動を壊さないためリダイレクトとして残す。
+ * アプリの顔となる常設ホーム（Issue #72）。
+ * 通常起動・通常ログイン後の入口。明確なディープリンクはここを経由しない。
  */
 export default function HomePage() {
-  redirect("/map");
+  return (
+    <AppShell>
+      <HomeScreen />
+    </AppShell>
+  );
 }

@@ -10,8 +10,8 @@ export type { HeroSlide, ImageSlot, ImageSlots };
 // HeroBackdropのグラデーション表示に委ねる）
 export const DEFAULT_SLIDES: HeroSlide[] = [
   {
-    // 朝日と霧の田園全景
-    image_url: SYSTEM_DEFAULT_IMAGES.home,
+    // 家族が畦道でスマホを見る、ワイド構図（/ と /home で共有するヒーロー1枚目の既定）
+    image_url: SYSTEM_DEFAULT_IMAGES.heroFamily,
     title: "家族の田んぼを、みんなで守る",
     body: "水、土、稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。",
   },
@@ -70,7 +70,8 @@ async function resolveImageSlots(
   const recordsCategory = raw.recordsCategory
     ? await resolveImagePaths(sb, raw.recordsCategory)
     : undefined;
-  return { ...top, calendar, recordsCategory };
+  const homeBanners = raw.homeBanners ? await resolveImagePaths(sb, raw.homeBanners) : undefined;
+  return { ...top, calendar, recordsCategory, homeBanners };
 }
 
 export async function loadSiteContent(): Promise<SiteContentResult> {

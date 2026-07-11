@@ -61,14 +61,14 @@ export default function AppShell({
               >
                 <IconMenu className="h-5.5 w-5.5" />
               </button>
-              <div className="flex items-center gap-1.5">
+              <Link href="/home" className="flex items-center gap-1.5" aria-label="ホームへ戻る">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95">
                   <LogoRice className="w-5 h-5" />
                 </span>
                 <span className="text-white font-bold text-lg tracking-tight">
                   みらい稲作管理
                 </span>
-              </div>
+              </Link>
               <HeaderAccountChip hasBack={!!(backDynamic || backHref)} />
             </header>
             <div className="print:hidden">

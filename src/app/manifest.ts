@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "みらい稲作管理",
     short_name: "稲作管理",
     description: "家族で共有する実画像マップ型の稲作ナレッジ記録アプリ",
-    start_url: "/",
+    start_url: "/home",
     display: "standalone",
     orientation: "portrait",
     background_color: "#f3f4f6",
