@@ -15,12 +15,18 @@ type Props = {
   onModeChange?: (mode: string) => void;
   hideControls?: boolean;
   registerTrigger?: number;
+  onFieldRegistered?: () => void;
 };
 
-export default function MapClientWrapper({ onModeChange, hideControls, registerTrigger }: Props) {
+export default function MapClientWrapper({ onModeChange, hideControls, registerTrigger, onFieldRegistered }: Props) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <MapCanvas onModeChange={onModeChange} hideControls={hideControls} registerTrigger={registerTrigger} />
+      <MapCanvas
+        onModeChange={onModeChange}
+        hideControls={hideControls}
+        registerTrigger={registerTrigger}
+        onFieldRegistered={onFieldRegistered}
+      />
     </div>
   );
 }

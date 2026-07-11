@@ -24,6 +24,8 @@ type Props = {
   onExpandChange?: (expanded: boolean) => void;
   /** 「最初の田んぼを登録する」CTAタップ時。同一ページ内のMapCanvasの場所合わせを起動する（Issue #69） */
   onRegisterField: () => void;
+  /** 値が変化するたびに集計（田んぼ数・記録有無など）を再取得する。田んぼ登録直後の反映用（Issue #69） */
+  refreshKey?: number;
 };
 
 type NextAction =
@@ -43,7 +45,7 @@ type NextAction =
  * 記録の起点はマップ右下のFAB（写真/音声/異常報告）に一本化する。
  * 配色はフェーズ1のデザイントークン（クリーム地・深緑・白+状態チップのみアクセント）。
  */
-export default function MapSummarySheet({ visible, onExpandChange, onRegisterField }: Props) {
+export default function MapSummarySheet({ visible, onExpandChange, onRegisterField, refreshKey }: Props) {
   const { configured, loading: authLoading, session } = useAuth();
   const [fieldCount, setFieldCount] = useState(0);
   const [attentionFields, setAttentionFields] = useState<FieldAttention[]>([]);
@@ -81,7 +83,7 @@ export default function MapSummarySheet({ visible, onExpandChange, onRegisterFie
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   const toggleExpand = useCallback(() => {
     setExpanded((v) => {

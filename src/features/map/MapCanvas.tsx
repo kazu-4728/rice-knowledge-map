@@ -137,9 +137,11 @@ type MapCanvasProps = {
   hideControls?: boolean;
   /** 値が変化するたびに場所合わせ（新規登録）を外部から起動する（Issue #69。同一ページ内の兄弟コンポーネントからの呼び出し用） */
   registerTrigger?: number;
+  /** 新規田んぼの保存が成功した直後に呼ばれる（Issue #69。MapSummarySheet側の集計再取得のトリガー用） */
+  onFieldRegistered?: () => void;
 };
 
-export default function MapCanvas({ onModeChange, hideControls, registerTrigger }: MapCanvasProps) {
+export default function MapCanvas({ onModeChange, hideControls, registerTrigger, onFieldRegistered }: MapCanvasProps) {
   const { setDrawerOpen } = useDrawer();
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -367,8 +369,10 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger 
           setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
         setToast("田んぼを保存しました");
+        onFieldRegistered?.();
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有保存されます）");
+        onFieldRegistered?.();
       } else {
         setToast("保存に失敗しました。通信環境を確認してください");
       }
