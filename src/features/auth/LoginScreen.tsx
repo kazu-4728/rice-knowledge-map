@@ -177,7 +177,7 @@ function LoginScreenInner() {
           </div>
         )}
 
-        <Link href="/" className="block py-2 text-center text-sm font-semibold text-gray-500">
+        <Link href="/home" className="block py-2 text-center text-sm font-semibold text-gray-500">
           ホームへ戻る
         </Link>
       </div>

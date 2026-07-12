@@ -39,6 +39,7 @@ import { useTransceiver, TransceiverOverlay } from "../talk/Transceiver";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
 import {
   IconCamera,
+  IconHome,
   IconLocate,
   IconMenu,
   IconMic,
@@ -1386,6 +1387,14 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
               </span>
             </button>
           </div>
+          {/* ホームへの常設導線（マップは共通ヘッダー非表示のため独自に置く。PCはSideNavのロゴがあるのでモバイルのみ） */}
+          <Link
+            href="/home"
+            aria-label="ホームへ戻る"
+            className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600 lg:hidden"
+          >
+            <IconHome className="h-5.5 w-5.5" />
+          </Link>
           {/* 今日の流れへの常設導線（ドロワーを開かなくても届くように） */}
           <Link
             href="/talk"

@@ -10,6 +10,7 @@ import {
   IconChevronLeft,
   IconClipboard,
   IconCommentFill,
+  IconHome,
   IconMap,
   IconMic,
   IconMoreVertical,
@@ -78,6 +79,9 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
+          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+            <IconHome className="h-6 w-6" />
+          </Link>
         </header>
         <main className="flex flex-1 items-center justify-center">
           <p className="text-sm text-gray-500">読み込み中…</p>
@@ -94,6 +98,9 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
+          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+            <IconHome className="h-6 w-6" />
+          </Link>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">この記録は見つかりませんでした。</p>
@@ -110,6 +117,9 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
+          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+            <IconHome className="h-6 w-6" />
+          </Link>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="text-sm text-gray-600">記録を見るにはログインが必要です。</p>
@@ -132,6 +142,9 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
+          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+            <IconHome className="h-6 w-6" />
+          </Link>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">読み込みに失敗しました。通信環境を確認してください。</p>
@@ -218,6 +231,13 @@ export default function RecordDetailPage() {
           <IconChevronLeft className="h-6 w-6" />
         </button>
         <h1 className="text-lg font-bold text-white">記録詳細</h1>
+        <Link
+          href="/home"
+          aria-label="ホームへ戻る"
+          className={`absolute p-2.5 text-white/90 ${canDelete ? "right-12" : "right-1"}`}
+        >
+          <IconHome className="h-6 w-6" />
+        </Link>
         {canDelete && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

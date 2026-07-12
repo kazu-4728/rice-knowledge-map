@@ -137,7 +137,7 @@ export default function InviteRedeemScreen() {
             <IconWarningFill className="mx-auto h-8 w-8 text-amber-500" />
             <p className="mt-2 text-sm font-bold text-gray-900">参加できませんでした</p>
             <p className="mt-1 text-xs text-gray-500">{errorMessage}</p>
-            <Link href="/" className="mt-4 block text-sm font-semibold text-green-700">
+            <Link href="/home" className="mt-4 block text-sm font-semibold text-green-700">
               ホームへ戻る
             </Link>
           </div>

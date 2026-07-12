@@ -72,7 +72,8 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["記録が今日の流れに流れる", "家族がすぐに確認できる", "田んぼの履歴に積み上がる"],
       },
     ],
-    action: { type: "link", href: "/talk" },
+    // 今日の流れのカメラボタンと同じ写真記録の開始導線。保存後はホームへ復帰する
+    action: { type: "link", href: "/records/new?returnTo=%2Fhome" },
   },
   {
     key: "family",
