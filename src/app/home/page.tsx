@@ -9,7 +9,9 @@ export const metadata = { title: "ホーム | みらい稲作管理" };
  */
 export default function HomePage() {
   return (
-    <AppShell>
+    // ホームはモック準拠の専用ヘッダー（ロゴ+タグライン+アカウント）を持つため、
+    // AppShell共通ヘッダーは表示しない（PCのSideNav・ドロワーは共通のまま）
+    <AppShell showHeader={false}>
       <HomeScreen />
     </AppShell>
   );

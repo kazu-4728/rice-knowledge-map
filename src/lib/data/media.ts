@@ -9,10 +9,6 @@ import { SYSTEM_DEFAULT_IMAGES, monthToSeason } from "./defaultImageCatalog";
  * RemotePhoto コンポーネントがさらに PaddyPhoto（最終フォールバック）へ委ねる。
  */
 
-export function resolveHomeHeroUrl(imageSlots: ImageSlots): string | undefined {
-  return imageSlots.home?.image_url ?? SYSTEM_DEFAULT_IMAGES.home;
-}
-
 export function resolveTalkCoverUrl(imageSlots: ImageSlots): string | undefined {
   return imageSlots.talk?.image_url ?? SYSTEM_DEFAULT_IMAGES.talk;
 }

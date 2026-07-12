@@ -3,7 +3,6 @@
 import { useCallback, useState } from "react";
 import MapClientWrapper from "./MapClientWrapper";
 import MapSummarySheet from "./MapSummarySheet";
-import TodayStory from "../story/TodayStory";
 
 export default function MapScreen() {
   const [mapMode, setMapMode] = useState("browse");
@@ -45,8 +44,6 @@ export default function MapScreen() {
         onRegisterField={handleRegisterField}
         refreshKey={fieldsVersion}
       />
-      {/* 1日1回のオープニングストーリー（閉じるとマップに着地する） */}
-      <TodayStory />
     </div>
   );
 }

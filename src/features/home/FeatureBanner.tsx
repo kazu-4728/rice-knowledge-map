@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { IconChevronRight } from "../../components/ui/icons";
 import type { HomeBannerDef } from "./homeBanners";
 
-/** ホーム機能バナー1件（Issue #72確定事項9）。説明の開閉と遷移操作を分離する */
+/**
+ * ホームの機能バナー1件（Issue #72確定事項9）。
+ * 横長レイアウト（左: 実写／中央: タイトル+概要／右端: ページ遷移ボタン）。
+ * バナー本体のタップで詳細（3カラムの箇条書き）を開閉し、
+ * 遷移操作は右端の丸ボタンに分離する。
+ */
 export function FeatureBanner({
   def,
   imageUrl,
@@ -19,57 +23,96 @@ export function FeatureBanner({
   onShare: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { Icon } = def;
+
+  const toggle = () => setOpen((v) => !v);
+  const onRowKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  };
+  const stopRow = (e: MouseEvent) => e.stopPropagation();
+
+  const goButtonClass =
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-700 text-white shadow-[0_4px_12px_-4px_rgba(21,93,56,0.7)] transition-colors hover:bg-green-800 active:scale-95";
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-white shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]">
-      <div className="relative h-36 sm:h-44">
-        <RemotePhoto src={imageUrl} alt="" className="h-full w-full object-cover" fallbackVariant="field" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 p-4">
-          <p className="text-lg font-bold text-white drop-shadow">{def.title}</p>
-          <p className="mt-0.5 text-xs text-white/85 drop-shadow">{def.summary}</p>
+    <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        aria-label={`${def.title}の詳細を${open ? "閉じる" : "開く"}`}
+        onClick={toggle}
+        onKeyDown={onRowKeyDown}
+        className="flex cursor-pointer items-stretch"
+      >
+        {/* 実写（バナー左端・行の高さいっぱい） */}
+        <div className="relative w-28 shrink-0 self-stretch sm:w-44">
+          <RemotePhoto src={imageUrl} alt="" className="absolute inset-0 h-full w-full" fallbackVariant="field" />
+        </div>
+
+        {/* タイトル+概要 */}
+        <div className="min-w-0 flex-1 px-3.5 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-center gap-2">
+            <Icon className="h-5.5 w-5.5 shrink-0 text-green-700" />
+            <h3 className="min-w-0 font-heading text-[17px] font-bold leading-snug tracking-tight text-green-900 sm:text-lg">
+              {def.title}
+            </h3>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-gray-600">{def.summary}</p>
+        </div>
+
+        {/* 右端: ページ遷移（丸ボタン）と開閉インジケーター */}
+        <div className="flex flex-col items-center justify-center gap-1.5 pr-3">
+          {def.action.type === "link" ? (
+            <Link
+              href={def.action.href}
+              onClick={stopRow}
+              aria-label={`${def.title}のページへ進む`}
+              className={goButtonClass}
+            >
+              <IconChevronRight className="h-5 w-5" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                stopRow(e);
+                onShare();
+              }}
+              aria-label={def.title}
+              className={goButtonClass}
+            >
+              <IconChevronRight className="h-5 w-5" />
+            </button>
+          )}
+          <IconChevronRight
+            aria-hidden
+            className={`h-4 w-4 text-gray-400 transition-transform ${open ? "-rotate-90" : "rotate-90"}`}
+          />
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className="flex items-center gap-1 py-1 text-sm font-bold text-green-700"
-        >
-          <IconChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
-          {open ? "詳細を閉じる" : "詳しく見る"}
-        </button>
-
-        {def.action.type === "link" ? (
-          <Link
-            href={def.action.href}
-            aria-label={`${def.title}へ進む`}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-700 text-white transition-colors hover:bg-green-800"
-          >
-            <IconChevronRight className="h-5 w-5" />
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={onShare}
-            aria-label={def.title}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-700 text-white transition-colors hover:bg-green-800"
-          >
-            <IconChevronRight className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
+      {/* 展開時の詳細（できること／使うタイミング／その後どうなる?） */}
       {open && (
-        <div className="grid grid-cols-1 gap-3 border-t border-gray-100 px-4 py-4 sm:grid-cols-3">
-          {def.detail.map((d) => (
-            <div key={d.label}>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">{d.label}</p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-600">{d.text}</p>
-            </div>
-          ))}
+        <div className="mx-3 mb-3 rounded-xl border border-emerald-100 bg-[#f6f9f3] p-3 sm:mx-4 sm:mb-4">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+            {def.detail.map((col) => (
+              <div key={col.label} className="min-w-0">
+                <p className="text-[11px] font-bold text-green-900 sm:text-xs">{col.label}</p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {col.items.map((t) => (
+                    <li key={t} className="flex gap-1.5 text-[10px] leading-snug text-gray-600 sm:text-xs">
+                      <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-emerald-500" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

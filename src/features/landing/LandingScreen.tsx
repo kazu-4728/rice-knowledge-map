@@ -224,7 +224,7 @@ export default function LandingScreen() {
                   「次にやること」も地図がそのまま教えてくれます。
                 </p>
                 <ul className="mt-4 space-y-2 text-sm text-gray-700">
-                  {["指でなぞるだけの田んぼ登録（面積を自動計算）", "入水口・異常箇所をピンで管理", "1日1回の「今日の田んぼ」ストーリー"].map((t) => (
+                  {["指でなぞるだけの田んぼ登録（面積を自動計算）", "入水口・異常箇所をピンで管理", "信号色で田んぼの状態がひと目でわかる"].map((t) => (
                     <li key={t} className="flex items-start gap-2">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                       {t}

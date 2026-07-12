@@ -40,6 +40,12 @@ import {
   Snowflake,
   Share2,
   Pause,
+  Info,
+  BookOpen,
+  HelpCircle,
+  Bell,
+  Headphones,
+  BarChart3,
 } from "lucide-react";
 import type { SeasonIconKey } from "../../lib/season";
 
@@ -157,6 +163,30 @@ export function IconPlayFill(props: IconProps) {
 
 export function IconPause(props: IconProps) {
   return <Pause strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconInfo(props: IconProps) {
+  return <Info strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconBookOpen(props: IconProps) {
+  return <BookOpen strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconHelpCircle(props: IconProps) {
+  return <HelpCircle strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconBell(props: IconProps) {
+  return <Bell strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconHeadphones(props: IconProps) {
+  return <Headphones strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconChartBar(props: IconProps) {
+  return <BarChart3 strokeWidth={1.8} aria-hidden="true" {...props} />;
 }
 
 export function IconSearch(props: IconProps) {
