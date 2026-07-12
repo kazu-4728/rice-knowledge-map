@@ -39,6 +39,7 @@ export function HomeShareSheet({ open, onClose }: { open: boolean; onClose: () =
   useEffect(() => {
     if (!open || summary) return;
     let cancelled = false;
+    setFailed(false);
     loadFieldAttention()
       .then((s) => {
         if (cancelled) return;

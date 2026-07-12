@@ -27,6 +27,9 @@ export function FeatureBanner({
 
   const toggle = () => setOpen((v) => !v);
   const onRowKeyDown = (e: KeyboardEvent) => {
+    // 子要素（遷移Link・共有ボタン）からバブリングしたキー操作は無視する。
+    // ここで拾うとpreventDefaultがリンクの本来のEnterナビゲーションを潰してしまう
+    if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       toggle();
