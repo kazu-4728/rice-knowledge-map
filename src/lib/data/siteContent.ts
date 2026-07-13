@@ -87,7 +87,7 @@ async function resolveImageSlots(
   return { ...top, calendar, recordsCategory, homeBanners };
 }
 
-export async function loadSiteContent(): Promise<SiteContentResult> {
+export async function loadSiteContent(includeHomeBanners = false): Promise<SiteContentResult> {
   const sb = getSupabase();
   if (!sb) return { mode: "demo", groupId: "demo", slides: DEFAULT_SLIDES, imageSlots: {} };
 
@@ -124,7 +124,7 @@ export async function loadSiteContent(): Promise<SiteContentResult> {
       : s
   );
 
-  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {}, true);
+  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {}, includeHomeBanners);
 
   return { mode: "live", groupId, slides, imageSlots };
 }

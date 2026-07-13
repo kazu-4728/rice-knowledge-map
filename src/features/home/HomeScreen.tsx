@@ -47,7 +47,7 @@ export default function HomeScreen() {
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    loadSiteContent().then((r) => {
+    loadSiteContent(true).then((r) => {
       setSlides(r.slides);
       setImageSlots(r.imageSlots);
     });

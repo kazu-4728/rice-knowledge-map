@@ -1,4 +1,6 @@
-export type ShareFieldStoryResult = "shared" | "copied" | "cancelled" | "failed";
+export type ShareResult = "shared" | "copied" | "cancelled" | "failed";
+/** @deprecated 汎用名の ShareResult を使ってください。既存呼び出し元との後方互換のために残しています */
+export type ShareFieldStoryResult = ShareResult;
 
 /**
  * OSの共有シート（Web Share API）でテキスト+リンクを共有する。
@@ -9,7 +11,7 @@ export async function shareContent(params: {
   title: string;
   text: string;
   url: string;
-}): Promise<ShareFieldStoryResult> {
+}): Promise<ShareResult> {
   const { title, text, url } = params;
 
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
