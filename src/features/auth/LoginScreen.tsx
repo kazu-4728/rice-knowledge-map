@@ -15,8 +15,8 @@ const GOOGLE_LOGIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN === "1"
 
 /** アプリ内パス（"/"始まり・"//"等の外部URL形式は不可）のみ許可する */
 function sanitizeRedirect(raw: string | null): string {
-  if (!raw) return "/home";
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/home";
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
   return raw;
 }
 
@@ -177,7 +177,7 @@ function LoginScreenInner() {
           </div>
         )}
 
-        <Link href="/home" className="block py-2 text-center text-sm font-semibold text-gray-500">
+        <Link href="/" className="block py-2 text-center text-sm font-semibold text-gray-500">
           ホームへ戻る
         </Link>
       </div>

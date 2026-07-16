@@ -79,7 +79,7 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
             <IconHome className="h-6 w-6" />
           </Link>
         </header>
@@ -98,7 +98,7 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
             <IconHome className="h-6 w-6" />
           </Link>
         </header>
@@ -117,7 +117,7 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
             <IconHome className="h-6 w-6" />
           </Link>
         </header>
@@ -142,7 +142,7 @@ export default function RecordDetailPage() {
             <IconChevronLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/home" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
+          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
             <IconHome className="h-6 w-6" />
           </Link>
         </header>
@@ -232,7 +232,7 @@ export default function RecordDetailPage() {
         </button>
         <h1 className="text-lg font-bold text-white">記録詳細</h1>
         <Link
-          href="/home"
+          href="/"
           aria-label="ホームへ戻る"
           className={`absolute p-2.5 text-white/90 ${canDelete ? "right-12" : "right-1"}`}
         >

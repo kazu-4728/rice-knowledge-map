@@ -36,7 +36,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
         <DrawerTitle className="sr-only">メニュー</DrawerTitle>
         {/* header（ロゴタップでホームへ戻る常設導線） */}
         <div className="flex items-center justify-between px-5 pb-2 pt-1">
-          <Link href="/home" onClick={onClose} className="flex items-center gap-1.5">
+          <Link href="/" onClick={onClose} className="flex items-center gap-1.5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-50">
               <LogoRice className="h-5 w-5" />
             </span>

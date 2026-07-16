@@ -1389,7 +1389,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           </div>
           {/* ホームへの常設導線（マップは共通ヘッダー非表示のため独自に置く。PCはSideNavのロゴがあるのでモバイルのみ） */}
           <Link
-            href="/home"
+            href="/"
             aria-label="ホームへ戻る"
             className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600 lg:hidden"
           >

@@ -17,7 +17,7 @@ export default function SideNav() {
     <nav className="hidden lg:flex print:hidden h-dvh w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
       {/* logo（ホームへの常設導線） */}
       <Link
-        href="/home"
+        href="/"
         className="flex h-14 items-center gap-1.5 border-b border-gray-100 px-4"
       >
         <LogoRice className="h-7 w-7" />

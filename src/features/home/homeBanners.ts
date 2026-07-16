@@ -24,8 +24,10 @@ export type HomeBannerDef = {
 };
 
 /**
- * ホーム（/home）の機能バナー5件（Issue #72確定事項9・確定事項6の遷移先対応）。
- * 文言は初稿でありオーナーレビュー対象（確定事項11）。
+ * ホーム（/、ランディング統合後）の機能バナー5件（Issue #72確定事項9・確定事項6の遷移先対応）。
+ * 唯一の説明ソース: ここを更新すればランディング/ホームの説明が追従する（機能を変更するPRでは
+ * 該当項目もあわせて更新すること）。
+ * 並び順は実際の利用の流れ（見る→記録する→共有する→伝える→振り返る）に合わせている。
  */
 export const HOME_BANNERS: HomeBannerDef[] = [
   {
@@ -72,8 +74,8 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["記録が今日の流れに流れる", "家族がすぐに確認できる", "田んぼの履歴に積み上がる"],
       },
     ],
-    // 今日の流れのカメラボタンと同じ写真記録の開始導線。保存後はホームへ復帰する
-    action: { type: "link", href: "/records/new?returnTo=%2Fhome" },
+    // 今日の流れのカメラボタンと同じ写真記録の開始導線。保存後はホーム（/）へ復帰する
+    action: { type: "link", href: "/records/new?returnTo=%2F" },
   },
   {
     key: "family",
@@ -99,29 +101,6 @@ export const HOME_BANNERS: HomeBannerDef[] = [
     action: { type: "link", href: "/talk" },
   },
   {
-    key: "story",
-    Icon: IconChartBar,
-    title: "育ち方を振り返る",
-    shortTitle: "育ち方を振り返る",
-    shortSub: "生育の変化や履歴をチェック",
-    summary: "過去の写真や記録を比べて生育の変化を見ます。季節ごとの違いや前回との比較に使います。",
-    detail: [
-      {
-        label: "できること",
-        items: ["田んぼごとの成長を振り返る", "過去と今の写真を見比べる", "記録の蓄積を確認"],
-      },
-      {
-        label: "使うタイミング",
-        items: ["季節の節目に", "去年と比べたいとき", "来年の計画を立てるとき"],
-      },
-      {
-        label: "その後どうなる?",
-        items: ["毎年の判断材料になる", "家族と共有できる", "農家の知恵が引き継がれる"],
-      },
-    ],
-    action: { type: "link", href: "/fields" },
-  },
-  {
     key: "line",
     Icon: IconShare,
     title: "LINEで家族に共有する",
@@ -143,5 +122,28 @@ export const HOME_BANNERS: HomeBannerDef[] = [
       },
     ],
     action: { type: "share" },
+  },
+  {
+    key: "story",
+    Icon: IconChartBar,
+    title: "育ち方を振り返る",
+    shortTitle: "育ち方を振り返る",
+    shortSub: "生育の変化や履歴をチェック",
+    summary: "過去の写真や記録を比べて生育の変化を見ます。季節ごとの違いや前回との比較に使います。",
+    detail: [
+      {
+        label: "できること",
+        items: ["田んぼごとの成長を振り返る", "過去と今の写真を見比べる", "記録の蓄積を確認"],
+      },
+      {
+        label: "使うタイミング",
+        items: ["季節の節目に", "去年と比べたいとき", "来年の計画を立てるとき"],
+      },
+      {
+        label: "その後どうなる?",
+        items: ["毎年の判断材料になる", "家族と共有できる", "農家の知恵が引き継がれる"],
+      },
+    ],
+    action: { type: "link", href: "/fields" },
   },
 ];
