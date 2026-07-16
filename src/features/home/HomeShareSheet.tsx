@@ -82,7 +82,7 @@ export function HomeShareSheet({ open, onClose }: { open: boolean; onClose: () =
           </DrawerClose>
         </div>
         <p className="px-5 pb-3 text-xs text-gray-500">
-          田んぼの今の様子とリンクを、LINEなどで家族に送れます
+          田んぼの今の様子とリンクを、LINEなどで送れます
         </p>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">

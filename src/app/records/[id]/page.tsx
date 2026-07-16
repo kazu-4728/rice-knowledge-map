@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { PaddyPhoto } from "../../../components/ui/PaddyPhoto";
+import { shareContent } from "../../../lib/utils/share";
 import {
   IconCalendar,
   IconCheck,
@@ -16,6 +17,7 @@ import {
   IconMoreVertical,
   IconPinFill,
   IconPlus,
+  IconShare,
   IconTrash,
   IconUserFill,
 } from "../../../components/ui/icons";
@@ -186,6 +188,19 @@ export default function RecordDetailPage() {
     setSubmitting(false);
   };
 
+  /** 記録の共有（LINE等のOS共有シート。非対応環境はリンクコピー） */
+  const handleShare = async () => {
+    if (!record) return;
+    const fieldLabel = record.fieldId && record.fieldName ? `${record.fieldName}・` : "";
+    const result = await shareContent({
+      title: record.title || "田んぼの記録",
+      text: `${fieldLabel}${record.title}`,
+      url: `${window.location.origin}/records/${encodeURIComponent(id)}`,
+    });
+    if (result === "copied") setMessage("リンクをコピーしました。LINEなどに貼り付けて共有できます");
+    else if (result === "failed") setMessage("共有に失敗しました");
+  };
+
   const handleResolve = async () => {
     if (isResolved) return;
     setMessage(null);
@@ -320,27 +335,39 @@ export default function RecordDetailPage() {
           </div>
         </section>
 
-        {/* マップで見る — 田んぼ or 座標がある場合 */}
-        {(record.fieldId || (record.latitude !== null && record.longitude !== null)) && (() => {
-          const params = new URLSearchParams();
-          if (record.fieldId) params.set("field", record.fieldId);
-          if (record.pointId) params.set("point", record.pointId);
-          if (record.latitude !== null && record.longitude !== null) {
-            params.set("lat", String(record.latitude));
-            params.set("lng", String(record.longitude));
-          }
-          return (
-            <Link
-              href={`/map?${params.toString()}`}
-              className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm transition-transform active:scale-98"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
-                <IconMap className="h-4.5 w-4.5 text-green-700" />
-              </span>
-              <span className="text-sm font-bold text-green-700">マップで見る</span>
-            </Link>
-          );
-        })()}
+        {/* マップで見る / 共有する — 記録直後の「どこから共有?」に答える常設導線 */}
+        <div className="flex gap-2">
+          {(record.fieldId || (record.latitude !== null && record.longitude !== null)) && (() => {
+            const params = new URLSearchParams();
+            if (record.fieldId) params.set("field", record.fieldId);
+            if (record.pointId) params.set("point", record.pointId);
+            if (record.latitude !== null && record.longitude !== null) {
+              params.set("lat", String(record.latitude));
+              params.set("lng", String(record.longitude));
+            }
+            return (
+              <Link
+                href={`/map?${params.toString()}`}
+                className="flex flex-1 items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm transition-transform active:scale-98"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                  <IconMap className="h-4.5 w-4.5 text-green-700" />
+                </span>
+                <span className="text-sm font-bold text-green-700">マップで見る</span>
+              </Link>
+            );
+          })()}
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex flex-1 items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5 shadow-sm transition-transform active:scale-98"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+              <IconShare className="h-4.5 w-4.5 text-green-700" />
+            </span>
+            <span className="text-sm font-bold text-green-700">共有する</span>
+          </button>
+        </div>
 
         {/* 記録情報カード */}
         <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">

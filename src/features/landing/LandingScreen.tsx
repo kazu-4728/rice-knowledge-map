@@ -151,7 +151,9 @@ export default function LandingScreen() {
         <HeroBackdrop slides={slides} />
 
         <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-24 md:grid-cols-2 md:items-center md:gap-6 md:pb-24 md:pt-32">
-          <div>
+          {/* min-w-0: 中のクイックアクセス帯（横スクロール）がグリッド列の最小幅を
+              押し広げてページ全体が横にはみ出すのを防ぐ（実機で右側が切れる不具合の原因） */}
+          <div className="min-w-0">
             <div className="mb-4 flex items-center gap-3">
               <span className="h-px w-8 bg-emerald-400" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300">

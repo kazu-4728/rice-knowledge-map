@@ -86,7 +86,7 @@ export default function NextActionNudge() {
             {action.kind === "record_saved" && (
               <>
                 <p className="text-sm font-bold text-gray-900">記録を保存しました</p>
-                <p className="mt-0.5 text-xs text-gray-600">みんなの記録に流れています。共有もここからできます</p>
+                <p className="mt-0.5 text-xs text-gray-600">みんなの記録に流れています。LINEなどへの共有もここからできます</p>
               </>
             )}
           </div>
@@ -126,7 +126,7 @@ export default function NextActionNudge() {
                   onClick={close}
                   className={secondaryClass}
                 >
-                  LINEで共有する
+                  共有する
                 </Link>
               )}
             </>

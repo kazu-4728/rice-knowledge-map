@@ -415,7 +415,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       {/* 家族LINEへの手動共有（Issue #70・段階1: リンク+テキストのみ） */}
       <Button variant="secondary" className="w-full" onClick={handleShare}>
         <IconShare className="h-4 w-4" />
-        LINEで共有
+        共有する
       </Button>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>

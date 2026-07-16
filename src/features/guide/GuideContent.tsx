@@ -111,14 +111,14 @@ const sections: Section[] = [
   {
     id: "share",
     Icon: IconShare,
-    title: "LINEで共有する",
+    title: "共有する",
     screens: [
       { src: defaultImage("screen-share-sheet.webp"), caption: "共有したい田んぼを選ぶ" },
       { src: defaultImage("screen-field-detail.webp"), caption: "相手はリンクから田んぼの様子を見られる" },
     ],
     steps: [
-      "ホームの「LINEで共有する」か、田んぼ詳細の「LINEで共有」ボタンから共有できます。",
-      "田んぼの今の様子とリンクが送られ、相手はリンクを開くだけで見られます。",
+      "ホームの「共有する」か、田んぼ詳細の「共有する」ボタンから共有できます。",
+      "LINEなど、いつも使うアプリを選んで田んぼの様子とリンクを送れます。",
       "アプリを使っていない相手にも届きます。招待すれば一緒に記録もできます。",
     ],
   },

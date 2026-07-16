@@ -116,14 +116,14 @@ export const HOME_BANNERS: HomeBannerDef[] = [
   {
     key: "line",
     Icon: IconShare,
-    title: "LINEで共有する",
-    shortTitle: "LINEで共有する",
-    shortSub: "リンクひとつで伝わる",
-    summary: "田んぼの様子や記録をLINEで知らせます。共有リンクから相手がそのまま見られます。",
+    title: "共有する",
+    shortTitle: "共有する",
+    shortSub: "LINEなどへリンクひとつ",
+    summary: "田んぼの様子や記録を、LINEなどいつものアプリで知らせます。リンクから相手がそのまま見られます。",
     detail: [
       {
         label: "できること",
-        items: ["田んぼの様子をLINEへ送る", "写真とリンクを共有", "アプリ未利用の人にも届く"],
+        items: ["LINEなど好きなアプリで送れる", "田んぼの様子とリンクを共有", "アプリ未利用の人にも届く"],
       },
       {
         label: "使うタイミング",
