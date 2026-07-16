@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/useAuth";
-import { loadSiteContent, type HeroSlide } from "../../lib/data/siteContent";
+import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 import HeroBackdrop from "./HeroBackdrop";
 import { MapMockup, PhoneFrame } from "./mockups";
 import { FeatureBanner } from "../home/FeatureBanner";
 import { HomeShareSheet } from "../home/HomeShareSheet";
 import { HOME_BANNERS, type HomeBannerDef } from "../home/homeBanners";
+import { BANNER_SCREENS } from "../home/bannerScreens";
+import NextActionNudge from "../../components/ui/NextActionNudge";
 import {
   IconCamera,
   IconChevronRight,
@@ -69,15 +71,14 @@ const STEPS = [
 export default function LandingScreen() {
   const { loading, session } = useAuth();
   const authed = !loading && !!session;
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
-  const [ready, setReady] = useState(false);
+  // ログイン時のサイト設定取得（グループ確認+署名URL）は数秒かかることがある。
+  // 完了を待って画面全体を隠すと起動のたびに空画面になるため、既定スライドで
+  // 即時描画し、カスタム画像は取得でき次第差し替える
+  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    loadSiteContent().then((r) => {
-      setSlides(r.slides);
-      requestAnimationFrame(() => setReady(true));
-    });
+    loadSiteContent().then((r) => setSlides(r.slides));
   }, []);
 
   const hero = slides[0];
@@ -149,14 +150,7 @@ export default function LandingScreen() {
       <section className="relative overflow-hidden">
         <HeroBackdrop slides={slides} />
 
-        <div
-          className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-24 md:grid-cols-2 md:items-center md:gap-6 md:pb-24 md:pt-32"
-          style={{
-            opacity: ready ? 1 : 0,
-            transform: ready ? "translateY(0)" : "translateY(20px)",
-            transition: "opacity 0.8s ease-out, transform 0.9s cubic-bezier(0.16,1,0.3,1)",
-          }}
-        >
+        <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-24 md:grid-cols-2 md:items-center md:gap-6 md:pb-24 md:pt-32">
           <div>
             <div className="mb-4 flex items-center gap-3">
               <span className="h-px w-8 bg-emerald-400" />
@@ -261,18 +255,14 @@ export default function LandingScreen() {
 
           <div className="mx-auto mt-10 max-w-2xl space-y-3">
             {HOME_BANNERS.map((def, i) => (
-              <motion.div
-                key={def.key}
-                {...reveal}
-                transition={{ ...reveal.transition, delay: i * 0.06 }}
-                className="flex items-stretch gap-2.5"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center self-start rounded-full bg-green-700 text-xs font-bold text-white">
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <FeatureBanner def={def} imageUrl={bannerImage(def.key)} onShare={handleShare} />
-                </div>
+              <motion.div key={def.key} {...reveal} transition={{ ...reveal.transition, delay: i * 0.06 }}>
+                <FeatureBanner
+                  def={def}
+                  imageUrl={bannerImage(def.key)}
+                  onShare={handleShare}
+                  step={i + 1}
+                  screens={BANNER_SCREENS[def.key]}
+                />
               </motion.div>
             ))}
           </div>
@@ -343,6 +333,8 @@ export default function LandingScreen() {
       </section>
 
       <HomeShareSheet open={shareOpen} onClose={() => setShareOpen(false)} />
+      {/* ホームはAppShell外のため、次の推奨操作ポップアップを自前でマウントする */}
+      <NextActionNudge />
     </main>
   );
 }

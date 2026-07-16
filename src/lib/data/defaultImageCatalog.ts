@@ -12,7 +12,8 @@ import type { CalendarSeason, HomeBannerKey, RecordCategoryLabel } from "../supa
  */
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-function defaultImage(name: string): string | undefined {
+/** app-defaults公開バケット内の既定素材URLを組み立てる（Supabase未設定環境ではundefined） */
+export function defaultImage(name: string): string | undefined {
   return SUPABASE_URL
     ? `${SUPABASE_URL}/storage/v1/object/public/app-defaults/${name}`
     : undefined;

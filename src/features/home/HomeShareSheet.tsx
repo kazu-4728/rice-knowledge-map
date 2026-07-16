@@ -117,10 +117,10 @@ export function HomeShareSheet({ open, onClose }: { open: boolean; onClose: () =
               <p className="text-sm font-bold text-gray-900">まだ田んぼが登録されていません</p>
               <p className="mt-1 text-xs text-gray-500">マップで田んぼを登録すると、ここから共有できます</p>
               <Link
-                href="/map"
+                href="/map?register=1"
                 className="mt-3 inline-flex items-center gap-1 rounded-xl bg-green-700 px-6 py-2.5 text-sm font-bold text-white"
               >
-                マップを開く
+                田んぼを登録する
                 <IconChevronRight className="h-4 w-4" />
               </Link>
             </div>

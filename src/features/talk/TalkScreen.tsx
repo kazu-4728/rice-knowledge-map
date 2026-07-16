@@ -37,7 +37,7 @@ import {
   IconWarningFill,
 } from "../../components/ui/icons";
 
-/** 記録カテゴリ（既存の記録一覧と同じ4分類）+「会話」。今日の流れのフィルターチップに使う */
+/** 記録カテゴリ（既存の記録一覧と同じ4分類）+「会話」。みんなの記録のフィルターチップに使う */
 type FlowCategory = "すべて" | "作業" | "水管理" | "異常" | "音声" | "会話";
 
 const CATEGORY_CHIPS: { label: FlowCategory; icon: typeof IconSprout | null }[] = [
@@ -61,7 +61,7 @@ function messageCategory(m: TalkMessage): FlowCategory {
 }
 
 /**
- * 家族の「今日の流れ」（田んぼOSのトーク+記録を統合した空間）。
+ * 「みんなの記録」（田んぼOSのトーク+記録を統合した空間。家族に限らず作業仲間も含む）。
  * 全田んぼの記録・コメントが1本のタイムラインに時系列で流れる。
  * メッセージの田んぼチップをタップするとその田んぼだけに絞り込める
  * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
@@ -167,7 +167,7 @@ export default function TalkScreen() {
   if (mode === "anon") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-base font-bold text-gray-900">ログインすると家族の今日の流れが表示されます</p>
+        <p className="text-base font-bold text-gray-900">ログインするとみんなの記録が表示されます</p>
         <Link
           href="/login?redirect=%2Ftalk"
           className="rounded-full bg-green-700 px-8 py-3.5 text-sm font-bold text-white"
@@ -181,7 +181,7 @@ export default function TalkScreen() {
   if (mode === "error") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-sm text-gray-600">今日の流れを読み込めませんでした。通信環境を確認してください。</p>
+        <p className="text-sm text-gray-600">みんなの記録を読み込めませんでした。通信環境を確認してください。</p>
         <button
           onClick={() => reload(filterId)}
           className="rounded-full border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700"
@@ -196,7 +196,7 @@ export default function TalkScreen() {
     <div className="flex h-full flex-col bg-flow-cream">
       {/* 画面タイトル（文字階層1）。ブロックは タイトル/チップ/タイムライン/入力バー の4つに収める */}
       <div className="shrink-0 px-4 pb-1 pt-3">
-        <h1 className="font-heading text-lg font-bold text-gray-900">今日の流れ</h1>
+        <h1 className="font-heading text-lg font-bold text-gray-900">みんなの記録</h1>
       </div>
 
       {/* カテゴリ絞り込みチップ */}
@@ -322,7 +322,7 @@ export default function TalkScreen() {
                   handleSend();
                 }
               }}
-              placeholder={filterName ? `${filterName}へひとこと…` : "家族へひとこと…"}
+              placeholder={filterName ? `${filterName}へひとこと…` : "みんなへひとこと…"}
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
             />
             <VoiceInputButton
@@ -369,7 +369,7 @@ export default function TalkScreen() {
 }
 
 /**
- * タイムラインの1エントリ（モック「今日の流れ」の縦タイムライン構造）。
+ * タイムラインの1エントリ（縦タイムライン構造）。
  * 左に時刻の軸（時刻+ノード+縦線）、右に統一カード。自分/他人で左右を振り分けない
  * （チャットではなく「今日の出来事の流れ」として全員分を1本の軸に載せる）。
  */

@@ -8,6 +8,7 @@ import MenuDrawer from "./MenuDrawer";
 import SideNav from "./SideNav";
 import { useDrawer } from "./DrawerContext";
 import WeatherHeader from "../ui/WeatherHeader";
+import NextActionNudge from "../ui/NextActionNudge";
 import { IconChevronLeft, IconMenu, LogoRice } from "../ui/icons";
 
 type Props = {
@@ -86,6 +87,9 @@ export default function AppShell({
 
       {/* mobile drawer */}
       <MenuDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+      {/* 操作完了直後の「次の推奨操作」ポップアップ */}
+      <NextActionNudge />
     </div>
   );
 }

@@ -2,10 +2,10 @@ import type { ComponentType, SVGProps } from "react";
 import type { HomeBannerKey } from "../../lib/supabase/types";
 import {
   IconChartBar,
+  IconChat,
+  IconMap,
   IconPencil,
-  IconPin,
   IconShare,
-  IconUsers,
 } from "../../components/ui/icons";
 
 export type HomeBannerAction = { type: "link"; href: string } | { type: "share" };
@@ -21,37 +21,48 @@ export type HomeBannerDef = {
   /** 展開時の3カラム詳細（できること／使うタイミング／その後どうなる?） */
   detail: { label: string; items: string[] }[];
   action: HomeBannerAction;
+  /** 遷移/共有ボタンの表示ラベル（アイコンだけでは押した先が分からないため必須） */
+  actionLabel: string;
 };
 
 /**
- * ホーム（/、ランディング統合後）の機能バナー5件（Issue #72確定事項9・確定事項6の遷移先対応）。
- * 唯一の説明ソース: ここを更新すればランディング/ホームの説明が追従する（機能を変更するPRでは
+ * ホーム（/、ランディング統合後）の機能バナー5件。
+ * 唯一の説明ソース: ここを更新すればホームの説明が追従する（機能を変更するPRでは
  * 該当項目もあわせて更新すること）。
- * 並び順は実際の利用の流れ（見る→記録する→共有する→伝える→振り返る）に合わせている。
+ * タイトルはナビタブ・ページ見出しと完全一致させる（2026-07-16オーナー確定・案B。
+ * ホームで覚えた名前がアプリ内に存在しない、という不一致を作らない）。
+ * keyはgroup_site_contentのimage_slots.homeBannersの保存キーのため変更しない。
+ * 並び順は実際の利用の流れ（見る・登録する→記録する→みんなで確認→共有→振り返る）。
  */
 export const HOME_BANNERS: HomeBannerDef[] = [
   {
     key: "map",
-    Icon: IconPin,
-    title: "田んぼを見る",
-    shortTitle: "田んぼを見る",
-    shortSub: "地図で確認",
-    summary: "地図で田んぼの場所・状態・異常を確認します。",
+    Icon: IconMap,
+    title: "マップ",
+    shortTitle: "マップ",
+    shortSub: "見る・登録する",
+    summary:
+      "空中写真の上で指でなぞって田んぼを登録。信号色で状態がひと目でわかり、入水口や異常箇所はピンで管理できます。",
     detail: [
       {
         label: "できること",
-        items: ["田んぼの場所や状況を地図で確認", "見回り前に異常をチェック", "過去の記録もすぐに参照"],
+        items: [
+          "指でなぞって田んぼを登録（面積は自動計算）",
+          "緑・黄・赤の信号色で状態を確認",
+          "入水口・出水口・異常箇所をピンで管理",
+        ],
       },
       {
         label: "使うタイミング",
-        items: ["見回りの前や移動中に", "異常を早く見つけたいとき", "作業の計画を立てるとき"],
+        items: ["はじめて使うとき（まず田んぼを登録）", "見回りの前や移動中に", "異常の場所を確かめたいとき"],
       },
       {
         label: "その後どうなる?",
-        items: ["異常があれば記録に残せる", "家族へ共有してすぐ対応", "田んぼの履歴に反映される"],
+        items: ["登録した田んぼに記録を残せる", "異常はその場で報告できる", "みんなの記録と履歴に反映される"],
       },
     ],
     action: { type: "link", href: "/map" },
+    actionLabel: "マップを開く",
   },
   {
     key: "talk",
@@ -59,7 +70,7 @@ export const HOME_BANNERS: HomeBannerDef[] = [
     title: "今日の記録を残す",
     shortTitle: "記録する",
     shortSub: "写真・音声・作業を記録",
-    summary: "写真・音声・作業内容を田んぼごとに残します。記録は今日の流れと田んぼの履歴に反映されます。",
+    summary: "写真・音声・作業内容を田んぼごとに残します。記録はみんなの記録と田んぼの履歴に反映されます。",
     detail: [
       {
         label: "できること",
@@ -71,65 +82,68 @@ export const HOME_BANNERS: HomeBannerDef[] = [
       },
       {
         label: "その後どうなる?",
-        items: ["記録が今日の流れに流れる", "家族がすぐに確認できる", "田んぼの履歴に積み上がる"],
+        items: ["記録がみんなの記録に流れる", "仲間がすぐに確認できる", "田んぼの履歴に積み上がる"],
       },
     ],
-    // 今日の流れのカメラボタンと同じ写真記録の開始導線。保存後はホーム（/）へ復帰する
+    // みんなの記録のカメラボタンと同じ写真記録の開始導線。保存後はホーム（/）へ復帰する
     action: { type: "link", href: "/records/new?returnTo=%2F" },
+    actionLabel: "記録をはじめる",
   },
   {
     key: "family",
-    Icon: IconUsers,
-    title: "家族の動きを見る",
-    shortTitle: "家族で共有する",
-    shortSub: "家族と共有してみんなで把握",
-    summary: "今日みんなが何をしたかを時系列で確認します。家族の記録やコメントをまとめて見られます。",
+    Icon: IconChat,
+    title: "みんなの記録",
+    shortTitle: "みんなの記録",
+    shortSub: "記録と会話が時系列で",
+    summary: "今日みんなが何をしたかを時系列で確認します。記録やコメントをまとめて見られます。",
     detail: [
       {
         label: "できること",
-        items: ["家族の記録を時系列で確認", "田んぼの名札で絞り込み", "コメントで反応を返せる"],
+        items: ["みんなの記録を時系列で確認", "田んぼの名札で絞り込み", "コメントで反応を返せる"],
       },
       {
         label: "使うタイミング",
-        items: ["「今日どうだった?」のとき", "離れた家族の様子を知りたいとき", "対応の分担を決めるとき"],
+        items: ["「今日どうだった?」のとき", "離れた仲間の様子を知りたいとき", "対応の分担を決めるとき"],
       },
       {
         label: "その後どうなる?",
-        items: ["言った言わないがなくなる", "対応もれに気づける", "家族の知恵が残っていく"],
+        items: ["言った言わないがなくなる", "対応もれに気づける", "みんなの知恵が残っていく"],
       },
     ],
     action: { type: "link", href: "/talk" },
+    actionLabel: "みんなの記録を開く",
   },
   {
     key: "line",
     Icon: IconShare,
-    title: "LINEで家族に共有する",
+    title: "LINEで共有する",
     shortTitle: "LINEで共有する",
-    shortSub: "家族へお知らせ・リンクで簡単",
-    summary: "田んぼの様子や記録を家族へ知らせます。共有リンクから家族がアプリへ入れます。",
+    shortSub: "リンクひとつで伝わる",
+    summary: "田んぼの様子や記録をLINEで知らせます。共有リンクから相手がそのまま見られます。",
     detail: [
       {
         label: "できること",
-        items: ["田んぼの様子をLINEへ送る", "写真とリンクを共有", "アプリ未利用の家族にも届く"],
+        items: ["田んぼの様子をLINEへ送る", "写真とリンクを共有", "アプリ未利用の人にも届く"],
       },
       {
         label: "使うタイミング",
-        items: ["今日の様子を伝えたいとき", "見てほしい記録があるとき", "家族を誘いたいとき"],
+        items: ["今日の様子を伝えたいとき", "見てほしい記録があるとき", "仲間を誘いたいとき"],
       },
       {
         label: "その後どうなる?",
-        items: ["家族がリンクから見られる", "そのままアプリに参加できる", "見守りの輪が広がる"],
+        items: ["リンクからすぐ見られる", "そのままアプリに参加できる", "見守りの輪が広がる"],
       },
     ],
     action: { type: "share" },
+    actionLabel: "共有をはじめる",
   },
   {
     key: "story",
     Icon: IconChartBar,
-    title: "育ち方を振り返る",
-    shortTitle: "育ち方を振り返る",
-    shortSub: "生育の変化や履歴をチェック",
-    summary: "過去の写真や記録を比べて生育の変化を見ます。季節ごとの違いや前回との比較に使います。",
+    title: "田んぼストーリー",
+    shortTitle: "田んぼストーリー",
+    shortSub: "育ちを振り返る",
+    summary: "田んぼごとの成長を、過去の写真や記録と見比べて振り返ります。来年の判断材料になります。",
     detail: [
       {
         label: "できること",
@@ -141,9 +155,10 @@ export const HOME_BANNERS: HomeBannerDef[] = [
       },
       {
         label: "その後どうなる?",
-        items: ["毎年の判断材料になる", "家族と共有できる", "農家の知恵が引き継がれる"],
+        items: ["毎年の判断材料になる", "みんなと共有できる", "農家の知恵が引き継がれる"],
       },
     ],
     action: { type: "link", href: "/fields" },
+    actionLabel: "田んぼストーリーを開く",
   },
 ];

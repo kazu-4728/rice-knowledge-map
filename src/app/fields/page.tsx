@@ -180,7 +180,7 @@ export default function FieldsPage() {
         )}
 
         <Button asChild variant="secondary" size="lg" className="w-full border-dashed">
-          <Link href="/map">
+          <Link href="/map?register=1">
             <IconPlus className="h-5 w-5" strokeWidth={2.2} />
             田んぼを追加（マップで描く）
           </Link>

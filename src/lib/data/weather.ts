@@ -197,24 +197,50 @@ let cachedPosition: { lat: number; lng: number } | null = null;
 let cachedWeather: { data: WeatherData; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30分
 
+/**
+ * 天気の基準位置を決める。
+ * 端末の位置情報は、権限ダイアログが放置されると getCurrentPosition がいつまでも
+ * 解決しない（コールバックもエラーも呼ばれない）ため、外側のタイマーで必ず打ち切る。
+ * 取得できない場合は登録済み田んぼの位置（=見たい場所の天気）へフォールバックする。
+ */
+async function resolvePosition(): Promise<{ lat: number; lng: number } | null> {
+  const fromDevice = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+    if (!navigator?.geolocation) { resolve(null); return; }
+    const cutoff = setTimeout(() => resolve(null), 6000);
+    navigator.geolocation.getCurrentPosition(
+      (p) => { clearTimeout(cutoff); resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+      () => { clearTimeout(cutoff); resolve(null); },
+      { timeout: 5000 }
+    );
+  });
+  if (fromDevice) return fromDevice;
+
+  try {
+    const { loadFarmData } = await import("./farm");
+    const farm = await loadFarmData();
+    for (const f of farm.fieldsGeoJSON.features) {
+      const ring = f.geometry?.type === "Polygon" ? f.geometry.coordinates?.[0] : undefined;
+      const first = ring?.[0];
+      if (first && typeof first[0] === "number" && typeof first[1] === "number") {
+        return { lat: first[1], lng: first[0] };
+      }
+    }
+  } catch {
+    // 田んぼ位置も取れない場合は天気なし（「天気不明」表示）に落とす
+  }
+  return null;
+}
+
 export async function loadWeather(): Promise<WeatherData | null> {
   try {
     if (cachedWeather && Date.now() - cachedWeather.fetchedAt < CACHE_TTL_MS) {
       return cachedWeather.data;
     }
 
-    if (!cachedPosition) {
-      cachedPosition = await new Promise((resolve, reject) => {
-        if (!navigator?.geolocation) { reject(new Error("geolocation unavailable")); return; }
-        navigator.geolocation.getCurrentPosition(
-          (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-          reject,
-          { timeout: 8000 }
-        );
-      });
-    }
+    if (!cachedPosition) cachedPosition = await resolvePosition();
+    if (!cachedPosition) return null;
 
-    const area = nearestAreaCode(cachedPosition!.lat, cachedPosition!.lng);
+    const area = nearestAreaCode(cachedPosition.lat, cachedPosition.lng);
     const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${area.code}.json`);
     if (!res.ok) return null;
     const json = await res.json();
