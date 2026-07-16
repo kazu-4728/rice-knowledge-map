@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/useAuth";
 import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
+import type { ImageSlots } from "../../lib/supabase/types";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
 import HeroBackdrop from "./HeroBackdrop";
 import { MapMockup, PhoneFrame } from "./mockups";
@@ -13,6 +14,7 @@ import { HomeShareSheet } from "../home/HomeShareSheet";
 import { HOME_BANNERS, type HomeBannerDef } from "../home/homeBanners";
 import { BANNER_SCREENS } from "../home/bannerScreens";
 import NextActionNudge from "../../components/ui/NextActionNudge";
+import { StartChecklist } from "../home/StartChecklist";
 import {
   IconCamera,
   IconChevronRight,
@@ -75,13 +77,25 @@ export default function LandingScreen() {
   // 完了を待って画面全体を隠すと起動のたびに空画面になるため、既定スライドで
   // 即時描画し、カスタム画像は取得でき次第差し替える
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    loadSiteContent().then((r) => setSlides(r.slides));
+    loadSiteContent().then((r) => {
+      setSlides(r.slides);
+      setImageSlots(r.imageSlots);
+    });
   }, []);
 
-  const hero = slides[0];
+  // ログイン後は未ログインのマーケティングコピーと差別化した専用ヒーロー
+  // （画像は/menu/siteの「ホームのヒーロー（ログイン後）」で差し替え可能）
+  const authedHeroSlide: HeroSlide = {
+    image_url: imageSlots.authedHero?.image_url ?? SYSTEM_DEFAULT_IMAGES.authedHero,
+    title: "おかえりなさい。",
+    body: "今日も田んぼを見に行きましょう。記録も共有もここから始められます。",
+  };
+  const heroSlides = authed ? [authedHeroSlide] : slides;
+  const hero = heroSlides[0];
 
   const bannerImage = (key: HomeBannerDef["key"]) => SYSTEM_DEFAULT_IMAGES.homeBanners[key];
 
@@ -148,7 +162,7 @@ export default function LandingScreen() {
 
       {/* ===== ヒーロー ===== */}
       <section className="relative overflow-hidden">
-        <HeroBackdrop slides={slides} />
+        <HeroBackdrop slides={heroSlides} />
 
         <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-24 md:grid-cols-2 md:items-center md:gap-6 md:pb-24 md:pt-32">
           {/* min-w-0: 中のクイックアクセス帯（横スクロール）がグリッド列の最小幅を
@@ -175,7 +189,11 @@ export default function LandingScreen() {
             </p>
 
             {authed ? (
-              <div className="mt-8">{quickAccess}</div>
+              <div className="mt-8 space-y-4">
+                {quickAccess}
+                {/* 説明（バナー1〜5）と同じ順で「次にやること」へ誘導するチェックリスト */}
+                <StartChecklist />
+              </div>
             ) : (
               <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
                 <Link

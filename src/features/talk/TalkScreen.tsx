@@ -14,6 +14,7 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { Chip } from "../../components/ui/Chip";
 import { TYPE_TO_CATEGORY } from "../../lib/data/records";
+import { TALK_SEEN_KEY } from "../home/StartChecklist";
 import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
@@ -92,6 +93,15 @@ export default function TalkScreen() {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, stickToBottomRef]);
+
+  // ホームの「はじめての流れ」チェックリスト用: この画面を開いたことを記録する
+  useEffect(() => {
+    try {
+      localStorage.setItem(TALK_SEEN_KEY, "1");
+    } catch {
+      // 記録できない環境ではチェックリストの達成表示だけが付かない（実害なし）
+    }
+  }, []);
 
   const handleLoadOlder = async () => {
     const el = listRef.current;

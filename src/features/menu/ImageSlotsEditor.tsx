@@ -12,6 +12,7 @@ type SlotKey =
   | "home"
   | "talk"
   | "fieldDefault"
+  | "authedHero"
   | "calendar.spring"
   | "calendar.summer"
   | "calendar.autumn"
@@ -30,6 +31,7 @@ const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "home", label: "ホームのヒーロー" },
   { key: "talk", label: "トークのカバー" },
   { key: "fieldDefault", label: "田んぼの既定カバー（写真未登録時）" },
+  { key: "authedHero", label: "ホームのヒーロー（ログイン後）" },
   { key: "calendar.spring", label: "カレンダー（春）" },
   { key: "calendar.summer", label: "カレンダー（夏）" },
   { key: "calendar.autumn", label: "カレンダー（秋）" },
@@ -38,11 +40,11 @@ const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "recordsCategory.作業", label: "記録の既定カバー（作業）" },
   { key: "recordsCategory.異常", label: "記録の既定カバー（異常）" },
   { key: "recordsCategory.音声", label: "記録の既定カバー（音声）" },
-  { key: "homeBanners.map", label: "ホームのバナー（田んぼを見る）" },
+  { key: "homeBanners.map", label: "ホームのバナー（マップ）" },
   { key: "homeBanners.talk", label: "ホームのバナー（今日の記録を残す）" },
-  { key: "homeBanners.family", label: "ホームのバナー（家族の動きを見る）" },
-  { key: "homeBanners.story", label: "ホームのバナー（育ち方を振り返る）" },
-  { key: "homeBanners.line", label: "ホームのバナー（LINEで家族に共有する）" },
+  { key: "homeBanners.family", label: "ホームのバナー（みんなの記録）" },
+  { key: "homeBanners.story", label: "ホームのバナー（田んぼストーリー）" },
+  { key: "homeBanners.line", label: "ホームのバナー（共有する）" },
 ];
 
 function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
@@ -58,7 +60,7 @@ function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
     const banner = key.split(".")[1] as keyof NonNullable<ImageSlots["homeBanners"]>;
     return slots.homeBanners?.[banner];
   }
-  return slots[key as "home" | "talk" | "fieldDefault"];
+  return slots[key as "home" | "talk" | "fieldDefault" | "authedHero"];
 }
 
 function setSlot(slots: ImageSlots, key: SlotKey, slot: ImageSlot): ImageSlots {

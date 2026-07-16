@@ -39,6 +39,8 @@ export const SYSTEM_DEFAULT_IMAGES = {
   talk: FARMER_CHECK,
   fieldDefault: SEEDLING_WATER,
   heroFamily: HERO_FAMILY_LEVEE,
+  // ログイン後ホームのヒーロー。未ログイン（マーケティング）と差別化した朝の田園
+  authedHero: SUNRISE_PADDIES,
   calendar: {
     spring: PLANTING_MACHINE,
     summer: SEEDLING_WATER,

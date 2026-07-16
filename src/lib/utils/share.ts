@@ -2,6 +2,25 @@ export type ShareResult = "shared" | "copied" | "cancelled" | "failed";
 /** @deprecated 汎用名の ShareResult を使ってください。既存呼び出し元との後方互換のために残しています */
 export type ShareFieldStoryResult = ShareResult;
 
+/** 一度でも共有に成功したか（ホームの「はじめての流れ」チェックリスト用） */
+const SHARED_ONCE_KEY = "rkm-step-shared";
+
+export function hasSharedOnce(): boolean {
+  try {
+    return localStorage.getItem(SHARED_ONCE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSharedOnce() {
+  try {
+    localStorage.setItem(SHARED_ONCE_KEY, "1");
+  } catch {
+    // 記録できない環境ではチェックリストの達成表示だけが付かない（実害なし）
+  }
+}
+
 /**
  * OSの共有シート（Web Share API）でテキスト+リンクを共有する。
  * 非対応環境ではクリップボードへのコピーにフォールバックする。
@@ -17,6 +36,7 @@ export async function shareContent(params: {
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
     try {
       await navigator.share({ title, text, url });
+      markSharedOnce();
       return "shared";
     } catch (err) {
       // ユーザーが共有シートを閉じた場合は失敗扱いにしない（コピーへもフォールバックしない）
@@ -28,6 +48,7 @@ export async function shareContent(params: {
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(`${text}\n${url}`);
+      markSharedOnce();
       return "copied";
     } catch {
       return "failed";

@@ -77,6 +77,7 @@ async function resolveImageSlots(
     home: raw.home,
     talk: raw.talk,
     fieldDefault: raw.fieldDefault,
+    authedHero: raw.authedHero,
   });
   const calendar = raw.calendar ? await resolveImagePaths(sb, raw.calendar) : undefined;
   const recordsCategory = raw.recordsCategory

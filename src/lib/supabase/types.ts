@@ -53,6 +53,8 @@ export type ImageSlots = {
   home?: ImageSlot;
   talk?: ImageSlot;
   fieldDefault?: ImageSlot;
+  /** ログイン後ホーム（/）ヒーローの実写（未ログインとは差別化する。2026-07-16オーナー確定） */
+  authedHero?: ImageSlot;
   calendar?: Partial<Record<CalendarSeason, ImageSlot>>;
   recordsCategory?: Partial<Record<RecordCategoryLabel, ImageSlot>>;
   homeBanners?: Partial<Record<HomeBannerKey, ImageSlot>>;
