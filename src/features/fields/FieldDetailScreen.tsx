@@ -412,11 +412,16 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
       </section>
 
-      {/* 家族LINEへの手動共有（Issue #70・段階1: リンク+テキストのみ） */}
-      <Button variant="secondary" className="w-full" onClick={handleShare}>
-        <IconShare className="h-4 w-4" />
-        共有する
-      </Button>
+      {/* アプリ外への手動共有（Issue #70・段階1: リンク+テキストのみ） */}
+      <div>
+        <Button variant="secondary" className="w-full" onClick={handleShare}>
+          <IconShare className="h-4 w-4" />
+          共有する
+        </Button>
+        <p className="mt-1.5 text-center text-xs text-gray-500">
+          LINEなど、アプリの外にいる人へ送ります（仲間にはすでに「みんなの記録」で見えています）
+        </p>
+      </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList aria-label="田んぼ詳細の表示切り替え">

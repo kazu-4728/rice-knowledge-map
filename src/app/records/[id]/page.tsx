@@ -368,6 +368,9 @@ export default function RecordDetailPage() {
             <span className="text-sm font-bold text-green-700">共有する</span>
           </button>
         </div>
+        <p className="-mt-1 text-center text-xs text-gray-500">
+          共有するはLINEなど、アプリの外にいる人へ送ります（仲間にはすでに「みんなの記録」で見えています）
+        </p>
 
         {/* 記録情報カード */}
         <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">
@@ -397,12 +400,12 @@ export default function RecordDetailPage() {
           )}
         </section>
 
-        {/* 家族のコメント */}
+        {/* みんなのコメント */}
         <section className="rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconCommentFill className="h-5 w-5 text-green-700" />
-              <h3 className="text-base font-bold text-gray-900">家族のコメント</h3>
+              <h3 className="text-base font-bold text-gray-900">みんなのコメント</h3>
             </div>
             <button
               onClick={() => setShowCommentInput((v) => !v)}
