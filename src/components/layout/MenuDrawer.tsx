@@ -52,7 +52,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </DrawerClose>
         </div>
 
-        {/* 主要4タブ（3空間+田んぼストーリー+管理レイヤー）: 大きいアイコンタイルのグリッド */}
+        {/* 主要4タブ（3空間+各場所の記録+管理レイヤー）: 大きいアイコンタイルのグリッド */}
         <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-4 pb-3">
           <div className="grid grid-cols-4 gap-2">
             {NAV_ITEMS.map(({ href, label, Icon }) => {

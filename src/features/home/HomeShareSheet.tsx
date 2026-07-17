@@ -28,7 +28,7 @@ function toRows(summary: FieldAttentionSummary): FieldRow[] {
 
 /**
  * ホームのLINE共有バナーから開く田んぼ選択シート（Issue #72）。
- * 選んだ田んぼを、田んぼストーリーと同じ共有導線（shareFieldStory・PR #71）で
+ * 選んだ田んぼを、各場所の記録と同じ共有導線（shareFieldStory・PR #71）で
  * OSの共有シートへ渡す。データはシートを開いたときに遅延取得する。
  */
 export function HomeShareSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -104,7 +104,7 @@ export function HomeShareSheet({ open, onClose }: { open: boolean; onClose: () =
             <div className="rounded-2xl bg-gray-50 p-5 text-center">
               <p className="text-sm font-bold text-gray-900">ログインすると田んぼを共有できます</p>
               <Link
-                href="/login?redirect=%2Fhome"
+                href="/login?redirect=%2F"
                 className="mt-3 inline-block rounded-xl bg-green-700 px-6 py-2.5 text-sm font-bold text-white"
               >
                 ログイン

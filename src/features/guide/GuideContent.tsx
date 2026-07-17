@@ -23,7 +23,7 @@ type Section = {
 };
 
 /**
- * 使い方ガイド。名称はナビ・ホームと同一（マップ／みんなの記録／田んぼストーリー）。
+ * 使い方ガイド。名称はナビ・ホームと同一（マップ／みんなの記録／各場所の記録）。
  * 各セクションにアプリ実画面のステップ再生を付け、文字だけの説明にしない。
  * 導線やUIを変更するPRでは、該当セクションの文言・実画面もあわせて更新すること。
  */
@@ -97,13 +97,13 @@ const sections: Section[] = [
   {
     id: "fields",
     Icon: IconFieldGrid,
-    title: "田んぼストーリー",
+    title: "各場所の記録",
     screens: [
-      { src: defaultImage("screen-fields-list.webp"), caption: "田んぼごとのカードで振り返る" },
-      { src: defaultImage("screen-field-detail.webp"), caption: "記録の蓄積と育ちを確認できる" },
+      { src: defaultImage("screen-fields-list.webp"), caption: "田んぼごとのカードで状態を確認" },
+      { src: defaultImage("screen-field-detail.webp"), caption: "記録の蓄積と写真の変化を確認できる" },
     ],
     steps: [
-      "田んぼストーリーでは、田んぼごとの状態・記録・育ちを確認できます。",
+      "各場所の記録では、田んぼを1枚ずつ選んで状態・記録・写真の変化を確認できます。",
       "田んぼカードをタップすると詳細（記録一覧・定点観測の写真比較）に移動します。",
       "カメラアイコンから田んぼのカバー写真を登録できます（オーナー・編集者）。",
     ],

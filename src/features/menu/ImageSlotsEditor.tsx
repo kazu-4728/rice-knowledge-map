@@ -43,7 +43,7 @@ const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "homeBanners.map", label: "ホームのバナー（マップ）" },
   { key: "homeBanners.talk", label: "ホームのバナー（今日の記録を残す）" },
   { key: "homeBanners.family", label: "ホームのバナー（みんなの記録）" },
-  { key: "homeBanners.story", label: "ホームのバナー（田んぼストーリー）" },
+  { key: "homeBanners.story", label: "ホームのバナー（各場所の記録）" },
   { key: "homeBanners.line", label: "ホームのバナー（共有する）" },
 ];
 

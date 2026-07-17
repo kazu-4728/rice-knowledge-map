@@ -20,8 +20,8 @@ test.describe("anon home", () => {
   test("320px幅でも機能バナーの文字が縦割れしない", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto("/");
-    // 最長のバナー名で確認する。縦割れ（1文字ずつ改行）すると高さが行数分（7行≒150px超）に膨らむ
-    const title = page.getByRole("heading", { name: "田んぼストーリー", exact: true }).first();
+    // 最長のバナー名で確認する。縦割れ（1文字ずつ改行）すると高さが行数分（8行≒170px超）に膨らむ
+    const title = page.getByRole("heading", { name: "今日の記録を残す", exact: true }).first();
     await title.scrollIntoViewIfNeeded();
     const box = await title.boundingBox();
     expect(box, "バナータイトルが見つかること").not.toBeNull();
@@ -32,7 +32,7 @@ test.describe("anon home", () => {
   test("ホームのバナー名はナビタブの名称と一致する（名前の不一致を作らない）", async ({ page }) => {
     await page.goto("/");
     // ナビ（PC: SideNav）に存在する名称がバナー側にもそのまま存在すること
-    for (const label of ["マップ", "みんなの記録", "田んぼストーリー"]) {
+    for (const label of ["マップ", "みんなの記録", "各場所の記録"]) {
       await expect(page.getByRole("heading", { name: label, exact: true }).first()).toBeAttached();
     }
   });

@@ -24,7 +24,7 @@ function markSharedOnce() {
 /**
  * OSの共有シート（Web Share API）でテキスト+リンクを共有する。
  * 非対応環境ではクリップボードへのコピーにフォールバックする。
- * 田んぼストーリー（shareFieldStory）とホーム（Issue #72）の共通実装。
+ * 各場所の記録（shareFieldStory）とホーム（Issue #72）の共通実装。
  */
 export async function shareContent(params: {
   title: string;
@@ -59,7 +59,7 @@ export async function shareContent(params: {
 }
 
 /**
- * 田んぼストーリー画面から家族LINEへの手動共有（Issue #70・段階1）。
+ * 各場所の記録画面からの手動共有（Issue #70・段階1）。
  * Web Share API（テキスト+リンクのみ。画像ファイルは段階2以降）でOSの共有シートを開く。
  */
 export async function shareFieldStory(params: {

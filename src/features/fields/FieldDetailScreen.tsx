@@ -233,12 +233,12 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           </Link>
         ) : (
           <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
-            田んぼ一覧に戻る
+            各場所の記録に戻る
           </Link>
         )}
         {!session && (
           <Link href="/fields" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
-            田んぼ一覧に戻る
+            各場所の記録に戻る
           </Link>
         )}
       </div>

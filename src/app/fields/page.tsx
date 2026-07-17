@@ -41,13 +41,13 @@ export default function FieldsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconFieldGrid className="h-6 w-6 text-flow-green" />
-              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼストーリー</h1>
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">各場所の記録</h1>
             </div>
             {mode !== "loading" && (
               <span className="text-sm text-gray-500">{fields.length}枚</span>
             )}
           </div>
-          <p className="mt-0.5 text-sm text-gray-500">田んぼごとの成長を記録して振り返る</p>
+          <p className="mt-0.5 text-sm text-gray-500">田んぼを選んで状態・記録・写真の変化を見る</p>
         </div>
 
         {mode === "anon" && (
