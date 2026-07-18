@@ -46,13 +46,18 @@ export type ImageSlot = {
 
 export type CalendarSeason = "spring" | "summer" | "autumn" | "winter";
 export type RecordCategoryLabel = "水管理" | "作業" | "異常" | "音声";
+/** ホーム（/home）の機能バナー5件（Issue #72） */
+export type HomeBannerKey = "map" | "talk" | "family" | "story" | "line";
 
 export type ImageSlots = {
   home?: ImageSlot;
   talk?: ImageSlot;
   fieldDefault?: ImageSlot;
+  /** ログイン後ホーム（/）ヒーローの実写（未ログインとは差別化する。2026-07-16オーナー確定） */
+  authedHero?: ImageSlot;
   calendar?: Partial<Record<CalendarSeason, ImageSlot>>;
   recordsCategory?: Partial<Record<RecordCategoryLabel, ImageSlot>>;
+  homeBanners?: Partial<Record<HomeBannerKey, ImageSlot>>;
 };
 
 export type GroupSiteContentRow = {

@@ -85,7 +85,7 @@ export type OpenIssueRecords = {
 /**
  * 未対応（open/needs_check）の異常系レコードを取得する。
  * ピンのステータス変更を伴わない「記録のみ」の異常も拾うための共通クエリ
- * （MapSummarySheet と TodayStory の集計で使用）。未ログイン・未設定時は空配列。
+ * （MapSummarySheet の集計で使用）。未ログイン・未設定時は空配列。
  * count は同じクエリに { count: "exact" } を付けて取得するため、
  * records（行データ）がPostgRESTの上限で欠けても件数表示は正確なまま。
  */

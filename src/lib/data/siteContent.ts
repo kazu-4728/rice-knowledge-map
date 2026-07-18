@@ -5,27 +5,35 @@ import { SYSTEM_DEFAULT_IMAGES } from "./defaultImageCatalog";
 
 export type { HeroSlide, ImageSlot, ImageSlots };
 
-// 既定画像はオーナー提供の生成画像（Supabase Storageのapp-defaultsバケット、
+// 既定画像はオーナー提供の実写（Supabase Storageのapp-defaultsバケット、
 // defaultImageCatalog.ts参照。Supabase未設定環境ではimage_urlがundefinedになり
-// HeroBackdropのグラデーション表示に委ねる）
+// RemotePhoto/HeroBackdropのフォールバック表示に委ねる）。
+// ランディング（/）とホーム（/home）で同じスライド列を共有し（Issue #72確定事項8）、
+// 内容はランディングの説明文（課題提起・3つの空間・3ステップ）の要約で構成する
 export const DEFAULT_SLIDES: HeroSlide[] = [
+  {
+    // 家族が畦道でスマホを見る、ワイド構図（\nはホームヒーローでの改行位置。ランディングでは空白になる）
+    image_url: SYSTEM_DEFAULT_IMAGES.heroFamily,
+    title: "家族で育てる、\nわが家の田んぼ。",
+    body: "記録して、共有して、振り返る。毎日の積み重ねが、お米の未来をつくります。",
+  },
   {
     // 朝日と霧の田園全景
     image_url: SYSTEM_DEFAULT_IMAGES.home,
-    title: "家族の田んぼを、みんなで守る",
-    body: "水、土、稲の様子を写真と音声で記録。離れていても今日の田んぼが分かります。",
+    title: "「言った言わない」を、なくす。",
+    body: "口頭の伝達は忘れる。場所は伝わらない。去年の作業は思い出せない。家族の稲作の困りごとを、記録がまるごと引き受けます。",
   },
   {
     // 田を見回る農家
     image_url: SYSTEM_DEFAULT_IMAGES.talk,
-    title: "記録が、次の一手になる",
-    body: "入水口・異常箇所をピンで管理。家族でコメントを付けて対応を共有できます。",
+    title: "開く・話す・見わたす。",
+    body: "開けば地図で田んぼの状態がひと目でわかる。写真や音声の記録は、そのまま家族のトークに流れます。",
   },
   {
     // 黄金色の稲穂・収穫前
     image_url: SYSTEM_DEFAULT_IMAGES.calendar.autumn,
-    title: "稲を育てるストーリーを残す",
-    body: "今年の記録が、来年の判断を助けます。農家の知恵をデジタルで引き継ぐ。",
+    title: "はじめるのは、3ステップ。",
+    body: "田んぼをなぞって登録、ボタンひとつで記録、家族に自動で届く。まずは一枚の写真から。",
   },
 ];
 
@@ -59,21 +67,28 @@ async function resolveImagePaths<T extends Record<string, ImageSlot | undefined>
 
 async function resolveImageSlots(
   sb: NonNullable<ReturnType<typeof getSupabase>>,
-  raw: ImageSlots
+  raw: ImageSlots,
+  // ホームバナー5件の署名URL解決は/homeと編集画面（ImageSlotsEditor）だけで必要。
+  // calendar/records/fields等の軽量呼び出し（loadImageSlots既定）では不要な
+  // createSignedUrlsを避けるため既定はfalseにする
+  includeHomeBanners = false
 ): Promise<ImageSlots> {
   const top = await resolveImagePaths(sb, {
     home: raw.home,
     talk: raw.talk,
     fieldDefault: raw.fieldDefault,
+    authedHero: raw.authedHero,
   });
   const calendar = raw.calendar ? await resolveImagePaths(sb, raw.calendar) : undefined;
   const recordsCategory = raw.recordsCategory
     ? await resolveImagePaths(sb, raw.recordsCategory)
     : undefined;
-  return { ...top, calendar, recordsCategory };
+  const homeBanners =
+    includeHomeBanners && raw.homeBanners ? await resolveImagePaths(sb, raw.homeBanners) : undefined;
+  return { ...top, calendar, recordsCategory, homeBanners };
 }
 
-export async function loadSiteContent(): Promise<SiteContentResult> {
+export async function loadSiteContent(includeHomeBanners = false): Promise<SiteContentResult> {
   const sb = getSupabase();
   if (!sb) return { mode: "demo", groupId: "demo", slides: DEFAULT_SLIDES, imageSlots: {} };
 
@@ -110,13 +125,17 @@ export async function loadSiteContent(): Promise<SiteContentResult> {
       : s
   );
 
-  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {});
+  const imageSlots = await resolveImageSlots(sb, row?.image_slots ?? {}, includeHomeBanners);
 
   return { mode: "live", groupId, slides, imageSlots };
 }
 
-/** 各画面ヒーロー用にimage_slotsだけを取得する軽量版。hero_slidesは取得せず、image_pathは署名URLへ変換する。 */
-export async function loadImageSlots(): Promise<ImageSlots> {
+/**
+ * 各画面ヒーロー用にimage_slotsだけを取得する軽量版。hero_slidesは取得せず、image_pathは署名URLへ変換する。
+ * ホームバナー（homeBanners）は既定で解決しない。ImageSlotsEditor（オーナー編集画面）が
+ * 全スロットを表示・編集する場合のみ includeHomeBanners=true を渡す
+ */
+export async function loadImageSlots(includeHomeBanners = false): Promise<ImageSlots> {
   const sb = getSupabase();
   if (!sb) return {};
 
@@ -133,7 +152,7 @@ export async function loadImageSlots(): Promise<ImageSlots> {
     .maybeSingle();
 
   const row = data as Pick<GroupSiteContentRow, "image_slots"> | null;
-  return resolveImageSlots(sb, row?.image_slots ?? {});
+  return resolveImageSlots(sb, row?.image_slots ?? {}, includeHomeBanners);
 }
 
 export async function saveSiteContent(

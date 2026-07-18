@@ -34,16 +34,16 @@ export default function MenuDrawer({ open, onClose }: Props) {
         aria-describedby={undefined}
       >
         <DrawerTitle className="sr-only">メニュー</DrawerTitle>
-        {/* header */}
+        {/* header（ロゴタップでホームへ戻る常設導線） */}
         <div className="flex items-center justify-between px-5 pb-2 pt-1">
-          <div className="flex items-center gap-1.5">
+          <Link href="/" onClick={onClose} className="flex items-center gap-1.5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-50">
               <LogoRice className="h-5 w-5" />
             </span>
             <span className="font-heading text-base font-bold tracking-tight text-gray-900">
               みらい稲作管理
             </span>
-          </div>
+          </Link>
           <DrawerClose
             aria-label="メニューを閉じる"
             className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -52,7 +52,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </DrawerClose>
         </div>
 
-        {/* 主要4タブ（3空間+田んぼストーリー+管理レイヤー）: 大きいアイコンタイルのグリッド */}
+        {/* 主要4タブ（3空間+各場所の記録+管理レイヤー）: 大きいアイコンタイルのグリッド */}
         <div role="navigation" aria-label="メインメニュー" className="flex-1 overflow-y-auto px-4 pb-3">
           <div className="grid grid-cols-4 gap-2">
             {NAV_ITEMS.map(({ href, label, Icon }) => {

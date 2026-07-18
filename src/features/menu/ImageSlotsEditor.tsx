@@ -12,6 +12,7 @@ type SlotKey =
   | "home"
   | "talk"
   | "fieldDefault"
+  | "authedHero"
   | "calendar.spring"
   | "calendar.summer"
   | "calendar.autumn"
@@ -19,12 +20,18 @@ type SlotKey =
   | "recordsCategory.水管理"
   | "recordsCategory.作業"
   | "recordsCategory.異常"
-  | "recordsCategory.音声";
+  | "recordsCategory.音声"
+  | "homeBanners.map"
+  | "homeBanners.talk"
+  | "homeBanners.family"
+  | "homeBanners.story"
+  | "homeBanners.line";
 
 const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "home", label: "ホームのヒーロー" },
   { key: "talk", label: "トークのカバー" },
   { key: "fieldDefault", label: "田んぼの既定カバー（写真未登録時）" },
+  { key: "authedHero", label: "ホームのヒーロー（ログイン後）" },
   { key: "calendar.spring", label: "カレンダー（春）" },
   { key: "calendar.summer", label: "カレンダー（夏）" },
   { key: "calendar.autumn", label: "カレンダー（秋）" },
@@ -33,6 +40,11 @@ const SLOT_LABELS: { key: SlotKey; label: string }[] = [
   { key: "recordsCategory.作業", label: "記録の既定カバー（作業）" },
   { key: "recordsCategory.異常", label: "記録の既定カバー（異常）" },
   { key: "recordsCategory.音声", label: "記録の既定カバー（音声）" },
+  { key: "homeBanners.map", label: "ホームのバナー（マップ）" },
+  { key: "homeBanners.talk", label: "ホームのバナー（今日の記録を残す）" },
+  { key: "homeBanners.family", label: "ホームのバナー（みんなの記録）" },
+  { key: "homeBanners.story", label: "ホームのバナー（各場所の記録）" },
+  { key: "homeBanners.line", label: "ホームのバナー（共有する）" },
 ];
 
 function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
@@ -44,7 +56,11 @@ function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {
     const cat = key.split(".")[1] as keyof NonNullable<ImageSlots["recordsCategory"]>;
     return slots.recordsCategory?.[cat];
   }
-  return slots[key as "home" | "talk" | "fieldDefault"];
+  if (key.startsWith("homeBanners.")) {
+    const banner = key.split(".")[1] as keyof NonNullable<ImageSlots["homeBanners"]>;
+    return slots.homeBanners?.[banner];
+  }
+  return slots[key as "home" | "talk" | "fieldDefault" | "authedHero"];
 }
 
 function setSlot(slots: ImageSlots, key: SlotKey, slot: ImageSlot): ImageSlots {
@@ -55,6 +71,10 @@ function setSlot(slots: ImageSlots, key: SlotKey, slot: ImageSlot): ImageSlots {
   if (key.startsWith("recordsCategory.")) {
     const cat = key.split(".")[1] as keyof NonNullable<ImageSlots["recordsCategory"]>;
     return { ...slots, recordsCategory: { ...slots.recordsCategory, [cat]: slot } };
+  }
+  if (key.startsWith("homeBanners.")) {
+    const banner = key.split(".")[1] as keyof NonNullable<ImageSlots["homeBanners"]>;
+    return { ...slots, homeBanners: { ...slots.homeBanners, [banner]: slot } };
   }
   return { ...slots, [key]: slot };
 }
@@ -81,7 +101,7 @@ export default function ImageSlotsEditor() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    loadImageSlots().then(setSlots);
+    loadImageSlots(true).then(setSlots);
     ensureGroupId().then(setGroupId);
   }, []);
 
@@ -106,6 +126,7 @@ export default function ImageSlotsEditor() {
       home: strip(slots.home),
       talk: strip(slots.talk),
       fieldDefault: strip(slots.fieldDefault),
+      authedHero: strip(slots.authedHero),
       calendar: slots.calendar
         ? {
             spring: strip(slots.calendar.spring),
@@ -120,6 +141,15 @@ export default function ImageSlotsEditor() {
             作業: strip(slots.recordsCategory.作業),
             異常: strip(slots.recordsCategory.異常),
             音声: strip(slots.recordsCategory.音声),
+          }
+        : undefined,
+      homeBanners: slots.homeBanners
+        ? {
+            map: strip(slots.homeBanners.map),
+            talk: strip(slots.homeBanners.talk),
+            family: strip(slots.homeBanners.family),
+            story: strip(slots.homeBanners.story),
+            line: strip(slots.homeBanners.line),
           }
         : undefined,
     };

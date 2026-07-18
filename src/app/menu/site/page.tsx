@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import AppShell from "../../../components/layout/AppShell";
 import SiteContentEditor from "../../../features/menu/SiteContentEditor";
 import ImageSlotsEditor from "../../../features/menu/ImageSlotsEditor";
@@ -57,21 +56,14 @@ export default function SiteSettingsPage() {
           設定した画像が実際にどう見えるか、その場で確認できます。
         </p>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6">
           <button
             onClick={() => setShowLandingPreview((v) => !v)}
-            className="flex flex-1 items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800"
+            className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800"
           >
             ランディングを確認
             <IconChevronRight className={`h-4 w-4 text-gray-400 transition-transform ${showLandingPreview ? "rotate-90" : ""}`} />
           </button>
-          <Link
-            href="/map?story=1"
-            className="flex flex-1 items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800"
-          >
-            今日の田んぼを確認
-            <IconChevronRight className="h-4 w-4 text-gray-400" />
-          </Link>
         </div>
         {showLandingPreview && <LandingPreview slides={heroSlides} />}
 

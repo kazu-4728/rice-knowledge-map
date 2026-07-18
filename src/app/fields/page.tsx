@@ -15,6 +15,7 @@ import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { PlotGlowMap, type PlotGlowField } from "../../components/patterns/PlotGlowMap";
+import { FlowGuide } from "../../features/flow/FlowGuide";
 import { useFieldsList, type FieldItem } from "../../features/fields/hooks/useFieldsList";
 
 export default function FieldsPage() {
@@ -41,21 +42,24 @@ export default function FieldsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconFieldGrid className="h-6 w-6 text-flow-green" />
-              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">田んぼストーリー</h1>
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-gray-900">各場所の記録</h1>
             </div>
             {mode !== "loading" && (
               <span className="text-sm text-gray-500">{fields.length}枚</span>
             )}
           </div>
-          <p className="mt-0.5 text-sm text-gray-500">田んぼごとの成長を記録して振り返る</p>
+          <p className="mt-0.5 text-sm text-gray-500">田んぼを選んで状態・記録・写真の変化を見る</p>
         </div>
+
+        {/* 使い方の流れの現在地（ステップ4=ゴール）。この画面の役割を常設表示する */}
+        <FlowGuide current="fields" />
 
         {mode === "anon" && (
           <Link
             href="/login?redirect=%2Ffields"
             className="block rounded-2xl bg-white p-6 text-center shadow-sm"
           >
-            <p className="text-sm font-bold text-gray-900">ログインすると田んぼ一覧が表示されます</p>
+            <p className="text-sm font-bold text-gray-900">ログインすると各場所の記録が表示されます</p>
             <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
           </Link>
         )}
@@ -180,7 +184,7 @@ export default function FieldsPage() {
         )}
 
         <Button asChild variant="secondary" size="lg" className="w-full border-dashed">
-          <Link href="/map">
+          <Link href="/map?register=1">
             <IconPlus className="h-5 w-5" strokeWidth={2.2} />
             田んぼを追加（マップで描く）
           </Link>

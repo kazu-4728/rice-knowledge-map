@@ -18,6 +18,7 @@ import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyl
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
+import { useAuth } from "../auth/useAuth";
 import { shareFieldStory } from "../../lib/utils/share";
 import type { FieldPoint } from "../../types";
 import {
@@ -171,6 +172,7 @@ type Props = { fieldId: string };
 
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
+  const { session } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
@@ -217,10 +219,28 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-flow-cream px-6 pt-20 text-center">
         <p className="text-base font-bold text-gray-900">田んぼが見つかりません</p>
-        <p className="text-sm text-gray-500">削除されたか、アクセス権限がない可能性があります。</p>
-        <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
-          田んぼ一覧に戻る
-        </Link>
+        <p className="text-sm text-gray-500">
+          {session
+            ? "削除されたか、アクセス権限がない可能性があります。"
+            : "ログインしていないため表示できない可能性があります。ログインするとこのページの田んぼを確認できます。"}
+        </p>
+        {!session ? (
+          <Link
+            href={`/login?redirect=${encodeURIComponent(`/fields/${fieldId}`)}`}
+            className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white"
+          >
+            ログインする
+          </Link>
+        ) : (
+          <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
+            各場所の記録に戻る
+          </Link>
+        )}
+        {!session && (
+          <Link href="/fields" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
+            各場所の記録に戻る
+          </Link>
+        )}
       </div>
     );
   }
@@ -392,11 +412,16 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </div>
       </section>
 
-      {/* 家族LINEへの手動共有（Issue #70・段階1: リンク+テキストのみ） */}
-      <Button variant="secondary" className="w-full" onClick={handleShare}>
-        <IconShare className="h-4 w-4" />
-        家族にLINEで共有
-      </Button>
+      {/* アプリ外への手動共有（Issue #70・段階1: リンク+テキストのみ） */}
+      <div>
+        <Button variant="secondary" className="w-full" onClick={handleShare}>
+          <IconShare className="h-4 w-4" />
+          共有する
+        </Button>
+        <p className="mt-1.5 text-center text-xs text-gray-500">
+          LINEなど、アプリの外にいる人へ送ります（仲間にはすでに「みんなの記録」で見えています）
+        </p>
+      </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList aria-label="田んぼ詳細の表示切り替え">

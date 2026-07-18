@@ -35,3 +35,8 @@ tmp/
 coverage/
 *.tsbuildinfo
 .*.tmp.mjs
+
+# E2E (Playwright, 実Supabaseに接続するためローカル専用)
+/.auth/
+/playwright-report/
+/test-results/

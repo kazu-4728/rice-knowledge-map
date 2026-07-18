@@ -39,6 +39,13 @@ import {
   Moon,
   Snowflake,
   Share2,
+  Pause,
+  Info,
+  BookOpen,
+  HelpCircle,
+  Bell,
+  Headphones,
+  BarChart3,
 } from "lucide-react";
 import type { SeasonIconKey } from "../../lib/season";
 
@@ -152,6 +159,34 @@ export function IconPlayFill(props: IconProps) {
       <path d="M8 5.5v13a.7.7 0 0 0 1.06.6l10.3-6.5a.7.7 0 0 0 0-1.2L9.06 4.9A.7.7 0 0 0 8 5.5Z" />
     </svg>
   );
+}
+
+export function IconPause(props: IconProps) {
+  return <Pause strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconInfo(props: IconProps) {
+  return <Info strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconBookOpen(props: IconProps) {
+  return <BookOpen strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconHelpCircle(props: IconProps) {
+  return <HelpCircle strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconBell(props: IconProps) {
+  return <Bell strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconHeadphones(props: IconProps) {
+  return <Headphones strokeWidth={1.8} aria-hidden="true" {...props} />;
+}
+
+export function IconChartBar(props: IconProps) {
+  return <BarChart3 strokeWidth={1.8} aria-hidden="true" {...props} />;
 }
 
 export function IconSearch(props: IconProps) {

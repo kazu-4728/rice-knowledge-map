@@ -10,16 +10,17 @@ import {
 } from "../ui/icons";
 
 /**
- * 田んぼOSの3空間+田んぼストーリー+管理レイヤー（Issue #64・フェーズ3で4タブ化）
- * - 現場OS: 今なにが起きてる? 次なにする?（マップ+旧ホームを統合）
- * - 今日の流れ: 今日みんな何した?（記録+会話を統合した1本のタイムライン）
- * - 田んぼストーリー: この田んぼはどう育ってる?（田んぼ詳細+生育比較を統合）
+ * 田んぼOSの3空間+各場所の記録+管理レイヤー（Issue #64・フェーズ3で4タブ化）。
+ * 名称はホームのバナー・ページ見出し・ガイドと完全一致させる（2026-07-16オーナー確定・案B）。
+ * - マップ: 今なにが起きてる? 次なにする?（見る・なぞって登録する）
+ * - みんなの記録: 今日みんな何した?（記録+会話を統合した1本のタイムライン。家族に限らない）
+ * - 各場所の記録: この田んぼはどう育ってる?（田んぼ詳細+生育比較を統合）
  * - メニュー: 管理レイヤー（カレンダー・エクスポート・設定等を日常導線から退避）
  */
 export const NAV_ITEMS = [
-  { href: "/map", label: "現場OS", Icon: IconMap },
-  { href: "/talk", label: "今日の流れ", Icon: IconChat },
-  { href: "/fields", label: "田んぼストーリー", Icon: IconFieldGrid },
+  { href: "/map", label: "マップ", Icon: IconMap },
+  { href: "/talk", label: "みんなの記録", Icon: IconChat },
+  { href: "/fields", label: "各場所の記録", Icon: IconFieldGrid },
   { href: "/menu", label: "メニュー", Icon: IconGear },
 ] as const;
 

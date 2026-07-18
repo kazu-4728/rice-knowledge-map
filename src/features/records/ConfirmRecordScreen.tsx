@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
 import { saveRecord } from "../../lib/data/recordSave";
+import { scheduleNextAction } from "../../components/ui/NextActionNudge";
 import { TYPE_LABELS } from "../map/mapPins";
 import {
   IconCheck,
@@ -55,7 +56,11 @@ export default function ConfirmRecordScreen() {
       clearRecordDraft();
       const dest = returnTo ?? "/map";
       if (dest === "/records" || dest.startsWith("/fields/")) {
+        // 記録一覧・田んぼ詳細へ戻る場合は従来どおり保存トーストのみ
         markJustSaved();
+      } else {
+        // マップ・ホーム等へ戻る場合は「次の推奨操作」（みんなの記録で確認・共有）を提案する
+        scheduleNextAction({ kind: "record_saved", fieldId: draft.fieldId ?? null });
       }
       router.replace(dest);
       return;

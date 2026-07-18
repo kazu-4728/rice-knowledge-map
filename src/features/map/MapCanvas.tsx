@@ -22,6 +22,8 @@ import {
   updateFieldPoint,
   deleteFieldPoint,
 } from "../../lib/data/farm";
+import { scheduleNextAction } from "../../components/ui/NextActionNudge";
+import MapHelpSheet from "./MapHelpSheet";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import MapDetailPanel from "./MapDetailPanel";
 import FieldSearchSheet from "./FieldSearchSheet";
@@ -39,6 +41,8 @@ import { useTransceiver, TransceiverOverlay } from "../talk/Transceiver";
 import LayoutDebugPanel, { useLayoutDebug } from "./LayoutDebugPanel";
 import {
   IconCamera,
+  IconHome,
+  IconHelpCircle,
   IconLocate,
   IconMenu,
   IconMic,
@@ -177,6 +181,8 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
   const [fieldStats, setFieldStats] = useState<Map<string, { pendingCount: number; lastRecord: string }>>(new Map());
   /** 記録ボタンのポップオーバー */
   const [recordPopOpen, setRecordPopOpen] = useState(false);
+  // マップ常設ヘルプ（?ボタン。実画面つきの使い方シート）
+  const [helpOpen, setHelpOpen] = useState(false);
   // FAB長押しの音声トランシーバー（押して話す→離すとGPSで田んぼ判定して送信）
   const { showToast } = useToast();
   const transceiver = useTransceiver({
@@ -369,6 +375,8 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
         setToast("田んぼを保存しました");
+        // 登録直後に「次は最初の記録」を提案する（利用の流れの案内）
+        scheduleNextAction({ kind: "field_registered", fieldId: id ?? null, fieldName: name });
         onFieldRegistered?.();
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有保存されます）");
@@ -1386,10 +1394,18 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
               </span>
             </button>
           </div>
-          {/* 今日の流れへの常設導線（ドロワーを開かなくても届くように） */}
+          {/* ホームへの常設導線（マップは共通ヘッダー非表示のため独自に置く。PCはSideNavのロゴがあるのでモバイルのみ） */}
+          <Link
+            href="/"
+            aria-label="ホームへ戻る"
+            className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600 lg:hidden"
+          >
+            <IconHome className="h-5.5 w-5.5" />
+          </Link>
+          {/* みんなの記録への常設導線（ドロワーを開かなくても届くように） */}
           <Link
             href="/talk"
-            aria-label="今日の流れを開く"
+            aria-label="みんなの記録を開く"
             className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600"
           >
             <IconChat className="h-5.5 w-5.5" />
@@ -1409,9 +1425,16 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
         </div>
       )}
 
-      {/* 右側コントロール（現在地・ズーム）: picker以外で表示（placing/addPinでも地図操作可） */}
+      {/* 右側コントロール（現在地・ズーム・ヘルプ）: picker以外で表示（placing/addPinでも地図操作可） */}
       {showControls && (
         <div className="absolute bottom-44 right-3 z-20 flex flex-col items-center gap-2">
+          <button
+            onClick={() => setHelpOpen(true)}
+            aria-label="マップの使い方"
+            className="flex h-11 w-11 items-center justify-center rounded-full glass-light text-gray-600 transition-colors hover:text-emerald-700"
+          >
+            <IconHelpCircle className="h-5.5 w-5.5" />
+          </button>
           <button
             onClick={() => flyToCurrentLocation()}
             aria-label="現在地に戻る"
@@ -1473,6 +1496,17 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
                     <IconWarningFill className="h-5.5 w-5.5 shrink-0 text-amber-500" />
                     異常を報告
                   </Link>
+                  {/* 田んぼ登録の常設入口。以前は0枚時のサマリーシートCTAしか存在せず、
+                      2枚目以降を登録する手段がマップ上に無かった */}
+                  <button
+                    type="button"
+                    onClick={() => startPlacing(null)}
+                    className="flex items-center gap-3 whitespace-nowrap rounded-full glass-light-strong py-3 pl-4 pr-5 text-base font-bold text-gray-800 animate-fab-pop"
+                    style={{ animationDelay: "120ms" }}
+                  >
+                    <IconPlus className="h-5.5 w-5.5 shrink-0 text-emerald-600" strokeWidth={2.4} />
+                    田んぼを登録
+                  </button>
                 </div>
               </>
             )}
@@ -1705,6 +1739,9 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
 
       {/* レイアウト診断パネル (?layoutDebug=1) */}
       <LayoutDebugPanel rootRef={rootRef} mapContainerRef={mapContainerRef} mapRef={mapRef} />
+
+      {/* マップの使い方（常設ヘルプ・実画面つき） */}
+      <MapHelpSheet open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

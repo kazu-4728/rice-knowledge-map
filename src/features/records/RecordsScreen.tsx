@@ -83,6 +83,13 @@ export default function RecordsScreen() {
 
   return (
     <div className="px-3 pb-6 pt-3">
+      <div className="mb-3 px-1">
+        <h1 className="font-heading text-xl font-bold tracking-tight text-gray-900">記録一覧</h1>
+        <p className="mt-0.5 text-xs text-gray-500">
+          異常・要確認をまとめて探すための一覧です（日々の様子は「みんなの記録」へ）
+        </p>
+      </div>
+
       {/* 主役ヒーロー: 記録の積み重ねを可視化 */}
       {mode !== "loading" && records.length > 0 && (
         <motion.div initial="hidden" animate="show" variants={staggerItem} className="mb-3">

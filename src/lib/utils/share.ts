@@ -1,21 +1,42 @@
-export type ShareFieldStoryResult = "shared" | "copied" | "cancelled" | "failed";
+export type ShareResult = "shared" | "copied" | "cancelled" | "failed";
+/** @deprecated 汎用名の ShareResult を使ってください。既存呼び出し元との後方互換のために残しています */
+export type ShareFieldStoryResult = ShareResult;
+
+/** 一度でも共有に成功したか（ホームの「はじめての流れ」チェックリスト用） */
+const SHARED_ONCE_KEY = "rkm-step-shared";
+
+export function hasSharedOnce(): boolean {
+  try {
+    return localStorage.getItem(SHARED_ONCE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSharedOnce() {
+  try {
+    localStorage.setItem(SHARED_ONCE_KEY, "1");
+  } catch {
+    // 記録できない環境ではチェックリストの達成表示だけが付かない（実害なし）
+  }
+}
 
 /**
- * 田んぼストーリー画面から家族LINEへの手動共有（Issue #70・段階1）。
- * Web Share API（テキスト+リンクのみ。画像ファイルは段階2以降）でOSの共有シートを開く。
+ * OSの共有シート（Web Share API）でテキスト+リンクを共有する。
  * 非対応環境ではクリップボードへのコピーにフォールバックする。
+ * 各場所の記録（shareFieldStory）とホーム（Issue #72）の共通実装。
  */
-export async function shareFieldStory(params: {
-  fieldName: string;
-  statusLabel: string;
+export async function shareContent(params: {
+  title: string;
+  text: string;
   url: string;
-}): Promise<ShareFieldStoryResult> {
-  const title = `${params.fieldName || "田んぼ"}の様子`;
-  const text = `${title}\n${params.statusLabel}`;
+}): Promise<ShareResult> {
+  const { title, text, url } = params;
 
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
     try {
-      await navigator.share({ title, text, url: params.url });
+      await navigator.share({ title, text, url });
+      markSharedOnce();
       return "shared";
     } catch (err) {
       // ユーザーが共有シートを閉じた場合は失敗扱いにしない（コピーへもフォールバックしない）
@@ -26,7 +47,8 @@ export async function shareFieldStory(params: {
 
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     try {
-      await navigator.clipboard.writeText(`${text}\n${params.url}`);
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      markSharedOnce();
       return "copied";
     } catch {
       return "failed";
@@ -34,4 +56,18 @@ export async function shareFieldStory(params: {
   }
 
   return "failed";
+}
+
+/**
+ * 各場所の記録画面からの手動共有（Issue #70・段階1）。
+ * Web Share API（テキスト+リンクのみ。画像ファイルは段階2以降）でOSの共有シートを開く。
+ */
+export async function shareFieldStory(params: {
+  fieldName: string;
+  statusLabel: string;
+  url: string;
+}): Promise<ShareFieldStoryResult> {
+  const title = `${params.fieldName || "田んぼ"}の様子`;
+  const text = `${title}\n${params.statusLabel}`;
+  return shareContent({ title, text, url: params.url });
 }
