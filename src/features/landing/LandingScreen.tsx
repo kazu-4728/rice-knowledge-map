@@ -360,7 +360,7 @@ export default function LandingScreen() {
                 : "はじめるのはかんたん。まずは一枚の写真から。"}
             </p>
             <Link
-              href={!authed ? "/login" : hasField === false ? "/map?register=1" : "/records/new?returnTo=%2F"}
+              href={!authed ? "/login" : hasField === false ? "/map?register=1" : "/records/new?returnTo=%2Ftalk"}
               className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
             >
               {!authed ? "無料ではじめる" : hasField === false ? "田んぼを登録する" : "今日の記録を残す"}

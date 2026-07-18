@@ -50,7 +50,7 @@ export function StartChecklist() {
           key: "record",
           label: "記録を残す",
           sub: "写真1枚からでOK",
-          href: "/records/new?returnTo=%2F",
+          href: "/records/new?returnTo=%2Ftalk",
           done: hasRecord === true,
         },
         {

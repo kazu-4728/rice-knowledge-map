@@ -15,6 +15,7 @@ import { IconCamera, IconFieldGrid, IconPlus } from "../../components/ui/icons";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { PlotGlowMap, type PlotGlowField } from "../../components/patterns/PlotGlowMap";
+import { FlowGuide } from "../../features/flow/FlowGuide";
 import { useFieldsList, type FieldItem } from "../../features/fields/hooks/useFieldsList";
 
 export default function FieldsPage() {
@@ -49,6 +50,9 @@ export default function FieldsPage() {
           </div>
           <p className="mt-0.5 text-sm text-gray-500">田んぼを選んで状態・記録・写真の変化を見る</p>
         </div>
+
+        {/* 使い方の流れの現在地（ステップ4=ゴール）。この画面の役割を常設表示する */}
+        <FlowGuide current="fields" />
 
         {mode === "anon" && (
           <Link

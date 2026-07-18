@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { IconChevronRight, IconClose } from "./icons";
 
 const STORAGE_KEY = "rkm-next-action";
@@ -36,6 +37,10 @@ export function scheduleNextAction(action: DistributiveOmit<NextAction, "ts">) {
 /** 予約された「次の推奨操作」ポップアップの表示本体。AppShellとホーム(/)に常駐する */
 export default function NextActionNudge() {
   const [action, setAction] = useState<NextAction | null>(null);
+  // 保存後の着地先がみんなの記録（/talk）のときは「みんなの記録で見る」を出さない
+  // （すでに目の前に記録が流れているため、共有だけを提案する）
+  const pathname = usePathname();
+  const onTalk = pathname === "/talk";
 
   useEffect(() => {
     const consume = () => {
@@ -116,15 +121,17 @@ export default function NextActionNudge() {
           )}
           {action.kind === "record_saved" && (
             <>
-              <Link href="/talk" onClick={close} className={primaryClass}>
-                みんなの記録で見る
-                <IconChevronRight className="h-3.5 w-3.5" />
-              </Link>
+              {!onTalk && (
+                <Link href="/talk" onClick={close} className={primaryClass}>
+                  みんなの記録で見る
+                  <IconChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
               {action.fieldId && (
                 <Link
                   href={`/fields/${encodeURIComponent(action.fieldId)}`}
                   onClick={close}
-                  className={secondaryClass}
+                  className={onTalk ? primaryClass : secondaryClass}
                 >
                   共有する
                 </Link>

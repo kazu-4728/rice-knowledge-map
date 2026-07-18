@@ -85,8 +85,9 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["記録がみんなの記録に流れる", "仲間がすぐに確認できる", "田んぼの履歴に積み上がる"],
       },
     ],
-    // みんなの記録のカメラボタンと同じ写真記録の開始導線。保存後はホーム（/）へ復帰する
-    action: { type: "link", href: "/records/new?returnTo=%2F" },
+    // みんなの記録のカメラボタンと同じ写真記録の開始導線。
+    // 保存後はみんなの記録（/talk）へ着地し、自分の記録が流れる様子をその場で見せる
+    action: { type: "link", href: "/records/new?returnTo=%2Ftalk" },
     actionLabel: "記録をはじめる",
   },
   {

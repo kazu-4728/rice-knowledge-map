@@ -15,6 +15,7 @@ import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { Chip } from "../../components/ui/Chip";
 import { TYPE_TO_CATEGORY } from "../../lib/data/records";
 import { TALK_SEEN_KEY } from "../home/StartChecklist";
+import { FlowGuide } from "../flow/FlowGuide";
 import { useTalkTimeline } from "./hooks/useTalkTimeline";
 import {
   AlertDialog,
@@ -207,7 +208,11 @@ export default function TalkScreen() {
       {/* 画面タイトル（文字階層1）。ブロックは タイトル/チップ/タイムライン/入力バー の4つに収める */}
       <div className="shrink-0 px-4 pb-1 pt-3">
         <h1 className="font-heading text-lg font-bold text-gray-900">みんなの記録</h1>
-        <p className="text-xs text-gray-500">今日みんなが何をしたかを時系列で（田んぼ別は「各場所の記録」へ）</p>
+      </div>
+
+      {/* 使い方の流れの現在地（ステップ3）。この画面の役割と次の行き先を常設表示する */}
+      <div className="shrink-0 px-3 pb-1">
+        <FlowGuide current="talk" />
       </div>
 
       {/* カテゴリ絞り込みチップ */}

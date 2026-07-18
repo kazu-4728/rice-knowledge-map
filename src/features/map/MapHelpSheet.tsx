@@ -2,6 +2,7 @@
 
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "../../components/ui/drawer";
 import { ScreenSequence } from "../home/ScreenSequence";
+import { FlowGuide } from "../flow/FlowGuide";
 import { defaultImage } from "../../lib/data/defaultImageCatalog";
 import { IconClose } from "../../components/ui/icons";
 
@@ -42,7 +43,9 @@ export default function MapHelpSheet({ open, onClose }: { open: boolean; onClose
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-          <ScreenSequence steps={STEPS} className="mt-2" />
+          {/* マップは使い方の流れのステップ1（ここから始める） */}
+          <FlowGuide current="map" />
+          <ScreenSequence steps={STEPS} className="mt-3" />
 
           <div className="mt-4 rounded-2xl bg-gray-50 p-4">
             <p className="text-xs font-bold text-gray-900">色の意味</p>
