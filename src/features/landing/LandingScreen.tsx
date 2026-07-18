@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/useAuth";
+import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import type { ImageSlots } from "../../lib/supabase/types";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
@@ -79,6 +80,8 @@ export default function LandingScreen() {
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [imageSlots, setImageSlots] = useState<ImageSlots>({});
   const [shareOpen, setShareOpen] = useState(false);
+  // 最終CTAの行き先分岐用（田んぼ0枚なら記録より先にマップでの登録に送る）
+  const [hasField, setHasField] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadSiteContent().then((r) => {
@@ -86,6 +89,18 @@ export default function LandingScreen() {
       setImageSlots(r.imageSlots);
     });
   }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    let cancelled = false;
+    loadFieldAttention().then((summary) => {
+      if (cancelled || summary.mode === "anon" || summary.mode === "error") return;
+      setHasField(summary.fields.length > 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authed]);
 
   // ログイン後は未ログインのマーケティングコピーと差別化した専用ヒーロー
   // （画像は/menu/siteの「ホームのヒーロー（ログイン後）」で差し替え可能）
@@ -336,15 +351,19 @@ export default function LandingScreen() {
               <IconMic className="h-6 w-6" />
               <IconMap className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-white md:text-3xl">今日の田んぼを、記録してみませんか</h2>
+            <h2 className="text-2xl font-bold text-white md:text-3xl">
+              {authed && hasField === false ? "まずは田んぼを登録しましょう" : "今日の田んぼを、記録してみませんか"}
+            </h2>
             <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
-              はじめるのはかんたん。まずは一枚の写真から。
+              {authed && hasField === false
+                ? "マップで田んぼの輪郭をなぞるだけ。登録すればすぐに記録をはじめられます。"
+                : "はじめるのはかんたん。まずは一枚の写真から。"}
             </p>
             <Link
-              href={authed ? "/records/new?returnTo=%2F" : "/login"}
+              href={!authed ? "/login" : hasField === false ? "/map?register=1" : "/records/new?returnTo=%2F"}
               className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
             >
-              {authed ? "今日の記録を残す" : "無料ではじめる"}
+              {!authed ? "無料ではじめる" : hasField === false ? "田んぼを登録する" : "今日の記録を残す"}
               <IconChevronRight className="h-5 w-5" />
             </Link>
           </div>

@@ -207,6 +207,7 @@ export default function TalkScreen() {
       {/* 画面タイトル（文字階層1）。ブロックは タイトル/チップ/タイムライン/入力バー の4つに収める */}
       <div className="shrink-0 px-4 pb-1 pt-3">
         <h1 className="font-heading text-lg font-bold text-gray-900">みんなの記録</h1>
+        <p className="text-xs text-gray-500">今日みんなが何をしたかを時系列で（田んぼ別は「各場所の記録」へ）</p>
       </div>
 
       {/* カテゴリ絞り込みチップ */}
