@@ -205,7 +205,7 @@ const CACHE_TTL_MS = 30 * 60 * 1000; // 30分
  */
 async function resolvePosition(): Promise<{ lat: number; lng: number } | null> {
   const fromDevice = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
-    if (!navigator?.geolocation) { resolve(null); return; }
+    if (typeof navigator === "undefined" || !navigator.geolocation) { resolve(null); return; }
     const cutoff = setTimeout(() => resolve(null), 6000);
     navigator.geolocation.getCurrentPosition(
       (p) => { clearTimeout(cutoff); resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },

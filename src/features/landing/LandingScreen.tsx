@@ -84,11 +84,14 @@ export default function LandingScreen() {
   const [hasField, setHasField] = useState<boolean | null>(null);
 
   useEffect(() => {
-    loadSiteContent().then((r) => {
+    // authedが未確定（loading中）の間は呼ばない。ログイン済みの場合だけ
+    // includeHomeBanners=trueで呼び、機能バナーの差し替え画像（署名URL）も取得する
+    if (loading) return;
+    loadSiteContent(authed).then((r) => {
       setSlides(r.slides);
       setImageSlots(r.imageSlots);
     });
-  }, []);
+  }, [loading, authed]);
 
   useEffect(() => {
     if (!authed) return;
@@ -112,7 +115,8 @@ export default function LandingScreen() {
   const heroSlides = authed ? [authedHeroSlide] : slides;
   const hero = heroSlides[0];
 
-  const bannerImage = (key: HomeBannerDef["key"]) => SYSTEM_DEFAULT_IMAGES.homeBanners[key];
+  const bannerImage = (key: HomeBannerDef["key"]) =>
+    imageSlots.homeBanners?.[key]?.image_url ?? SYSTEM_DEFAULT_IMAGES.homeBanners[key];
 
   const handleShare = () => setShareOpen(true);
 

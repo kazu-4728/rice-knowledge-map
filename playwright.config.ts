@@ -4,8 +4,8 @@ import path from "node:path";
 /**
  * ローカル専用のE2E構成（実Supabaseに接続。CI化はスコープ外・別途相談）。
  * 認証済みプロジェクトは e2e/global-setup.ts が生成する .auth/user.json を使う。
- * このサンドボックス環境ではPlaywrightのブラウザは /opt/pw-browsers にキャッシュ済みのため、
- * バージョン不一致による再ダウンロードを避けて executablePath を明示する。
+ * executablePathは既定でPlaywrightの標準解決に任せる。特定のサンドボックス等、
+ * ブラウザのキャッシュ先を明示したい環境だけ環境変数 PW_CHROMIUM_PATH で上書きする。
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -18,7 +18,7 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",
     launchOptions: {
-      executablePath: process.env.PW_CHROMIUM_PATH || "/opt/pw-browsers/chromium",
+      executablePath: process.env.PW_CHROMIUM_PATH || undefined,
     },
   },
   webServer: {
