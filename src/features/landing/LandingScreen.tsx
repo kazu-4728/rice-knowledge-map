@@ -355,19 +355,25 @@ export default function LandingScreen() {
               <IconMic className="h-6 w-6" />
               <IconMap className="h-6 w-6" />
             </div>
+            {/*
+              hasFieldは3値: true(田んぼあり)/false(0件確定)/null(未確定=読み込み中 or 未ログイン)。
+              「記録する」へ送るのはtrueと確定したときだけにし、null（読み込み中）の間は
+              false同様に登録側の文言・リンクを暫定表示することで、Supabaseの応答が遅い/失敗した
+              初回ユーザーが登録前に記録画面へ抜けてしまう事故を防ぐ。
+            */}
             <h2 className="text-2xl font-bold text-white md:text-3xl">
-              {authed && hasField === false ? "まずは田んぼを登録しましょう" : "今日の田んぼを、記録してみませんか"}
+              {authed && hasField !== true ? "まずは田んぼを登録しましょう" : "今日の田んぼを、記録してみませんか"}
             </h2>
             <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
-              {authed && hasField === false
+              {authed && hasField !== true
                 ? "マップで田んぼの輪郭をなぞるだけ。登録すればすぐに記録をはじめられます。"
                 : "はじめるのはかんたん。まずは一枚の写真から。"}
             </p>
             <Link
-              href={!authed ? "/login" : hasField === false ? "/map?register=1" : "/records/new?returnTo=%2Ftalk"}
+              href={!authed ? "/login" : hasField !== true ? "/map?register=1" : "/records/new?returnTo=%2Ftalk"}
               className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
             >
-              {!authed ? "無料ではじめる" : hasField === false ? "田んぼを登録する" : "今日の記録を残す"}
+              {!authed ? "無料ではじめる" : hasField !== true ? "田んぼを登録する" : "今日の記録を残す"}
               <IconChevronRight className="h-5 w-5" />
             </Link>
           </div>

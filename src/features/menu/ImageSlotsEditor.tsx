@@ -126,6 +126,7 @@ export default function ImageSlotsEditor() {
       home: strip(slots.home),
       talk: strip(slots.talk),
       fieldDefault: strip(slots.fieldDefault),
+      authedHero: strip(slots.authedHero),
       calendar: slots.calendar
         ? {
             spring: strip(slots.calendar.spring),
