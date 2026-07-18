@@ -91,7 +91,12 @@ export default function NextActionNudge() {
             {action.kind === "record_saved" && (
               <>
                 <p className="text-sm font-bold text-gray-900">記録を保存しました</p>
-                <p className="mt-0.5 text-xs text-gray-600">みんなの記録に流れています。LINEなどへの共有もここからできます</p>
+                {/* 田んぼ未選択の記録は共有先の田んぼ詳細が無いため、共有の案内は出さない */}
+                <p className="mt-0.5 text-xs text-gray-600">
+                  {action.fieldId
+                    ? "みんなの記録に流れています。LINEなどへの共有もここからできます"
+                    : "みんなの記録に流れています"}
+                </p>
               </>
             )}
           </div>

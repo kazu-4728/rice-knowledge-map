@@ -59,7 +59,7 @@ export default function FieldsPage() {
             href="/login?redirect=%2Ffields"
             className="block rounded-2xl bg-white p-6 text-center shadow-sm"
           >
-            <p className="text-sm font-bold text-gray-900">ログインすると田んぼ一覧が表示されます</p>
+            <p className="text-sm font-bold text-gray-900">ログインすると各場所の記録が表示されます</p>
             <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
           </Link>
         )}
