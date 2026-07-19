@@ -29,6 +29,7 @@ type DetailRow = {
   note: string | null;
   ai_summary: string | null;
   ai_category: string | null;
+  next_action: string | null;
   recorded_by: string;
   recorded_at: string;
   latitude: string | number | null;
@@ -100,7 +101,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const { data, error } = await sb
     .from("records")
     .select(
-      `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
+      `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, next_action, recorded_by, recorded_at, latitude, longitude,
        profiles(display_name),
        farm_fields(name),
        record_media(id, media_type, storage_bucket, storage_path, created_at),
@@ -198,6 +199,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     recordedAt: formatDateTime(row.recorded_at),
     summary: row.ai_summary || row.note || "",
     note: row.note || "",
+    nextAction: row.next_action || "",
     recordType: safeRecordType,
     comments,
     latitude: (() => { const v = Number(row.latitude); return Number.isFinite(v) ? v : null; })(),

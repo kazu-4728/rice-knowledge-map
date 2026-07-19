@@ -1,15 +1,9 @@
-import { Suspense } from "react";
-import AppShell from "../../components/layout/AppShell";
-import TalkScreen from "../../features/talk/TalkScreen";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "みんなの記録 | みらい稲作管理" };
-
+/**
+ * みんなの記録（/talk）は再設計フェーズ5で記録タイムライン（/records）へ統合した。
+ * 旧URLの互換のためリダイレクトする。
+ */
 export default function TalkPage() {
-  return (
-    <AppShell fullBleed>
-      <Suspense fallback={null}>
-        <TalkScreen />
-      </Suspense>
-    </AppShell>
-  );
+  redirect("/records");
 }

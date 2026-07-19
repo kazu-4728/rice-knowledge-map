@@ -2,6 +2,8 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { FieldMiniMap } from "../../components/map/FieldMiniMap";
 import { consumeJustSaved } from "../records/recordDraft";
 import { formatAreaSqm } from "../../lib/utils/geo";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
@@ -173,6 +175,8 @@ type Props = { fieldId: string };
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
   const { session } = useAuth();
+  const searchParams = useSearchParams();
+  const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
@@ -232,13 +236,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             ログインする
           </Link>
         ) : (
-          <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
-            各場所の記録に戻る
+          <Link href="/map" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
+            マップに戻る
           </Link>
         )}
         {!session && (
-          <Link href="/fields" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
-            各場所の記録に戻る
+          <Link href="/map" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
+            マップに戻る
           </Link>
         )}
       </div>
@@ -321,6 +325,15 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(f); e.currentTarget.value = ""; }}
         />
       </div>
+
+      {/* 小さな地図（場所確認用の脇役。主役は上の実写カバー写真） */}
+      <FieldMiniMap
+        href={`/map?field=${encodeURIComponent(fieldId)}`}
+        boundary={field.boundary}
+        points={points.map((p) => p.lngLat)}
+        className="h-28 w-full rounded-2xl shadow-sm"
+        ariaLabel="マップで見る"
+      />
 
       {/* 主役ヒーロー: 統計+状態サマリー+記録アクションを1枚に統合（色は深緑単色+状態チップのみアクセント） */}
       <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
@@ -441,11 +454,14 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 {sortedPoints.map((point) => {
                     const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
                     const status = POINT_STATUS_META[point.status];
+                    const highlighted = point.id === highlightPointId;
                     return (
                       <li key={point.id}>
                         <Link
                           href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95"
+                          className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
+                            highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                          }`}
                         >
                           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
                             {meta.icon}

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/useAuth";
-import { loadFieldAttention } from "../../lib/data/fieldAttention";
+import { loadFieldAttention, type FieldAttentionSummary } from "../../lib/data/fieldAttention";
+import { loadRecords } from "../../lib/data/records";
 import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import type { ImageSlots } from "../../lib/supabase/types";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
@@ -14,13 +15,16 @@ import { FeatureBanner } from "../home/FeatureBanner";
 import { HomeShareSheet } from "../home/HomeShareSheet";
 import { HOME_BANNERS, type HomeBannerDef } from "../home/homeBanners";
 import { BANNER_SCREENS } from "../home/bannerScreens";
-import NextActionNudge from "../../components/ui/NextActionNudge";
 import { StartChecklist } from "../home/StartChecklist";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import type { RecordItem } from "../../types";
 import {
   IconCamera,
   IconChevronRight,
   IconMap,
   IconMic,
+  IconShare,
   IconUserFill,
   LogoRice,
 } from "../../components/ui/icons";
@@ -82,6 +86,10 @@ export default function LandingScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   // 最終CTAの行き先分岐用（田んぼ0枚なら記録より先にマップでの登録に送る）
   const [hasField, setHasField] = useState<boolean | null>(null);
+  // 今日のダッシュボード（ログイン時専用）: 田んぼ状態チップ + 最近の記録
+  const [attention, setAttention] = useState<FieldAttentionSummary | null>(null);
+  const [recentRecords, setRecentRecords] = useState<RecordItem[]>([]);
+  const [recentThumbs, setRecentThumbs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // authedが未確定（loading中）の間は呼ばない。ログイン済みの場合だけ
@@ -99,6 +107,12 @@ export default function LandingScreen() {
     loadFieldAttention().then((summary) => {
       if (cancelled || summary.mode === "anon" || summary.mode === "error") return;
       setHasField(summary.fields.length > 0);
+      setAttention(summary);
+    });
+    loadRecords({ limit: 5 }).then((data) => {
+      if (cancelled || data.mode === "anon" || data.mode === "error") return;
+      setRecentRecords(data.records);
+      setRecentThumbs(data.thumbUrls);
     });
     return () => {
       cancelled = true;
@@ -120,34 +134,100 @@ export default function LandingScreen() {
 
   const handleShare = () => setShareOpen(true);
 
-  /** ログイン済み用のクイックアクセス帯（機能へ1タップで移動。未ログイン時は表示しない） */
-  const quickAccess = (
-    <div className="scrollbar-none -mx-1 flex snap-x items-stretch gap-1 overflow-x-auto px-1 pb-1">
-      {HOME_BANNERS.map((def, i) => {
-        const inner = (
-          <>
-            <def.Icon className="h-6 w-6 text-emerald-300" />
-            <span className="text-[11px] font-bold leading-tight text-white">{def.shortTitle}</span>
-            <span className="text-[9px] leading-tight text-white/60">{def.shortSub}</span>
-          </>
-        );
-        const cardClass =
-          "flex w-[6.9rem] shrink-0 snap-start flex-col items-center justify-start gap-1 rounded-2xl glass-dark px-1.5 py-2.5 text-center transition-transform active:scale-95";
-        return (
-          <div key={def.key} className="flex shrink-0 items-center gap-1">
-            {i > 0 && <IconChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-white/40" />}
-            {def.action.type === "link" ? (
-              <Link href={def.action.href} className={cardClass}>
-                {inner}
-              </Link>
-            ) : (
-              <button type="button" onClick={handleShare} className={cardClass}>
-                {inner}
-              </button>
-            )}
+  /** 田んぼ状態チップ（issue > needs_check > normal の優先順で信号色を出す） */
+  const fieldChips =
+    attention?.fields.map((f) => {
+      const a = attention.attentionFields.find((af) => af.id === f.id);
+      const status: "issue" | "needs_check" | "normal" = a?.issueCount
+        ? "issue"
+        : a?.needsCheckCount
+          ? "needs_check"
+          : "normal";
+      return { id: f.id, name: f.name, status };
+    }) ?? [];
+
+  /**
+   * ログイン後専用の「今日のダッシュボード」（設計原則: モード分離）。
+   * 田んぼ状態チップ・記録ボタン・最近の記録のみで構成し、課題提起・機能紹介などの
+   * LP要素は含めない（未ログイン時のみ下のセクションで表示する）。
+   */
+  const todayDashboard = (
+    <div className="mt-8 space-y-4">
+      {fieldChips.length > 0 ? (
+        <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {fieldChips.map((f) => (
+            <Link
+              key={f.id}
+              href={`/fields/${encodeURIComponent(f.id)}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-full glass-dark px-3.5 py-2 text-xs font-bold text-white transition-transform active:scale-95"
+            >
+              <StatusBadge status={f.status} dark className="border-0 bg-transparent px-0 py-0" />
+              {f.name || "名前のない田んぼ"}
+            </Link>
+          ))}
+        </div>
+      ) : (
+        hasField === false && (
+          <Link
+            href="/map?register=1"
+            className="flex items-center justify-between gap-2 rounded-2xl glass-dark px-4 py-3.5 text-sm font-bold text-white transition-colors hover:bg-white/15"
+          >
+            まずは田んぼを登録しましょう
+            <IconChevronRight className="h-4 w-4" />
+          </Link>
+        )
+      )}
+
+      <div className="flex gap-2">
+        <Link
+          href="/records/new?returnTo=%2Frecords"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.8)] transition-colors hover:bg-emerald-400 active:scale-[0.98]"
+        >
+          <IconCamera className="h-4.5 w-4.5" />
+          今日の記録を残す
+        </Link>
+        {hasField === true && (
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="共有する"
+            className="flex shrink-0 items-center justify-center gap-1.5 rounded-full glass-dark px-4 py-3.5 text-sm font-bold text-white transition-colors hover:bg-white/15"
+          >
+            <IconShare className="h-4.5 w-4.5" />
+          </button>
+        )}
+      </div>
+
+      {recentRecords.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between px-0.5 pb-1.5">
+            <p className="text-xs font-bold text-white/70">最近の記録</p>
+            <Link href="/records" className="text-xs font-semibold text-emerald-300">
+              すべて見る
+            </Link>
           </div>
-        );
-      })}
+          <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {recentRecords.map((r) => (
+              <Link
+                key={r.id}
+                href={`/records/${r.id}`}
+                className="w-32 shrink-0 overflow-hidden rounded-2xl glass-dark transition-transform active:scale-95"
+              >
+                <div className="h-20 w-full">
+                  <RecordThumb media={r.media} thumbUrl={recentThumbs[r.id]} className="h-full w-full" />
+                </div>
+                <div className="px-2 py-1.5">
+                  <p className="truncate text-[11px] font-bold text-white">{r.title}</p>
+                  <p className="truncate text-[10px] text-white/50">{r.fieldName}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 説明（バナー1〜5）と同じ順で「次にやること」へ誘導する、唯一の案内レイヤー */}
+      <StartChecklist onShareClick={hasField ? handleShare : undefined} />
     </div>
   );
 
@@ -208,11 +288,7 @@ export default function LandingScreen() {
             </p>
 
             {authed ? (
-              <div className="mt-8 space-y-4">
-                {quickAccess}
-                {/* 説明（バナー1〜5）と同じ順で「次にやること」へ誘導するチェックリスト */}
-                <StartChecklist />
-              </div>
+              todayDashboard
             ) : (
               <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
                 <Link
@@ -232,7 +308,8 @@ export default function LandingScreen() {
               </div>
             )}
 
-            {/* 信頼チップ */}
+            {/* 信頼チップ（未ログイン時のみのLP要素） */}
+            {!authed && (
             <div className="mt-8 flex flex-wrap gap-2">
               {["国土地理院の空中写真", "家族と無料で共有", "アプリのように使えるPWA"].map((t) => (
                 <span key={t} className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/75">
@@ -240,13 +317,15 @@ export default function LandingScreen() {
                 </span>
               ))}
             </div>
+            )}
           </div>
 
           <HeroPhone />
         </div>
       </section>
 
-      {/* ===== 課題提起 ===== */}
+      {/* ===== 課題提起（未ログイン時のみのLP要素） ===== */}
+      {!authed && (
       <section className="relative bg-[#f6f8f4] py-16 text-gray-900 md:py-24">
         <div className="mx-auto w-full max-w-6xl px-6">
           <motion.div {...reveal}>
@@ -274,8 +353,10 @@ export default function LandingScreen() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* ===== 機能5件（実写+アコーディオン。利用の流れの順に並べる） ===== */}
+      {/* ===== 機能5件（実写+アコーディオン。利用の流れの順に並べる。未ログイン時のみのLP要素） ===== */}
+      {!authed && (
       <section className="bg-white py-16 text-gray-900 md:py-24">
         <div className="mx-auto w-full max-w-6xl px-6">
           <motion.div {...reveal}>
@@ -307,6 +388,7 @@ export default function LandingScreen() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== 使い方 3ステップ（初めての方向け。ログイン済みでは表示しない） ===== */}
       {!authed && (
@@ -341,49 +423,39 @@ export default function LandingScreen() {
         </section>
       )}
 
-      {/* ===== 最終CTA ===== */}
+      {/* ===== 最終CTA（未ログイン時のみのLP要素） ===== */}
       <section className="bg-[#050d09] px-6 py-16 md:py-24">
-        <motion.div
-          {...reveal}
-          className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-green-800 px-6 py-12 text-center md:px-12 md:py-16"
-        >
-          <span className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-emerald-400/30 blur-3xl" />
-          <span className="pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-lime-300/20 blur-3xl" />
-          <div className="relative">
-            <div className="mb-4 flex justify-center gap-3 text-white/90">
-              <IconCamera className="h-6 w-6" />
-              <IconMic className="h-6 w-6" />
-              <IconMap className="h-6 w-6" />
+        {!authed && (
+          <motion.div
+            {...reveal}
+            className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-green-800 px-6 py-12 text-center md:px-12 md:py-16"
+          >
+            <span className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-emerald-400/30 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-lime-300/20 blur-3xl" />
+            <div className="relative">
+              <div className="mb-4 flex justify-center gap-3 text-white/90">
+                <IconCamera className="h-6 w-6" />
+                <IconMic className="h-6 w-6" />
+                <IconMap className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-bold text-white md:text-3xl">今日の田んぼを、記録してみませんか</h2>
+              <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
+                はじめるのはかんたん。まずは一枚の写真から。
+              </p>
+              <Link
+                href="/login"
+                className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
+              >
+                無料ではじめる
+                <IconChevronRight className="h-5 w-5" />
+              </Link>
             </div>
-            {/*
-              hasFieldは3値: true(田んぼあり)/false(0件確定)/null(未確定=読み込み中 or 未ログイン)。
-              「記録する」へ送るのはtrueと確定したときだけにし、null（読み込み中）の間は
-              false同様に登録側の文言・リンクを暫定表示することで、Supabaseの応答が遅い/失敗した
-              初回ユーザーが登録前に記録画面へ抜けてしまう事故を防ぐ。
-            */}
-            <h2 className="text-2xl font-bold text-white md:text-3xl">
-              {authed && hasField !== true ? "まずは田んぼを登録しましょう" : "今日の田んぼを、記録してみませんか"}
-            </h2>
-            <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
-              {authed && hasField !== true
-                ? "マップで田んぼの輪郭をなぞるだけ。登録すればすぐに記録をはじめられます。"
-                : "はじめるのはかんたん。まずは一枚の写真から。"}
-            </p>
-            <Link
-              href={!authed ? "/login" : hasField !== true ? "/map?register=1" : "/records/new?returnTo=%2Ftalk"}
-              className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
-            >
-              {!authed ? "無料ではじめる" : hasField !== true ? "田んぼを登録する" : "今日の記録を残す"}
-              <IconChevronRight className="h-5 w-5" />
-            </Link>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
         <p className="mt-10 text-center text-xs text-white/40">みらい稲作管理 — 未来へつなぐ、農の記録</p>
       </section>
 
       <HomeShareSheet open={shareOpen} onClose={() => setShareOpen(false)} />
-      {/* ホームはAppShell外のため、次の推奨操作ポップアップを自前でマウントする */}
-      <NextActionNudge />
     </main>
   );
 }

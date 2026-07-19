@@ -102,7 +102,7 @@ export default function MapDetailPanel({
               </Link>
               <div className="flex gap-2">
                 <Link
-                  href={`/records?point=${encodeURIComponent(selectedPoint.id)}`}
+                  href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
                   className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   詳細

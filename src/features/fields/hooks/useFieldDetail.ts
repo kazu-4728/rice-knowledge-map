@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { GeoJSON } from "geojson";
 import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } from "../../../lib/data/farm";
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
 import { loadImageSlots } from "../../../lib/data/siteContent";
@@ -31,6 +32,8 @@ export type FieldDetailField = {
   groupId: string;
   areaSqm: number | null;
   photoUrl: string | null;
+  /** 小さな地図（場所確認用）の表示に使う輪郭。未登録/取得前はnull */
+  boundary: GeoJSON.Polygon | null;
 };
 
 export type FieldDetail = {
@@ -56,7 +59,7 @@ export type FieldDetail = {
  * sortedPoints/observationGroups/categoryCounts は以前レンダー毎に再計算していたが useMemo 化する。
  */
 export function useFieldDetail(fieldId: string): FieldDetail {
-  const [field, setField] = useState<FieldDetailField>({ name: "", color: "#22C55E", groupId: "", areaSqm: null, photoUrl: null });
+  const [field, setField] = useState<FieldDetailField>({ name: "", color: "#22C55E", groupId: "", areaSqm: null, photoUrl: null, boundary: null });
   const [points, setPoints] = useState<FieldPoint[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
@@ -96,6 +99,7 @@ export function useFieldDetail(fieldId: string): FieldDetail {
         groupId,
         areaSqm,
         photoUrl,
+        boundary: feature.geometry?.type === "Polygon" ? (feature.geometry as GeoJSON.Polygon) : null,
       });
 
       setPoints(farm.points.filter((p) => p.fieldId === fieldId));

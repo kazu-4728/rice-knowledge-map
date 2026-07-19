@@ -19,7 +19,7 @@ test.describe("authenticated nav", () => {
     await expect(page).toHaveURL("/", { timeout: 5000 });
   });
 
-  for (const path of ["/map", "/talk", "/fields", "/records", "/menu", "/guide"]) {
+  for (const path of ["/map", "/records", "/menu", "/guide"]) {
     test(`${path} からロゴタップで / に1タップで戻れる`, async ({ page }) => {
       await page.goto(path);
       await page.waitForTimeout(500);
@@ -28,6 +28,16 @@ test.describe("authenticated nav", () => {
       await expect(page).toHaveURL("/");
     });
   }
+
+  test("/talk は記録タイムライン（/records）へリダイレクトする（旧URL互換）", async ({ page }) => {
+    await page.goto("/talk");
+    await expect(page).toHaveURL("/records");
+  });
+
+  test("/fields は一覧タブを持たずマップ（/map）へリダイレクトする（旧URL互換）", async ({ page }) => {
+    await page.goto("/fields");
+    await expect(page).toHaveURL("/map");
+  });
 
   test("記録詳細（独自ヘッダー）からもホームへ戻れる", async ({ page }) => {
     // Phase 1で作成したE2E検証専用グループの記録（本番オーナーの実データとはRLSで分離）

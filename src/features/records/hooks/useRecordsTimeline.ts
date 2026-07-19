@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { loadTalkTimeline, type TalkMessage } from "../../../lib/data/talk";
 import { loadFarmData } from "../../../lib/data/farm";
 
-export type TalkFieldChip = { id: string; name: string };
+export type RecordsFieldChip = { id: string; name: string };
 
-export type TalkTimeline = {
+export type RecordsTimeline = {
   mode: "loading" | "live" | "demo" | "anon" | "error";
   messages: TalkMessage[];
   hasMore: boolean;
-  fields: TalkFieldChip[];
+  fields: RecordsFieldChip[];
   loadingOlder: boolean;
   reload: (fieldId: string | null) => Promise<void>;
   loadOlder: () => Promise<void>;
@@ -23,14 +23,14 @@ export type TalkTimeline = {
 };
 
 /**
- * /talk のデータ取得を1本化するフック。
+ * /records（記録タイムライン）のデータ取得を1本化するフック。
  * スクロールDOM操作（listRef.scrollTop等）はコンポーネント側に残す責務分離を維持する。
  */
-export function useTalkTimeline(filterId: string | null): TalkTimeline {
-  const [mode, setMode] = useState<TalkTimeline["mode"]>("loading");
+export function useRecordsTimeline(filterId: string | null): RecordsTimeline {
+  const [mode, setMode] = useState<RecordsTimeline["mode"]>("loading");
   const [messages, setMessages] = useState<TalkMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
-  const [fields, setFields] = useState<TalkFieldChip[]>([]);
+  const [fields, setFields] = useState<RecordsFieldChip[]>([]);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const stickToBottomRef = useRef(true);
   // フィルタ切替の連打で古いレスポンスが後から届いて上書きするのを防ぐ（レース対策）

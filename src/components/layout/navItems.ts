@@ -2,31 +2,30 @@ import {
   IconCalendar,
   IconChat,
   IconDocDown,
-  IconFieldGrid,
   IconGear,
+  IconHome,
   IconMap,
-  IconPencil,
   IconSprout,
 } from "../ui/icons";
 
 /**
- * 田んぼOSの3空間+各場所の記録+管理レイヤー（Issue #64・フェーズ3で4タブ化）。
- * 名称はホームのバナー・ページ見出し・ガイドと完全一致させる（2026-07-16オーナー確定・案B）。
- * - マップ: 今なにが起きてる? 次なにする?（見る・なぞって登録する）
- * - みんなの記録: 今日みんな何した?（記録+会話を統合した1本のタイムライン。家族に限らない）
- * - 各場所の記録: この田んぼはどう育ってる?（田んぼ詳細+生育比較を統合）
- * - メニュー: 管理レイヤー（カレンダー・エクスポート・設定等を日常導線から退避）
+ * 入り口は下部タブ4つのみ（再設計フェーズ5・情報構造の正）。
+ * 場所詳細（/fields/[id]）は「入り口」ではなく「着地先」のためタブに含めない
+ * （マップ・ホーム・記録タイムライン経由で到達する）。
+ * - ホーム: 今日の田んぼ状態・記録ボタン・最近の記録（現場モード）
+ * - マップ: 唯一、地図が主役の画面。今なにが起きてる? 次なにする?
+ * - 記録タイムライン: 記録+会話を統合した1本の時系列（旧/talk・旧/records一覧を統合）
+ * - メニュー: 後作業モード（カレンダー・エクスポート・設定等を日常導線から退避）
  */
 export const NAV_ITEMS = [
+  { href: "/", label: "ホーム", Icon: IconHome },
   { href: "/map", label: "マップ", Icon: IconMap },
-  { href: "/talk", label: "みんなの記録", Icon: IconChat },
-  { href: "/fields", label: "各場所の記録", Icon: IconFieldGrid },
+  { href: "/records", label: "記録タイムライン", Icon: IconChat },
   { href: "/menu", label: "メニュー", Icon: IconGear },
 ] as const;
 
-/** 管理レイヤーの二次導線（ドロワー・SideNav・/menuの「その他」セクション） */
+/** 後作業モードの二次導線（ドロワー・SideNav・/menuの「その他」セクション） */
 export const SUB_NAV_ITEMS = [
-  { href: "/records", label: "記録一覧", Icon: IconPencil },
   { href: "/calendar", label: "カレンダー", Icon: IconCalendar },
   { href: "/export", label: "エクスポート", Icon: IconDocDown },
   { href: "/guide", label: "使い方", Icon: IconSprout },

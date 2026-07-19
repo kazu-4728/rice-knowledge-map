@@ -4,16 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
-import { saveRecord } from "../../lib/data/recordSave";
-import { scheduleNextAction } from "../../components/ui/NextActionNudge";
+import { saveRecord, POINT_TYPE_TO_RECORD_TYPE } from "../../lib/data/recordSave";
+import { TYPE_TO_CATEGORY } from "../../lib/data/records";
 import { TYPE_LABELS } from "../map/mapPins";
 import {
   IconCheck,
   IconChevronLeft,
+  IconChevronRight,
   IconClipboard,
   IconPencil,
   IconPinFill,
 } from "../../components/ui/icons";
+
+type StatusChoice = { key: "open" | "needs_check" | "monitoring"; label: string };
+const STATUS_CHOICES: StatusChoice[] = [
+  { key: "open", label: "通常" },
+  { key: "needs_check", label: "要確認" },
+  { key: "monitoring", label: "経過観察" },
+];
 
 function formatRecordedAt(iso: string): string {
   const d = new Date(iso);
@@ -32,6 +40,10 @@ export default function ConfirmRecordScreen() {
   const [draft] = useState(() => getRecordDraft());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusChoice["key"] | undefined>(
+    draft?.status === "needs_check" || draft?.status === "monitoring" ? draft.status : undefined
+  );
+  const [nextAction, setNextAction] = useState("");
 
   const rawReturnTo = searchParams.get("returnTo");
   const returnTo = rawReturnTo && isValidReturnTo(rawReturnTo) ? rawReturnTo : null;
@@ -51,17 +63,11 @@ export default function ConfirmRecordScreen() {
     if (busy) return;
     setBusy(true);
     setMessage(null);
-    const result = await saveRecord(draft);
+    const result = await saveRecord({ ...draft, status, nextAction: nextAction.trim() || undefined });
     if (result.status === "saved") {
       clearRecordDraft();
-      const dest = returnTo ?? "/map";
-      if (dest === "/records" || dest.startsWith("/fields/")) {
-        // 記録一覧・田んぼ詳細へ戻る場合は従来どおり保存トーストのみ
-        markJustSaved();
-      } else {
-        // マップ・ホーム等へ戻る場合は「次の推奨操作」（みんなの記録で確認・共有）を提案する
-        scheduleNextAction({ kind: "record_saved", fieldId: draft.fieldId ?? null });
-      }
+      const dest = returnTo ?? "/records";
+      markJustSaved();
       router.replace(dest);
       return;
     }
@@ -102,14 +108,22 @@ export default function ConfirmRecordScreen() {
               />
             ))}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {/* 圃場 */}
             {draft.fieldName && (
               <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
                 {draft.fieldName}
               </span>
             )}
+            {/* 場所（ポイント種別） */}
             {draft.pointType && (
               <span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
                 {TYPE_LABELS[draft.pointType] ?? draft.pointType}
+              </span>
+            )}
+            {/* カテゴリ（場所種別から自動判定。将来のAI出力JSONと1対1になる項目） */}
+            {draft.pointType && (
+              <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600">
+                {TYPE_TO_CATEGORY[POINT_TYPE_TO_RECORD_TYPE[draft.pointType] ?? "other"] ?? "作業"}
               </span>
             )}
           </div>
@@ -120,6 +134,27 @@ export default function ConfirmRecordScreen() {
           </p>
         </section>
 
+        {/* 状況（今回の観測状態。将来AIが初期値を埋める予定の項目） */}
+        <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+          <p className="text-sm font-semibold text-gray-700">状況</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {STATUS_CHOICES.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setStatus((cur) => (cur === c.key ? undefined : c.key))}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  status === c.key
+                    ? "bg-green-700 text-white"
+                    : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">
           <div className="flex items-start gap-3 py-3.5">
             <IconClipboard className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
@@ -128,6 +163,26 @@ export default function ConfirmRecordScreen() {
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-gray-900">
                 {draft.memo.trim() || "（メモなし）"}
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 次のアクション（任意。将来AIが初期値を埋める予定の項目） */}
+        <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <IconChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
+            <div className="min-w-0 flex-1">
+              <label htmlFor="next-action" className="text-sm font-semibold text-gray-700">
+                次のアクション（任意）
+              </label>
+              <input
+                id="next-action"
+                type="text"
+                value={nextAction}
+                onChange={(e) => setNextAction(e.target.value)}
+                placeholder="例: 夕方にもう一度確認する"
+                className="mt-1.5 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
+              />
             </div>
           </div>
         </section>

@@ -31,8 +31,9 @@ test.describe("anon home", () => {
 
   test("ホームのバナー名はナビタブの名称と一致する（名前の不一致を作らない）", async ({ page }) => {
     await page.goto("/");
-    // ナビ（PC: SideNav）に存在する名称がバナー側にもそのまま存在すること
-    for (const label of ["マップ", "みんなの記録", "各場所の記録"]) {
+    // ナビ（PC: SideNav）に存在する名称のうち、バナーにも対応するものはそのまま存在すること
+    // （場所詳細は「入り口」ではなく「着地先」のため、タブに無いバナーもある）
+    for (const label of ["マップ", "記録タイムライン"]) {
       await expect(page.getByRole("heading", { name: label, exact: true }).first()).toBeAttached();
     }
   });
