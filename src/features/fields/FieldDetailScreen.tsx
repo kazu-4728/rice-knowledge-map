@@ -185,6 +185,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     loading,
     notFound,
     field,
+    allFields,
     points,
     sortedPoints,
     records,
@@ -273,6 +274,29 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   return (
     <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
+      {/* 田んぼ切替チップ: 場所詳細=唯一のハブとして、隣の田んぼへここから並行移動できる
+          （記録詳細→パンくずで戻る→ここで切替、の2タップでマップ・ホームを経由しない） */}
+      {allFields.length > 1 && (
+        <div className="scrollbar-none -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1" style={{ scrollbarWidth: "none" }}>
+          {allFields.map((f) => {
+            const active = f.id === fieldId;
+            return (
+              <Link
+                key={f.id}
+                href={`/fields/${encodeURIComponent(f.id)}`}
+                aria-current={active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+                  active ? "bg-flow-green text-white" : "border border-black/10 bg-white text-gray-600"
+                }`}
+              >
+                <IconSprout className="h-3.5 w-3.5" />
+                {f.name || "名前のない田んぼ"}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto

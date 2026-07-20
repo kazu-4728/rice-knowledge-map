@@ -31,6 +31,7 @@ export function FieldMiniMap({ href, boundary, points = [], className = "", aria
     if (!container) return;
     let cancelled = false;
     let map: import("maplibre-gl").Map | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     const coords: [number, number][] =
       boundary?.coordinates?.[0]?.map((c) => [c[0], c[1]] as [number, number]) ?? points;
@@ -59,28 +60,36 @@ export function FieldMiniMap({ href, boundary, points = [], className = "", aria
           layers: [{ id: "gsi-layer", type: "raster", source: "gsi" }],
         },
         center,
-        zoom: 15,
+        zoom: 16,
         interactive: false,
         attributionControl: false,
       });
+
+      // レイアウト確定前にcanvasが初期化されるとぼやけたまま残るため、
+      // コンテナのサイズ変化に追従してresizeする（本体マップと同じ多重防御）
+      resizeObserver = new ResizeObserver(() => map?.resize());
+      resizeObserver.observe(containerRef.current);
 
       map.on("load", () => {
         if (cancelled || !map) return;
         if (boundary) {
           map.addSource("field", { type: "geojson", data: { type: "Feature", properties: {}, geometry: boundary } });
-          map.addLayer({ id: "field-fill", type: "fill", source: "field", paint: { "fill-color": "#22c55e", "fill-opacity": 0.35 } });
-          map.addLayer({ id: "field-line", type: "line", source: "field", paint: { "line-color": "#15803d", "line-width": 2 } });
+          // 航空写真の見え方を主役にするため塗りは薄く、輪郭線で場所を示す
+          map.addLayer({ id: "field-fill", type: "fill", source: "field", paint: { "fill-color": "#22c55e", "fill-opacity": 0.15 } });
+          map.addLayer({ id: "field-line", type: "line", source: "field", paint: { "line-color": "#16a34a", "line-width": 2.5 } });
         }
         const bounds = coords.reduce(
           (b, c) => b.extend(c),
           new maplibre.LngLatBounds(coords[0], coords[0])
         );
-        map.fitBounds(bounds, { padding: 24, animate: false, maxZoom: 17 });
+        // 小さいカードでpaddingを取りすぎるとズームが引けてタイルが霞むため最小限にする
+        map.fitBounds(bounds, { padding: 10, animate: false, maxZoom: 18 });
       });
     });
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       map?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

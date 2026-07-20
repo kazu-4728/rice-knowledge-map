@@ -189,8 +189,9 @@ export default function GuideContent() {
           更新履歴
         </h2>
         <ul className="mt-3 space-y-2">
+          {/* 同じ日付の履歴が複数あり得るためkeyは日付+本文にする */}
           {changelog.map(({ date, note }) => (
-            <li key={date} className="flex gap-2 text-xs">
+            <li key={`${date}-${note}`} className="flex gap-2 text-xs">
               <span className="shrink-0 text-gray-400">{date}</span>
               <span className="text-gray-700">{note}</span>
             </li>

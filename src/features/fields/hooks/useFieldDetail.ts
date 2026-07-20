@@ -40,6 +40,8 @@ export type FieldDetail = {
   loading: boolean;
   notFound: boolean;
   field: FieldDetailField;
+  /** グループの全田んぼ（田んぼ切替チップ用。display_order順） */
+  allFields: { id: string; name: string }[];
   points: FieldPoint[];
   sortedPoints: FieldPoint[];
   records: RecordItem[];
@@ -60,6 +62,7 @@ export type FieldDetail = {
  */
 export function useFieldDetail(fieldId: string): FieldDetail {
   const [field, setField] = useState<FieldDetailField>({ name: "", color: "#22C55E", groupId: "", areaSqm: null, photoUrl: null, boundary: null });
+  const [allFields, setAllFields] = useState<{ id: string; name: string }[]>([]);
   const [points, setPoints] = useState<FieldPoint[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
@@ -75,6 +78,12 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     // この田んぼの記録を全件取得する（状態サマリーの未対応集計が最新100件外の古い異常を
     // 取りこぼして「異常なし」と誤表示しないよう all:true。デモ時は全件返るため下でクライアント絞り込み）
     Promise.all([loadFarmData(), loadRecords({ fieldId, all: true })]).then(async ([farm, rec]) => {
+      setAllFields(
+        farm.fieldsGeoJSON.features.map((f) => ({
+          id: String(f.id ?? f.properties?.id ?? ""),
+          name: String(f.properties?.name ?? ""),
+        }))
+      );
       const feature = farm.fieldsGeoJSON.features.find(
         (f) => String(f.id ?? f.properties?.id ?? "") === fieldId
       );
@@ -174,6 +183,7 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     loading,
     notFound,
     field,
+    allFields,
     points,
     sortedPoints,
     records,
