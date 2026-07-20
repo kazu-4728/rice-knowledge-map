@@ -1,5 +1,5 @@
-import LandingScreen from "../features/landing/LandingScreen";
+import HomeGate from "../features/home/HomeGate";
 
 export default function LandingPage() {
-  return <LandingScreen />;
+  return <HomeGate />;
 }

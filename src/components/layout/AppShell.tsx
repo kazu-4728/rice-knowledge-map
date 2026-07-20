@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import HeaderAccountChip from "./HeaderAccountChip";
 import BackButton from "./BackButton";
+import BottomTabBar from "./BottomTabBar";
 import MenuDrawer from "./MenuDrawer";
 import SideNav from "./SideNav";
 import { useDrawer } from "./DrawerContext";
@@ -52,8 +53,8 @@ export default function AppShell({
                 </Link>
               )}
               {/* mobile menu起動ボタン — on right when back button present, on left otherwise; hidden on lg+
-                  常設ボトムタブは導入せず、必要な時に呼び出すオンデマンド型を維持しつつ、
-                  タップ領域を広げ・ガラス質感のピルにして発見しやすく・押しやすくする */}
+                  主要導線は常設ボトムタブ（フェーズ5）。ドロワーは二次導線
+                  （カレンダー・エクスポート等）とアカウント操作のための補助 */}
               <button
                 onClick={() => setDrawerOpen(true)}
                 aria-label="メニューを開く"
@@ -82,6 +83,9 @@ export default function AppShell({
         >
           {children}
         </main>
+
+        {/* 常設ボトムタブ（入り口は下部タブ4つのみ・フェーズ5） */}
+        <BottomTabBar />
       </div>
 
       {/* mobile drawer */}

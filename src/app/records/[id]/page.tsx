@@ -14,7 +14,6 @@ import {
   IconChevronRight,
   IconClipboard,
   IconCommentFill,
-  IconHome,
   IconMap,
   IconMic,
   IconMoreVertical,
@@ -79,14 +78,11 @@ export default function RecordDetailPage() {
   if (!data) {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
+        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
-            <IconHome className="h-6 w-6" />
-          </Link>
+          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center">
           <p className="text-sm text-gray-500">読み込み中…</p>
@@ -98,14 +94,11 @@ export default function RecordDetailPage() {
   if (data.mode === "notfound") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
+        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
-            <IconHome className="h-6 w-6" />
-          </Link>
+          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">この記録は見つかりませんでした。</p>
@@ -117,14 +110,11 @@ export default function RecordDetailPage() {
   if (data.mode === "anon") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
+        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
-            <IconHome className="h-6 w-6" />
-          </Link>
+          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="text-sm text-gray-600">記録を見るにはログインが必要です。</p>
@@ -142,14 +132,11 @@ export default function RecordDetailPage() {
   if (data.mode === "error") {
     return (
       <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-        <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
-          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-white">
+        <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
+          <Link href="/records" aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
             <IconChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-bold text-white">記録詳細</h1>
-          <Link href="/" aria-label="ホームへ戻る" className="absolute right-1 p-2.5 text-white/90">
-            <IconHome className="h-6 w-6" />
-          </Link>
+          <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
         </header>
         <main className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-sm text-gray-500">読み込みに失敗しました。通信環境を確認してください。</p>
@@ -244,22 +231,15 @@ export default function RecordDetailPage() {
   return (
     <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
       {/* ヘッダー */}
-      <header className="relative flex h-14 shrink-0 items-center justify-center bg-green-800">
-        <button onClick={goBack} aria-label="戻る" className="absolute left-1 p-2.5 text-white">
+      <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
+        <button onClick={goBack} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
           <IconChevronLeft className="h-6 w-6" />
         </button>
-        <h1 className="text-lg font-bold text-white">記録詳細</h1>
-        <Link
-          href="/"
-          aria-label="ホームへ戻る"
-          className={`absolute p-2.5 text-white/90 ${canDelete ? "right-12" : "right-1"}`}
-        >
-          <IconHome className="h-6 w-6" />
-        </Link>
+        <h1 className="text-lg font-bold text-green-700">記録詳細</h1>
         {canDelete && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button aria-label="その他の操作" className="absolute right-1 p-2.5 text-white/90">
+              <button aria-label="その他の操作" className="absolute right-1 p-2.5 text-gray-500">
                 <IconMoreVertical className="h-6 w-6" />
               </button>
             </DropdownMenuTrigger>
@@ -444,7 +424,7 @@ export default function RecordDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconCommentFill className="h-5 w-5 text-green-700" />
-              <h3 className="text-base font-bold text-gray-900">みんなのコメント</h3>
+              <h3 className="text-base font-bold text-gray-900">家族のコメント</h3>
             </div>
             <button
               onClick={() => setShowCommentInput((v) => !v)}

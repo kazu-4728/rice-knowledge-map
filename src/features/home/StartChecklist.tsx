@@ -85,10 +85,10 @@ export function StartChecklist({ onShareClick }: { onShareClick?: () => void } =
   const currentKey = steps.find((s) => !s.done)?.key;
 
   return (
-    <section className="rounded-2xl glass-dark p-4">
+    <section className="rounded-2xl bg-white p-4 shadow-sm">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-bold text-white">はじめての流れ</h2>
-        <span className="text-[11px] text-white/60">{steps.length - remaining} / {steps.length} 完了</span>
+        <h2 className="text-sm font-bold text-gray-900">はじめての流れ</h2>
+        <span className="text-[11px] text-gray-400">{steps.length - remaining} / {steps.length} 完了</span>
       </div>
       <ol className="mt-3 space-y-2">
         {steps.map((s, i) => {
@@ -97,16 +97,16 @@ export function StartChecklist({ onShareClick }: { onShareClick?: () => void } =
             <li key={s.key} className="flex items-center gap-2.5">
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                  s.done ? "bg-emerald-500 text-white" : isCurrent ? "bg-white text-green-800" : "bg-white/20 text-white/70"
+                  s.done ? "bg-emerald-500 text-white" : isCurrent ? "bg-green-700 text-white" : "bg-gray-100 text-gray-400"
                 }`}
               >
                 {s.done ? <IconCheck className="h-3.5 w-3.5" strokeWidth={2.6} /> : i + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className={`text-[13px] font-bold leading-tight ${s.done ? "text-white/50 line-through" : "text-white"}`}>
+                <p className={`text-[13px] font-bold leading-tight ${s.done ? "text-gray-300 line-through" : "text-gray-800"}`}>
                   {s.label}
                 </p>
-                {!s.done && <p className="text-[11px] leading-tight text-white/60">{s.sub}</p>}
+                {!s.done && <p className="text-[11px] leading-tight text-gray-400">{s.sub}</p>}
               </div>
               {isCurrent && (
                 s.href ? (
