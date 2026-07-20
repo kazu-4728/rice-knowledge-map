@@ -355,6 +355,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         href={`/map?field=${encodeURIComponent(fieldId)}`}
         boundary={field.boundary}
         points={points.map((p) => p.lngLat)}
+        label={field.name || "名前のない田んぼ"}
         className="h-28 w-full rounded-2xl shadow-sm"
         ariaLabel="マップで見る"
       />

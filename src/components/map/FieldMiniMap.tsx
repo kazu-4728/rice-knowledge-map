@@ -13,6 +13,8 @@ type Props = {
   boundary?: GeoJSON.Polygon | null;
   /** 輪郭が無い場合の中心候補（記録地点・ポイント等） */
   points?: [number, number][];
+  /** 田んぼ名ラベル（本体マップと同じ白チップをHTML Markerで表示） */
+  label?: string;
   className?: string;
   ariaLabel?: string;
 };
@@ -22,9 +24,9 @@ type Props = {
  * 場所詳細・記録では実写写真が主役、地図は確認用の小さな脇役として埋め込む）。
  * 操作不可（tap-throughでマップ画面へ遷移）の非インタラクティブなMapLibre表示。
  */
-export function FieldMiniMap({ href, boundary, points = [], className = "", ariaLabel = "マップで見る" }: Props) {
+export function FieldMiniMap({ href, boundary, points = [], label, className = "", ariaLabel = "マップで見る" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const depKey = JSON.stringify({ boundary, points });
+  const depKey = JSON.stringify({ boundary, points, label });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -78,12 +80,20 @@ export function FieldMiniMap({ href, boundary, points = [], className = "", aria
           map.addLayer({ id: "field-fill", type: "fill", source: "field", paint: { "fill-color": "#22c55e", "fill-opacity": 0.15 } });
           map.addLayer({ id: "field-line", type: "line", source: "field", paint: { "line-color": "#16a34a", "line-width": 2.5 } });
         }
+        // 田んぼ名ラベル（本体マップのcreateFieldLabelと同じ白チップ。glyphs不要のHTML Marker）
+        if (label) {
+          const el = document.createElement("div");
+          el.textContent = label;
+          el.className =
+            "rounded-lg glass-light px-2 py-0.5 text-[11px] font-bold text-emerald-900 shadow-md pointer-events-none whitespace-nowrap";
+          new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(center).addTo(map);
+        }
         const bounds = coords.reduce(
           (b, c) => b.extend(c),
           new maplibre.LngLatBounds(coords[0], coords[0])
         );
-        // 小さいカードでpaddingを取りすぎるとズームが引けてタイルが霞むため最小限にする
-        map.fitBounds(bounds, { padding: 10, animate: false, maxZoom: 18 });
+        // 周囲の道路・建物が見えて「どこか」が分かる程度に引く（寄りすぎると場所が分からない）
+        map.fitBounds(bounds, { padding: 24, animate: false, maxZoom: boundary ? 16 : 15.5 });
       });
     });
 
