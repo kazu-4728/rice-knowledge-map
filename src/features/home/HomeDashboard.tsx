@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { loadFieldAttention, type FieldAttentionSummary } from "../../lib/data/fieldAttention";
 import { loadRecords } from "../../lib/data/records";
+import { loadImageSlots } from "../../lib/data/siteContent";
+import { resolveRecordCoverUrl } from "../../lib/data/media";
+import type { ImageSlots } from "../../lib/supabase/types";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -29,9 +32,13 @@ export default function HomeDashboard() {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
     let cancelled = false;
+    loadImageSlots().then((slots) => {
+      if (!cancelled) setImageSlots(slots);
+    });
     loadFieldAttention().then((summary) => {
       if (cancelled || summary.mode === "anon" || summary.mode === "error") return;
       setAttention(summary);
@@ -161,7 +168,12 @@ export default function HomeDashboard() {
                   className="flex items-center gap-3 rounded-2xl bg-white p-2.5 shadow-sm transition-transform active:scale-98"
                 >
                   <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl">
-                    <RecordThumb media={r.media} thumbUrl={thumbs[r.id]} className="h-full w-full" />
+                    <RecordThumb
+                      media={r.media}
+                      thumbUrl={thumbs[r.id]}
+                      fallbackUrl={resolveRecordCoverUrl(undefined, r.category, imageSlots)}
+                      className="h-full w-full"
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-gray-900">{r.title}</p>

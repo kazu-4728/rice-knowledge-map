@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { FieldMiniMap } from "../../components/map/FieldMiniMap";
 import { consumeJustSaved } from "../records/recordDraft";
 import { formatAreaSqm } from "../../lib/utils/geo";
+import { resolveRecordCoverUrl } from "../../lib/data/media";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
 import { useEffect } from "react";
@@ -197,6 +198,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     lastRecord,
     handlePhotoSelect,
     coverImageUrl,
+    imageSlots,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -537,6 +539,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                             variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
                             duration={record.audioDuration}
                             thumbUrl={thumbUrls[record.id]}
+                            fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
                             className="h-full w-full"
                           />
                           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />

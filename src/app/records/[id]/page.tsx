@@ -3,10 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { PaddyPhoto } from "../../../components/ui/PaddyPhoto";
+import { RemotePhoto } from "../../../components/ui/RemotePhoto";
 import { FieldMiniMap } from "../../../components/map/FieldMiniMap";
 import { MemberAvatar } from "../../../components/ui/avatar";
 import { shareContent } from "../../../lib/utils/share";
+import { loadImageSlots } from "../../../lib/data/siteContent";
+import { resolveRecordCoverUrl } from "../../../lib/data/media";
+import { TYPE_TO_CATEGORY } from "../../../lib/data/records";
+import type { ImageSlots } from "../../../lib/supabase/types";
 import {
   IconCalendar,
   IconCheck,
@@ -56,12 +60,16 @@ export default function RecordDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     loadRecordDetail(id).then((result) => {
       if (!cancelled) setData(result);
+    });
+    loadImageSlots().then((slots) => {
+      if (!cancelled) setImageSlots(slots);
     });
     return () => { cancelled = true; };
   }, [id]);
@@ -274,7 +282,9 @@ export default function RecordDetailPage() {
 
       {/* コンテンツ */}
       <main className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
-        {/* 写真・地点情報カード */}
+        {/* 写真・地点情報カード。写真が無い記録はカテゴリに応じたシステム既定の実写を表示
+            （SVGプレースホルダーは使わない・オーナー方針。RemotePhoto内のPaddyPhotoは
+            Supabase未設定の純デモ等、実写が用意できないときの最終フォールバックのみ） */}
         <section className="rounded-2xl bg-white p-3 shadow-sm">
           {mediaUrls.photos.length > 0 ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -284,7 +294,12 @@ export default function RecordDetailPage() {
               className="h-52 w-full rounded-xl object-cover"
             />
           ) : (
-            <PaddyPhoto variant="water" className="h-52 w-full rounded-xl object-cover" />
+            <RemotePhoto
+              src={resolveRecordCoverUrl(undefined, TYPE_TO_CATEGORY[record.recordType] ?? "作業", imageSlots)}
+              alt=""
+              className="h-52 w-full rounded-xl"
+              fallbackVariant="water"
+            />
           )}
 
           <div className="mt-3 flex items-start gap-3">

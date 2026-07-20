@@ -6,6 +6,7 @@ import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } 
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
 import { loadImageSlots } from "../../../lib/data/siteContent";
 import { resolveFieldCoverUrl } from "../../../lib/data/media";
+import type { ImageSlots } from "../../../lib/supabase/types";
 import type { FieldPoint, RecordItem } from "../../../types";
 
 /** ピンの状態の要対応順（issue > needs_check > normal > resolved） */
@@ -52,8 +53,10 @@ export type FieldDetail = {
   categoryCounts: { cat: RecordItem["category"]; count: number }[];
   lastRecord: RecordItem | undefined;
   handlePhotoSelect: (file: File) => Promise<void>;
-  /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定） */
+  /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定) */
   coverImageUrl: string | undefined;
+  /** オーナー設定の差し替え画像（記録サムネの実写フォールバック解決に使う） */
+  imageSlots: ImageSlots;
 };
 
 /**
@@ -69,9 +72,13 @@ export function useFieldDetail(fieldId: string): FieldDetail {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [defaultCoverUrl, setDefaultCoverUrl] = useState(() => resolveFieldCoverUrl(undefined, {}));
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
-    loadImageSlots().then((slots) => setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots)));
+    loadImageSlots().then((slots) => {
+      setImageSlots(slots);
+      setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots));
+    });
   }, []);
 
   useEffect(() => {
@@ -195,5 +202,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     lastRecord,
     handlePhotoSelect,
     coverImageUrl,
+    imageSlots,
   };
 }
