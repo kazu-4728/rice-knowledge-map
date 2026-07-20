@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/useAuth";
@@ -132,7 +132,9 @@ export default function LandingScreen() {
   const bannerImage = (key: HomeBannerDef["key"]) =>
     imageSlots.homeBanners?.[key]?.image_url ?? SYSTEM_DEFAULT_IMAGES.homeBanners[key];
 
-  const handleShare = () => setShareOpen(true);
+  // useCallback化: StartChecklistのuseEffect依存に渡すため、毎レンダーで参照が
+  // 変わると不要な再フェッチ（loadFieldAttention/loadHasAnyRecord）が走ってしまう
+  const handleShare = useCallback(() => setShareOpen(true), []);
 
   /** 田んぼ状態チップ（issue > needs_check > normal の優先順で信号色を出す） */
   const fieldChips =
@@ -424,8 +426,8 @@ export default function LandingScreen() {
       )}
 
       {/* ===== 最終CTA（未ログイン時のみのLP要素） ===== */}
-      <section className="bg-[#050d09] px-6 py-16 md:py-24">
-        {!authed && (
+      {!authed && (
+        <section className="bg-[#050d09] px-6 py-16 md:py-24">
           <motion.div
             {...reveal}
             className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-green-800 px-6 py-12 text-center md:px-12 md:py-16"
@@ -451,9 +453,16 @@ export default function LandingScreen() {
               </Link>
             </div>
           </motion.div>
-        )}
-        <p className="mt-10 text-center text-xs text-white/40">みらい稲作管理 — 未来へつなぐ、農の記録</p>
-      </section>
+          <p className="mt-10 text-center text-xs text-white/40">みらい稲作管理 — 未来へつなぐ、農の記録</p>
+        </section>
+      )}
+
+      {/* ログイン時は空の帯を作らず、軽いフッターのみ */}
+      {authed && (
+        <p className="bg-[#050d09] py-6 text-center text-xs text-white/40">
+          みらい稲作管理 — 未来へつなぐ、農の記録
+        </p>
+      )}
 
       <HomeShareSheet open={shareOpen} onClose={() => setShareOpen(false)} />
     </main>

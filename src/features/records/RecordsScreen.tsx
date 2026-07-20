@@ -90,7 +90,11 @@ export default function RecordsScreen() {
 
   const filteredMessages = messages
     .filter((m) => categoryFilter === "すべて" || messageCategory(m) === categoryFilter)
-    .filter((m) => !openOnly || (m.kind === "record" && m.isIssue && m.status === "open"));
+    .filter(
+      (m) =>
+        !openOnly ||
+        (m.kind === "record" && m.isIssue && (m.status === "open" || m.status === "needs_check"))
+    );
 
   // 初期表示・新着時に最下部へスクロール
   useEffect(() => {
