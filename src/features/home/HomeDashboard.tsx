@@ -28,6 +28,7 @@ import {
  */
 export default function HomeDashboard() {
   const [attention, setAttention] = useState<FieldAttentionSummary | null>(null);
+  const [attentionError, setAttentionError] = useState(false);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [recordsLoaded, setRecordsLoaded] = useState(false);
@@ -40,7 +41,10 @@ export default function HomeDashboard() {
       if (!cancelled) setImageSlots(slots);
     });
     loadFieldAttention().then((summary) => {
-      if (cancelled || summary.mode === "anon" || summary.mode === "error") return;
+      if (cancelled || summary.mode === "anon") return;
+      // errorのまま何もしないとattentionがnullのまま=スケルトン表示が永久に残るため、
+      // エラー状態を明示してスケルトンから抜け出す
+      if (summary.mode === "error") { setAttentionError(true); return; }
       setAttention(summary);
     });
     loadRecords({ limit: 5 }).then((data) => {
@@ -83,10 +87,16 @@ export default function HomeDashboard() {
           </Link>
         </div>
         {attention === null ? (
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-28 rounded-full" />
-            <Skeleton className="h-10 w-28 rounded-full" />
-          </div>
+          attentionError ? (
+            <p className="rounded-2xl bg-white px-4 py-3 text-xs text-gray-500 shadow-sm">
+              田んぼの状態を読み込めませんでした。通信環境を確認してもう一度開いてください
+            </p>
+          ) : (
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-28 rounded-full" />
+              <Skeleton className="h-10 w-28 rounded-full" />
+            </div>
+          )
         ) : fieldChips.length > 0 ? (
           <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {fieldChips.map((f) => (

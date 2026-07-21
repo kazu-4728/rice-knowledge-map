@@ -64,7 +64,7 @@ const STEPS = [
   { n: "3", title: "家族に自動で届く", desc: "記録はそのまま家族のトークに。離れていても今日の田んぼが分かります。" },
 ];
 
-export default function LandingScreen() {
+export default function LandingScreen({ includeHomeBanners = false }: { includeHomeBanners?: boolean }) {
   // サイト設定取得（署名URL）は数秒かかることがある。完了を待って画面全体を
   // 隠すと空画面になるため、既定スライドで即時描画し、取得でき次第差し替える
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
@@ -72,11 +72,11 @@ export default function LandingScreen() {
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    loadSiteContent(false).then((r) => {
+    loadSiteContent(includeHomeBanners).then((r) => {
       setSlides(r.slides);
       setImageSlots(r.imageSlots);
     });
-  }, []);
+  }, [includeHomeBanners]);
 
   const hero = slides[0];
 

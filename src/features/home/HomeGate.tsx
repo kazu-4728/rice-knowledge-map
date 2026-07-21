@@ -38,7 +38,7 @@ export default function HomeGate() {
             閉じる
           </Link>
         </div>
-        <LandingScreen />
+        <LandingScreen includeHomeBanners />
       </div>
     );
   }

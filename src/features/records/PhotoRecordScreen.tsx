@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getRecordDraft, setRecordDraft } from "./recordDraft";
+import { getRecordDraft, setRecordDraft, type RecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPointType } from "../../types";
@@ -58,8 +58,10 @@ export default function PhotoRecordScreen() {
   const [pointId, setPointId] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  // 「修正する」で戻ってきたとき、撮影日時を引き継ぐ（写真を撮り直したらリセット）
+  // 「修正する」で戻ってきたとき、撮影日時・状況・次のアクションを引き継ぐ（写真を撮り直したらリセット）
   const recordedAtRef = useRef<string | null>(null);
+  const statusRef = useRef<RecordDraft["status"]>(undefined);
+  const nextActionRef = useRef<string | undefined>(undefined);
 
   // 「修正する」で戻ってきたときは下書きを復元、なければURLクエリで初期選択
   useEffect(() => {
@@ -72,6 +74,8 @@ export default function PhotoRecordScreen() {
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
+      statusRef.current = draft.status;
+      nextActionRef.current = draft.nextAction;
     } else {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
@@ -131,6 +135,8 @@ export default function PhotoRecordScreen() {
       memo,
       location,
       recordedAt: recordedAtRef.current ?? new Date().toISOString(),
+      status: statusRef.current,
+      nextAction: nextActionRef.current,
     });
     const returnTo = searchParams.get("returnTo");
     const confirmUrl = returnTo ? `/records/new/confirm?returnTo=${encodeURIComponent(returnTo)}` : "/records/new/confirm";

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
+import { getRecordDraft, setRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
 import { saveRecord, POINT_TYPE_TO_RECORD_TYPE } from "../../lib/data/recordSave";
 import { TYPE_TO_CATEGORY } from "../../lib/data/records";
 import { TYPE_LABELS } from "../map/mapPins";
@@ -43,7 +43,7 @@ export default function ConfirmRecordScreen() {
   const [status, setStatus] = useState<StatusChoice["key"] | undefined>(
     draft?.status === "needs_check" || draft?.status === "monitoring" ? draft.status : undefined
   );
-  const [nextAction, setNextAction] = useState("");
+  const [nextAction, setNextAction] = useState(draft?.nextAction ?? "");
 
   const rawReturnTo = searchParams.get("returnTo");
   const returnTo = rawReturnTo && isValidReturnTo(rawReturnTo) ? rawReturnTo : null;
@@ -58,6 +58,17 @@ export default function ConfirmRecordScreen() {
   // 「戻る」「修正する」は来た画面（写真 or 音声）へ戻す（returnToも引き継ぐ）
   const backBase = draft.kind === "audio" ? "/records/new?type=audio" : "/records/new";
   const backHref = returnTo ? `${backBase}${backBase.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(returnTo)}` : backBase;
+
+  // 撮影画面へ戻る前に、この画面で入力した状況・次のアクションを下書きへ反映する
+  // （撮影画面の「次へ」がdraftを作り直すため、反映しないとここでの入力が消える）
+  const handleBack = () => {
+    setRecordDraft({ ...draft, status, nextAction: nextAction.trim() || undefined });
+  };
+
+  // 保存時の実際の分類（saveRecord()と同じ優先順位: 音声は無条件でvoice、
+  // それ以外はpointType由来、無ければphoto）に合わせてカテゴリチップを表示する
+  const recordType = draft.kind === "audio" ? "voice" : (draft.pointType && POINT_TYPE_TO_RECORD_TYPE[draft.pointType]) || "photo";
+  const categoryLabel = TYPE_TO_CATEGORY[recordType] ?? "作業";
 
   const handleSave = async () => {
     if (busy) return;
@@ -88,7 +99,7 @@ export default function ConfirmRecordScreen() {
   return (
     <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
       <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-        <Link href={backHref} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+        <Link href={backHref} onClick={handleBack} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
           <IconChevronLeft className="h-6 w-6" />
         </Link>
         <h1 className="text-lg font-bold text-green-700">保存前の確認</h1>
@@ -121,11 +132,9 @@ export default function ConfirmRecordScreen() {
               </span>
             )}
             {/* カテゴリ（場所種別から自動判定。将来のAI出力JSONと1対1になる項目） */}
-            {draft.pointType && (
-              <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600">
-                {TYPE_TO_CATEGORY[POINT_TYPE_TO_RECORD_TYPE[draft.pointType] ?? "other"] ?? "作業"}
-              </span>
-            )}
+            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600">
+              {categoryLabel}
+            </span>
           </div>
           <p className="mt-2.5 flex items-center gap-1 text-xs text-gray-600">
             <IconPinFill className="h-3.5 w-3.5 text-green-700" />
@@ -195,6 +204,7 @@ export default function ConfirmRecordScreen() {
       <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <Link
           href={backHref}
+          onClick={handleBack}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
         >
           <IconPencil className="h-4.5 w-4.5" />
