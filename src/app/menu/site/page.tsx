@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AppShell from "../../../components/layout/AppShell";
 import SiteContentEditor from "../../../features/menu/SiteContentEditor";
@@ -56,26 +57,35 @@ export default function SiteSettingsPage() {
           設定した画像が実際にどう見えるか、その場で確認できます。
         </p>
 
-        <div className="mb-6">
+        {/* ログイン中は通常の導線でLPを見られないため、確認手段はここに集約する。
+            「実際の画面で確認」は ?lp=preview でLP全体（バナー・使い方含む）を表示する */}
+        <div className="mb-2">
           <button
             onClick={() => setShowLandingPreview((v) => !v)}
             className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800"
           >
-            ランディングを確認
+            ヒーローをその場で確認
             <IconChevronRight className={`h-4 w-4 text-gray-400 transition-transform ${showLandingPreview ? "rotate-90" : ""}`} />
           </button>
         </div>
         {showLandingPreview && <LandingPreview slides={heroSlides} />}
+        <Link
+          href="/?lp=preview"
+          className="mb-6 mt-2 flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-green-700"
+        >
+          ランディング全体を実際の画面で確認
+          <IconChevronRight className="h-4 w-4 text-gray-400" />
+        </Link>
 
-        <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">ランディングページのヒーロースライド</h2>
+        <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">ランディングのヒーロースライド</h2>
         <p className="mb-4 text-xs text-gray-500">
-          ログイン前に表示されるランディングページ（トップ画面）の写真・文章を編集できます。保存前の編集中の内容も「ランディングを確認」にそのまま反映されます。
+          未ログインの人が最初に見るランディング（紹介ページ）の写真・文章を編集できます。ログイン後のホームには表示されません。保存前の編集中の内容も上の「ヒーローをその場で確認」にそのまま反映されます。
         </p>
         <SiteContentEditor onSlidesChange={setHeroSlides} />
 
         <h2 className="mb-1 mt-6 text-base font-bold text-gray-900">各画面のカバー写真</h2>
         <p className="mb-3 text-xs text-gray-500">
-          ホーム・トーク・田んぼ・カレンダー・記録の一覧で、写真が未登録のときに使う既定の写真を差し替えられます。
+          田んぼ・記録・カレンダー・ランディングのバナーで、写真が未登録のときに使う既定の実写を差し替えられます。
         </p>
         <ImageSlotsEditor />
       </div>
