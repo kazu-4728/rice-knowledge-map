@@ -1,6 +1,7 @@
 import type { FieldPointType, RecordDetail, RecordComment } from "../../types";
 import { getSupabase } from "../supabase/client";
 import { sampleRecordDetail } from "../../data/dummy";
+import { ISSUE_POINT_TYPES } from "./records";
 
 type MediaRow = {
   id: string;
@@ -29,6 +30,7 @@ type DetailRow = {
   note: string | null;
   ai_summary: string | null;
   ai_category: string | null;
+  next_action: string | null;
   recorded_by: string;
   recorded_at: string;
   latitude: string | number | null;
@@ -88,6 +90,14 @@ function formatCommentTime(iso: string): string {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// row.latitude/longitude が null のとき Number(null) は 0 になり Number.isFinite(0) も true になるため、
+// null チェックを Number() 変換より先に行う（0が緯度経度として誤って表示されるのを防ぐ）
+function toNullableNumber(v: string | number | null): number | null {
+  if (v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const sb = getSupabase();
   if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false };
@@ -100,7 +110,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const { data, error } = await sb
     .from("records")
     .select(
-      `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, latitude, longitude,
+      `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, next_action, recorded_by, recorded_at, latitude, longitude,
        profiles(display_name),
        farm_fields(name),
        record_media(id, media_type, storage_bucket, storage_path, created_at),
@@ -168,7 +178,6 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     : isSelf ? "あなた" : "メンバー";
 
   const pointTypeLabel = row.ai_category ? (POINT_TYPE_LABELS[row.ai_category] ?? "") : "";
-  const statusLabel = STATUS_LABELS[row.status] ?? row.status;
 
   const VALID_STATUSES: RecordDetail["status"][] = ["open", "needs_check", "resolved", "monitoring"];
   const VALID_RECORD_TYPES: RecordDetail["recordType"][] = ["photo", "voice", "water", "work", "issue", "check", "other"];
@@ -182,6 +191,11 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     row.ai_category && VALID_POINT_TYPES.has(row.ai_category)
       ? (row.ai_category as FieldPointType)
       : null;
+
+  // records.status は record_type を問わず既定値 'open' のため、異常系（issue/旧データのpointType）
+  // 以外の open は「未対応」ではなく「通常」として表示する
+  const isIssueRecord = row.record_type === "issue" || (safePointType !== null && ISSUE_POINT_TYPES.includes(safePointType));
+  const statusLabel = row.status === "open" && !isIssueRecord ? "通常" : (STATUS_LABELS[row.status] ?? row.status);
 
   const record: RecordDetail = {
     id: row.id,
@@ -198,10 +212,11 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     recordedAt: formatDateTime(row.recorded_at),
     summary: row.ai_summary || row.note || "",
     note: row.note || "",
+    nextAction: row.next_action || "",
     recordType: safeRecordType,
     comments,
-    latitude: (() => { const v = Number(row.latitude); return Number.isFinite(v) ? v : null; })(),
-    longitude: (() => { const v = Number(row.longitude); return Number.isFinite(v) ? v : null; })(),
+    latitude: toNullableNumber(row.latitude),
+    longitude: toNullableNumber(row.longitude),
   };
 
   // 削除権限: 記録者本人 OR グループのowner（DB側のRLSは owner/editor 全員に許可しているが、

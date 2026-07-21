@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { GeoJSON } from "geojson";
 import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } from "../../../lib/data/farm";
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
 import { loadImageSlots } from "../../../lib/data/siteContent";
 import { resolveFieldCoverUrl } from "../../../lib/data/media";
+import type { ImageSlots } from "../../../lib/supabase/types";
 import type { FieldPoint, RecordItem } from "../../../types";
 
 /** ピンの状態の要対応順（issue > needs_check > normal > resolved） */
@@ -31,12 +33,16 @@ export type FieldDetailField = {
   groupId: string;
   areaSqm: number | null;
   photoUrl: string | null;
+  /** 小さな地図（場所確認用）の表示に使う輪郭。未登録/取得前はnull */
+  boundary: GeoJSON.Polygon | null;
 };
 
 export type FieldDetail = {
   loading: boolean;
   notFound: boolean;
   field: FieldDetailField;
+  /** グループの全田んぼ（田んぼ切替チップ用。display_order順） */
+  allFields: { id: string; name: string }[];
   points: FieldPoint[];
   sortedPoints: FieldPoint[];
   records: RecordItem[];
@@ -47,8 +53,10 @@ export type FieldDetail = {
   categoryCounts: { cat: RecordItem["category"]; count: number }[];
   lastRecord: RecordItem | undefined;
   handlePhotoSelect: (file: File) => Promise<void>;
-  /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定） */
+  /** カバー実写の解決済みURL（field.photoUrl > オーナー差し替え > システム既定) */
   coverImageUrl: string | undefined;
+  /** オーナー設定の差し替え画像（記録サムネの実写フォールバック解決に使う） */
+  imageSlots: ImageSlots;
 };
 
 /**
@@ -56,22 +64,33 @@ export type FieldDetail = {
  * sortedPoints/observationGroups/categoryCounts は以前レンダー毎に再計算していたが useMemo 化する。
  */
 export function useFieldDetail(fieldId: string): FieldDetail {
-  const [field, setField] = useState<FieldDetailField>({ name: "", color: "#22C55E", groupId: "", areaSqm: null, photoUrl: null });
+  const [field, setField] = useState<FieldDetailField>({ name: "", color: "#22C55E", groupId: "", areaSqm: null, photoUrl: null, boundary: null });
+  const [allFields, setAllFields] = useState<{ id: string; name: string }[]>([]);
   const [points, setPoints] = useState<FieldPoint[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [defaultCoverUrl, setDefaultCoverUrl] = useState(() => resolveFieldCoverUrl(undefined, {}));
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
-    loadImageSlots().then((slots) => setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots)));
+    loadImageSlots().then((slots) => {
+      setImageSlots(slots);
+      setDefaultCoverUrl(resolveFieldCoverUrl(undefined, slots));
+    });
   }, []);
 
   useEffect(() => {
     // この田んぼの記録を全件取得する（状態サマリーの未対応集計が最新100件外の古い異常を
     // 取りこぼして「異常なし」と誤表示しないよう all:true。デモ時は全件返るため下でクライアント絞り込み）
     Promise.all([loadFarmData(), loadRecords({ fieldId, all: true })]).then(async ([farm, rec]) => {
+      setAllFields(
+        farm.fieldsGeoJSON.features.map((f) => ({
+          id: String(f.id ?? f.properties?.id ?? ""),
+          name: String(f.properties?.name ?? ""),
+        }))
+      );
       const feature = farm.fieldsGeoJSON.features.find(
         (f) => String(f.id ?? f.properties?.id ?? "") === fieldId
       );
@@ -96,6 +115,7 @@ export function useFieldDetail(fieldId: string): FieldDetail {
         groupId,
         areaSqm,
         photoUrl,
+        boundary: feature.geometry?.type === "Polygon" ? (feature.geometry as GeoJSON.Polygon) : null,
       });
 
       setPoints(farm.points.filter((p) => p.fieldId === fieldId));
@@ -170,6 +190,7 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     loading,
     notFound,
     field,
+    allFields,
     points,
     sortedPoints,
     records,
@@ -181,5 +202,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     lastRecord,
     handlePhotoSelect,
     coverImageUrl,
+    imageSlots,
   };
 }

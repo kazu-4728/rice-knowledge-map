@@ -27,24 +27,27 @@ type SlotKey =
   | "homeBanners.story"
   | "homeBanners.line";
 
+/**
+ * 編集UIに出すスロット（再設計フェーズ5の現行画面で実際に使われているものだけ）。
+ * home（旧ホームヒーロー）・talk（旧トークカバー）・authedHero（旧ログイン後ヒーロー）は
+ * 参照画面がフェーズ5で無くなったため編集UIから外す（保存済みデータは温存し、
+ * 将来スロットを復活させる場合に備えてSlotKey・保存処理には残す）。
+ */
 const SLOT_LABELS: { key: SlotKey; label: string }[] = [
-  { key: "home", label: "ホームのヒーロー" },
-  { key: "talk", label: "トークのカバー" },
   { key: "fieldDefault", label: "田んぼの既定カバー（写真未登録時）" },
-  { key: "authedHero", label: "ホームのヒーロー（ログイン後）" },
-  { key: "calendar.spring", label: "カレンダー（春）" },
-  { key: "calendar.summer", label: "カレンダー（夏）" },
-  { key: "calendar.autumn", label: "カレンダー（秋）" },
-  { key: "calendar.winter", label: "カレンダー（冬）" },
   { key: "recordsCategory.水管理", label: "記録の既定カバー（水管理）" },
   { key: "recordsCategory.作業", label: "記録の既定カバー（作業）" },
   { key: "recordsCategory.異常", label: "記録の既定カバー（異常）" },
   { key: "recordsCategory.音声", label: "記録の既定カバー（音声）" },
-  { key: "homeBanners.map", label: "ホームのバナー（マップ）" },
-  { key: "homeBanners.talk", label: "ホームのバナー（今日の記録を残す）" },
-  { key: "homeBanners.family", label: "ホームのバナー（みんなの記録）" },
-  { key: "homeBanners.story", label: "ホームのバナー（各場所の記録）" },
-  { key: "homeBanners.line", label: "ホームのバナー（共有する）" },
+  { key: "calendar.spring", label: "カレンダー（春）" },
+  { key: "calendar.summer", label: "カレンダー（夏）" },
+  { key: "calendar.autumn", label: "カレンダー（秋）" },
+  { key: "calendar.winter", label: "カレンダー（冬）" },
+  { key: "homeBanners.map", label: "ランディングのバナー（マップ）" },
+  { key: "homeBanners.talk", label: "ランディングのバナー（今日の記録を残す）" },
+  { key: "homeBanners.family", label: "ランディングのバナー（記録タイムライン）" },
+  { key: "homeBanners.story", label: "ランディングのバナー（田んぼごとの記録）" },
+  { key: "homeBanners.line", label: "ランディングのバナー（共有する）" },
 ];
 
 function getSlot(slots: ImageSlots, key: SlotKey): ImageSlot | undefined {

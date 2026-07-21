@@ -2,8 +2,11 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { FieldMiniMap } from "../../components/map/FieldMiniMap";
 import { consumeJustSaved } from "../records/recordDraft";
 import { formatAreaSqm } from "../../lib/utils/geo";
+import { resolveRecordCoverUrl } from "../../lib/data/media";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
 import { useEffect } from "react";
@@ -173,6 +176,8 @@ type Props = { fieldId: string };
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
   const { session } = useAuth();
+  const searchParams = useSearchParams();
+  const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
@@ -181,6 +186,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     loading,
     notFound,
     field,
+    allFields,
     points,
     sortedPoints,
     records,
@@ -192,6 +198,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     lastRecord,
     handlePhotoSelect,
     coverImageUrl,
+    imageSlots,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -232,13 +239,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             ログインする
           </Link>
         ) : (
-          <Link href="/fields" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
-            各場所の記録に戻る
+          <Link href="/map" className="rounded-xl bg-flow-green px-6 py-3 text-sm font-bold text-white">
+            マップに戻る
           </Link>
         )}
         {!session && (
-          <Link href="/fields" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
-            各場所の記録に戻る
+          <Link href="/map" className="text-sm font-semibold text-gray-500 underline-offset-2 hover:underline">
+            マップに戻る
           </Link>
         )}
       </div>
@@ -269,6 +276,29 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   return (
     <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
+      {/* 田んぼ切替チップ: 場所詳細=唯一のハブとして、隣の田んぼへここから並行移動できる
+          （記録詳細→パンくずで戻る→ここで切替、の2タップでマップ・ホームを経由しない） */}
+      {allFields.length > 1 && (
+        <div className="scrollbar-none -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1" style={{ scrollbarWidth: "none" }}>
+          {allFields.map((f) => {
+            const active = f.id === fieldId;
+            return (
+              <Link
+                key={f.id}
+                href={`/fields/${encodeURIComponent(f.id)}`}
+                aria-current={active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+                  active ? "bg-flow-green text-white" : "border border-black/10 bg-white text-gray-600"
+                }`}
+              >
+                <IconSprout className="h-3.5 w-3.5" />
+                {f.name || "名前のない田んぼ"}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
@@ -321,6 +351,16 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(f); e.currentTarget.value = ""; }}
         />
       </div>
+
+      {/* 小さな地図（場所確認用の脇役。主役は上の実写カバー写真） */}
+      <FieldMiniMap
+        href={`/map?field=${encodeURIComponent(fieldId)}`}
+        boundary={field.boundary}
+        points={points.map((p) => p.lngLat)}
+        label={field.name || "名前のない田んぼ"}
+        className="h-28 w-full rounded-2xl shadow-sm"
+        ariaLabel="マップで見る"
+      />
 
       {/* 主役ヒーロー: 統計+状態サマリー+記録アクションを1枚に統合（色は深緑単色+状態チップのみアクセント） */}
       <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
@@ -441,11 +481,14 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                 {sortedPoints.map((point) => {
                     const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
                     const status = POINT_STATUS_META[point.status];
+                    const highlighted = point.id === highlightPointId;
                     return (
                       <li key={point.id}>
                         <Link
                           href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95"
+                          className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
+                            highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                          }`}
                         >
                           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
                             {meta.icon}
@@ -496,6 +539,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                             variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
                             duration={record.audioDuration}
                             thumbUrl={thumbUrls[record.id]}
+                            fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
                             className="h-full w-full"
                           />
                           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />

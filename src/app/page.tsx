@@ -1,5 +1,10 @@
-import LandingScreen from "../features/landing/LandingScreen";
+import { Suspense } from "react";
+import HomeGate from "../features/home/HomeGate";
 
 export default function LandingPage() {
-  return <LandingScreen />;
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-flow-cream" />}>
+      <HomeGate />
+    </Suspense>
+  );
 }

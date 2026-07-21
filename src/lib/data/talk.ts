@@ -1,5 +1,6 @@
 import { getSupabase } from "../supabase/client";
 import { resolveGroupIdForField } from "./farm";
+import { ISSUE_POINT_TYPES } from "./records";
 
 /**
  * 統合トークルーム（/talk）のデータ層。
@@ -91,6 +92,8 @@ type RecordRow = {
   farm_fields: { name: string | null } | null;
   record_media: { media_type: string; storage_bucket: string; storage_path: string }[] | null;
   record_comments: { count: number }[] | null;
+  ai_category: string | null;
+  field_points: { point_type: string } | null;
 };
 
 type CommentRow = {
@@ -132,7 +135,7 @@ export async function loadTalkTimeline(opts?: {
     let recQ = sb
       .from("records")
       .select(
-        "id, field_id, record_type, status, title, note, recorded_by, recorded_at, profiles(display_name), farm_fields(name), record_media(media_type, storage_bucket, storage_path), record_comments(count)"
+        "id, field_id, record_type, status, title, note, recorded_by, recorded_at, ai_category, profiles(display_name), farm_fields(name), field_points(point_type), record_media(media_type, storage_bucket, storage_path), record_comments(count)"
       )
       .order("recorded_at", { ascending: false })
       .limit(PAGE_SIZE);
@@ -215,7 +218,12 @@ export async function loadTalkTimeline(opts?: {
           photoCount: photoCount || undefined,
           audioUrl: audioUrls.get(r.id),
           status: VALID_STATUSES.has(r.status) ? (r.status as TalkMessage["status"]) : undefined,
-          isIssue: r.record_type === "issue",
+          // record_type==='issue'だけだと旧データ（拡張前はpoor_drainage/levee_damage等が
+          // record_type='photo'でai_category/field_points側に種別を保持）を取りこぼすため、
+          // isUnresolvedIssue()と同じ判定基準（ISSUE_POINT_TYPES）で補う
+          isIssue:
+            r.record_type === "issue" ||
+            (ISSUE_POINT_TYPES as readonly string[]).includes(r.field_points?.point_type ?? r.ai_category ?? ""),
           recordType: r.record_type,
           hasMedia: (r.record_media?.length ?? 0) > 0,
           commentCount: r.record_comments?.[0]?.count || undefined,

@@ -8,7 +8,7 @@ export type SaveRecordResult =
   | { status: "error"; step: "group" | "insert" | "upload" | "media" };
 
 /** 撮影画面で選んだポイント種別から記録の分類を決める（全FieldPointTypeを網羅） */
-const POINT_TYPE_TO_RECORD_TYPE: Record<string, "water" | "work" | "issue" | "other"> = {
+export const POINT_TYPE_TO_RECORD_TYPE: Record<string, "water" | "work" | "issue" | "other"> = {
   inlet: "water",
   outlet: "water",
   canal: "water",
@@ -64,6 +64,7 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
         ...(draft.status ? { status: draft.status } : {}),
         title: buildTitle(draft),
         note: draft.memo.trim() || null,
+        next_action: draft.nextAction?.trim() || null,
         // 選んだポイント種別そのもの（inlet/outlet/weed/caution）。record_typeは分類が粗く
         // 出水口と入水口を区別できないため、専用列ができるまでai_categoryに保持する
         ai_category: draft.pointType ?? null,

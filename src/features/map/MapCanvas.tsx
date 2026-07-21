@@ -22,7 +22,6 @@ import {
   updateFieldPoint,
   deleteFieldPoint,
 } from "../../lib/data/farm";
-import { scheduleNextAction } from "../../components/ui/NextActionNudge";
 import MapHelpSheet from "./MapHelpSheet";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import MapDetailPanel from "./MapDetailPanel";
@@ -375,8 +374,6 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           setRenameTarget((prev) => (prev && prev.id === localId ? { ...prev, id } : prev));
         }
         setToast("田んぼを保存しました");
-        // 登録直後に「次は最初の記録」を提案する（利用の流れの案内）
-        scheduleNextAction({ kind: "field_registered", fieldId: id ?? null, fieldName: name });
         onFieldRegistered?.();
       } else if (status === "demo") {
         setToast("ローカルに追加しました（ログインすると共有保存されます）");
@@ -1402,10 +1399,10 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           >
             <IconHome className="h-5.5 w-5.5" />
           </Link>
-          {/* みんなの記録への常設導線（ドロワーを開かなくても届くように） */}
+          {/* 記録タイムラインへの常設導線（ドロワーを開かなくても届くように） */}
           <Link
-            href="/talk"
-            aria-label="みんなの記録を開く"
+            href="/records"
+            aria-label="記録タイムラインを開く"
             className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full glass-light-strong text-emerald-600"
           >
             <IconChat className="h-5.5 w-5.5" />

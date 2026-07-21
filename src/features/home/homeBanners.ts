@@ -85,16 +85,16 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["記録がみんなの記録に流れる", "仲間がすぐに確認できる", "田んぼの履歴に積み上がる"],
       },
     ],
-    // みんなの記録のカメラボタンと同じ写真記録の開始導線。
-    // 保存後はみんなの記録（/talk）へ着地し、自分の記録が流れる様子をその場で見せる
-    action: { type: "link", href: "/records/new?returnTo=%2Ftalk" },
+    // 記録タイムラインのカメラボタンと同じ写真記録の開始導線。
+    // 保存後は記録タイムライン（/records）へ着地し、自分の記録が流れる様子をその場で見せる
+    action: { type: "link", href: "/records/new?returnTo=%2Frecords" },
     actionLabel: "記録をはじめる",
   },
   {
     key: "family",
     Icon: IconChat,
-    title: "みんなの記録",
-    shortTitle: "みんなの記録",
+    title: "記録タイムライン",
+    shortTitle: "記録タイムライン",
     shortSub: "記録と会話が時系列で",
     summary: "今日みんなが何をしたかを時系列で確認します。記録やコメントをまとめて見られます。",
     detail: [
@@ -111,8 +111,8 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["言った言わないがなくなる", "対応もれに気づける", "みんなの知恵が残っていく"],
       },
     ],
-    action: { type: "link", href: "/talk" },
-    actionLabel: "みんなの記録を開く",
+    action: { type: "link", href: "/records" },
+    actionLabel: "記録タイムラインを開く",
   },
   {
     key: "line",
@@ -141,10 +141,10 @@ export const HOME_BANNERS: HomeBannerDef[] = [
   {
     key: "story",
     Icon: IconChartBar,
-    title: "各場所の記録",
-    shortTitle: "各場所の記録",
-    shortSub: "田んぼごとに状態と記録を見る",
-    summary: "田んぼを1枚ずつ選んで、今の状態・たまった記録・写真の変化をまとめて確認します。",
+    title: "田んぼごとの記録",
+    shortTitle: "田んぼごとの記録",
+    shortSub: "マップから田んぼを選んで見る",
+    summary: "マップで田んぼを選ぶと、今の状態・たまった記録・写真の変化をまとめて確認できます。",
     detail: [
       {
         label: "できること",
@@ -159,7 +159,7 @@ export const HOME_BANNERS: HomeBannerDef[] = [
         items: ["田んぼごとの判断材料になる", "みんなと共有できる", "農家の知恵が引き継がれる"],
       },
     ],
-    action: { type: "link", href: "/fields" },
-    actionLabel: "各場所の記録を開く",
+    action: { type: "link", href: "/map" },
+    actionLabel: "マップを開く",
   },
 ];

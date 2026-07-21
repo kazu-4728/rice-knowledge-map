@@ -93,6 +93,8 @@ export type RecordDetail = {
   recordedAt: string;
   summary: string;
   note: string;
+  /** 次のアクション（任意の短い自由記述。ai_summary等と同様、確認画面の項目と1対1） */
+  nextAction: string;
   recordType: "photo" | "voice" | "water" | "work" | "issue" | "check" | "other";
   comments: RecordComment[];
   latitude: number | null;

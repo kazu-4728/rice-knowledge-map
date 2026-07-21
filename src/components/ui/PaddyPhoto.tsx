@@ -168,12 +168,18 @@ export function PaddyPhoto({
   );
 }
 
-/** 記録一覧などのサムネイル。実写真があればそれを、なければ田園SVGを表示。音声記録は波形表示 */
+/**
+ * 記録一覧などのサムネイル。実写真があればそれを、なければシステム既定の実写
+ * （fallbackUrl）を表示する。音声記録は既定実写の上に再生バッジを重ねる。
+ * SVG（PaddyPhoto）・波形表示はSupabase未設定の純デモ等、実写が用意できない
+ * ときの最終フォールバックに限る（実写でないと安っぽく見えるため・オーナー方針）。
+ */
 export function RecordThumb({
   media,
   variant = "field",
   duration,
   thumbUrl,
+  fallbackUrl,
   className = "",
 }: {
   media: "photo" | "audio";
@@ -181,16 +187,23 @@ export function RecordThumb({
   duration?: string;
   /** 実写真の署名URL（写真記録のみ） */
   thumbUrl?: string;
+  /** 実写真が無いときに使うシステム既定の実写URL（resolveRecordCoverUrl等で解決） */
+  fallbackUrl?: string;
   className?: string;
 }) {
   if (media === "audio") {
     return (
       <div className={`relative overflow-hidden bg-gray-800 ${className}`}>
-        <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-3 opacity-90">
-          {[5, 9, 14, 8, 16, 11, 18, 9, 13, 7, 15, 10, 6].map((h, i) => (
-            <span key={i} className="w-[3px] rounded-full bg-green-400" style={{ height: `${h * 2}px` }} />
-          ))}
-        </div>
+        {fallbackUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- 公開バケットの既定実写
+          <img src={fallbackUrl} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-3 opacity-90">
+            {[5, 9, 14, 8, 16, 11, 18, 9, 13, 7, 15, 10, 6].map((h, i) => (
+              <span key={i} className="w-[3px] rounded-full bg-green-400" style={{ height: `${h * 2}px` }} />
+            ))}
+          </div>
+        )}
         <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90">
           <IconPlayFill className="h-3.5 w-3.5 translate-x-[1px] text-gray-800" />
         </span>
@@ -200,11 +213,12 @@ export function RecordThumb({
       </div>
     );
   }
-  if (thumbUrl) {
+  const photoUrl = thumbUrl ?? fallbackUrl;
+  if (photoUrl) {
     return (
       <div className={`overflow-hidden bg-gray-200 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Supabase署名URL（有効期限つき）のため next/image を使わない */}
-        <img src={thumbUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        <img src={photoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
       </div>
     );
   }

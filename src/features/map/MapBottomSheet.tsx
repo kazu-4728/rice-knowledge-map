@@ -84,12 +84,15 @@ export default function MapBottomSheet({
                 )}
               </div>
               <div className="flex gap-2">
-                <Link
-                  href={`/records?point=${encodeURIComponent(selectedPoint.id)}`}
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
-                >
-                  詳細
-                </Link>
+                {/* 未保存のローカル田んぼ（fieldIdが空）に紐づくピンは場所詳細を持たないため出さない */}
+                {selectedPoint.fieldId && (
+                  <Link
+                    href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
+                    className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
+                  >
+                    詳細
+                  </Link>
+                )}
                 <button
                   onClick={() => onEditPin(selectedPoint)}
                   className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"

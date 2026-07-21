@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getRecordDraft, setRecordDraft } from "./recordDraft";
+import { getRecordDraft, setRecordDraft, type RecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import { loadFarmData } from "../../lib/data/farm";
 import type { FieldPointType } from "../../types";
@@ -61,8 +61,10 @@ export default function AudioRecordScreen() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // 「修正する」で戻ってきたとき、録音日時を引き継ぐ（録り直したらリセット）
+  // 「修正する」で戻ってきたとき、録音日時・状況・次のアクションを引き継ぐ（録り直したらリセット）
   const recordedAtRef = useRef<string | null>(null);
+  const statusRef = useRef<RecordDraft["status"]>(undefined);
+  const nextActionRef = useRef<string | undefined>(undefined);
   // getUserMedia待ちの多重起動を防ぐフラグ
   const startingRef = useRef(false);
   // unmount済みフラグ（awaitの後の後処理を防ぐ）
@@ -84,6 +86,8 @@ export default function AudioRecordScreen() {
       setMemo(draft.memo);
       setLocation(draft.location);
       recordedAtRef.current = draft.recordedAt;
+      statusRef.current = draft.status;
+      nextActionRef.current = draft.nextAction;
     } else {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
@@ -238,6 +242,8 @@ export default function AudioRecordScreen() {
       memo,
       location,
       recordedAt: recordedAtRef.current ?? new Date().toISOString(),
+      status: statusRef.current,
+      nextAction: nextActionRef.current,
     });
     const returnTo = searchParams.get("returnTo");
     const confirmUrl = returnTo ? `/records/new/confirm?returnTo=${encodeURIComponent(returnTo)}` : "/records/new/confirm";

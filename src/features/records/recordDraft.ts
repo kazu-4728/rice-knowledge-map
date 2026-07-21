@@ -23,6 +23,8 @@ export type RecordDraft = {
   recordedAt: string;
   /** 省略時はDBの既定値('open')。異常判定に関与しない記録（トーク音声メモ等）は明示的に上書きする */
   status?: "open" | "needs_check" | "resolved" | "monitoring";
+  /** 次のアクション（任意の短い自由記述。確認画面で入力し records.next_action に保存する） */
+  nextAction?: string;
 };
 
 let draft: RecordDraft | null = null;

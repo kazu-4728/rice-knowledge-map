@@ -219,6 +219,7 @@ export const sampleRecordDetail: RecordDetail = {
   recordedAt: "2025年5月24日（土）07:45",
   summary: "水量はやや少なめ。ゴミの詰まりはなし。劣化も特になし。",
   note: "",
+  nextAction: "夕方にもう一度、水量を確認する。",
   recordType: "check",
   latitude: null,
   longitude: null,

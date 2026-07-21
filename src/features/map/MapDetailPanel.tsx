@@ -101,12 +101,15 @@ export default function MapDetailPanel({
                 この地点を記録
               </Link>
               <div className="flex gap-2">
-                <Link
-                  href={`/records?point=${encodeURIComponent(selectedPoint.id)}`}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  詳細
-                </Link>
+                {/* 未保存のローカル田んぼ（fieldIdが空）に紐づくピンは場所詳細を持たないため出さない */}
+                {selectedPoint.fieldId && (
+                  <Link
+                    href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    詳細
+                  </Link>
+                )}
                 <button
                   onClick={() => onEditPin(selectedPoint)}
                   className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"

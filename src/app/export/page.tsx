@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
+import { loadImageSlots } from "../../lib/data/siteContent";
+import { resolveRecordCoverUrl } from "../../lib/data/media";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import type { ImageSlots } from "../../lib/supabase/types";
 import type { RecordItem } from "../../types";
 
 type FieldOption = { id: string; name: string };
@@ -16,9 +19,11 @@ export default function ExportPage() {
   const [selectedFieldId, setSelectedFieldId] = useState<string>("all");
   const [year, setYear] = useState(new Date().getFullYear());
   const [printing, setPrinting] = useState(false);
+  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    loadImageSlots().then(setImageSlots);
     // エクスポートは年次/田んぼ別の全件が対象のため、ページングで全件取得する
     Promise.all([loadFarmData(), loadRecords({ all: true })]).then(([farm, rec]) => {
       setFields(farm.fieldsGeoJSON.features.map((f) => ({
@@ -122,6 +127,7 @@ export default function ExportPage() {
                         media={r.media}
                         variant={r.category === "作業" ? "grass" : r.category === "異常" ? "sprout" : "water"}
                         thumbUrl={thumbUrls[r.id]}
+                        fallbackUrl={resolveRecordCoverUrl(undefined, r.category, imageSlots)}
                         className="h-10 w-14 shrink-0 rounded-lg"
                       />
                       <div className="flex-1 min-w-0">

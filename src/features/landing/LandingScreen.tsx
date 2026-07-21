@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { useAuth } from "../auth/useAuth";
-import { loadFieldAttention } from "../../lib/data/fieldAttention";
 import { loadSiteContent, DEFAULT_SLIDES, type HeroSlide } from "../../lib/data/siteContent";
 import type { ImageSlots } from "../../lib/supabase/types";
 import { SYSTEM_DEFAULT_IMAGES } from "../../lib/data/defaultImageCatalog";
@@ -14,23 +12,18 @@ import { FeatureBanner } from "../home/FeatureBanner";
 import { HomeShareSheet } from "../home/HomeShareSheet";
 import { HOME_BANNERS, type HomeBannerDef } from "../home/homeBanners";
 import { BANNER_SCREENS } from "../home/bannerScreens";
-import NextActionNudge from "../../components/ui/NextActionNudge";
-import { StartChecklist } from "../home/StartChecklist";
 import {
   IconCamera,
   IconChevronRight,
   IconMap,
   IconMic,
-  IconUserFill,
   LogoRice,
 } from "../../components/ui/icons";
 
 /**
- * ランディング兼常設ホーム（Issue #72、オーナー方針: 2026-07-16再考）。
- * 未ログイン/ログインを問わず「/」がアプリの唯一の顔であり、起動のたびに経由する。
- * ログイン状態で内容だけを出し分け、ページとしては分けない（旧/homeは/へ統合・redirect化）。
- * マップは「アプリ最大の機能」であって入口ではないため、常設の既定着地・start_url・
- * ロゴタップ先はすべて「/」に統一している。
+ * 未ログイン専用LP（再設計フェーズ5・モード分離）。
+ * 課題提起・機能紹介・使い方などのLP要素はこの画面だけが持ち、
+ * ログイン後の「/」はHomeGate経由でHomeDashboard（今日のダッシュボード）になる。
  */
 
 const reveal = {
@@ -71,117 +64,48 @@ const STEPS = [
   { n: "3", title: "家族に自動で届く", desc: "記録はそのまま家族のトークに。離れていても今日の田んぼが分かります。" },
 ];
 
-export default function LandingScreen() {
-  const { loading, session } = useAuth();
-  const authed = !loading && !!session;
-  // ログイン時のサイト設定取得（グループ確認+署名URL）は数秒かかることがある。
-  // 完了を待って画面全体を隠すと起動のたびに空画面になるため、既定スライドで
-  // 即時描画し、カスタム画像は取得でき次第差し替える
+export default function LandingScreen({ includeHomeBanners = false }: { includeHomeBanners?: boolean }) {
+  // サイト設定取得（署名URL）は数秒かかることがある。完了を待って画面全体を
+  // 隠すと空画面になるため、既定スライドで即時描画し、取得でき次第差し替える
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_SLIDES);
   const [imageSlots, setImageSlots] = useState<ImageSlots>({});
   const [shareOpen, setShareOpen] = useState(false);
-  // 最終CTAの行き先分岐用（田んぼ0枚なら記録より先にマップでの登録に送る）
-  const [hasField, setHasField] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // authedが未確定（loading中）の間は呼ばない。ログイン済みの場合だけ
-    // includeHomeBanners=trueで呼び、機能バナーの差し替え画像（署名URL）も取得する
-    if (loading) return;
-    loadSiteContent(authed).then((r) => {
+    loadSiteContent(includeHomeBanners).then((r) => {
       setSlides(r.slides);
       setImageSlots(r.imageSlots);
     });
-  }, [loading, authed]);
+  }, [includeHomeBanners]);
 
-  useEffect(() => {
-    if (!authed) return;
-    let cancelled = false;
-    loadFieldAttention().then((summary) => {
-      if (cancelled || summary.mode === "anon" || summary.mode === "error") return;
-      setHasField(summary.fields.length > 0);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [authed]);
-
-  // ログイン後は未ログインのマーケティングコピーと差別化した専用ヒーロー
-  // （画像は/menu/siteの「ホームのヒーロー（ログイン後）」で差し替え可能）
-  const authedHeroSlide: HeroSlide = {
-    image_url: imageSlots.authedHero?.image_url ?? SYSTEM_DEFAULT_IMAGES.authedHero,
-    title: "おかえりなさい。",
-    body: "今日も田んぼを見に行きましょう。記録も共有もここから始められます。",
-  };
-  const heroSlides = authed ? [authedHeroSlide] : slides;
-  const hero = heroSlides[0];
+  const hero = slides[0];
 
   const bannerImage = (key: HomeBannerDef["key"]) =>
     imageSlots.homeBanners?.[key]?.image_url ?? SYSTEM_DEFAULT_IMAGES.homeBanners[key];
 
-  const handleShare = () => setShareOpen(true);
-
-  /** ログイン済み用のクイックアクセス帯（機能へ1タップで移動。未ログイン時は表示しない） */
-  const quickAccess = (
-    <div className="scrollbar-none -mx-1 flex snap-x items-stretch gap-1 overflow-x-auto px-1 pb-1">
-      {HOME_BANNERS.map((def, i) => {
-        const inner = (
-          <>
-            <def.Icon className="h-6 w-6 text-emerald-300" />
-            <span className="text-[11px] font-bold leading-tight text-white">{def.shortTitle}</span>
-            <span className="text-[9px] leading-tight text-white/60">{def.shortSub}</span>
-          </>
-        );
-        const cardClass =
-          "flex w-[6.9rem] shrink-0 snap-start flex-col items-center justify-start gap-1 rounded-2xl glass-dark px-1.5 py-2.5 text-center transition-transform active:scale-95";
-        return (
-          <div key={def.key} className="flex shrink-0 items-center gap-1">
-            {i > 0 && <IconChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-white/40" />}
-            {def.action.type === "link" ? (
-              <Link href={def.action.href} className={cardClass}>
-                {inner}
-              </Link>
-            ) : (
-              <button type="button" onClick={handleShare} className={cardClass}>
-                {inner}
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const handleShare = useCallback(() => setShareOpen(true), []);
 
   return (
     <main className="min-h-dvh bg-[#050d09] text-white">
-      {/* ===== ヘッダー（ログイン状態で右側だけ出し分け） ===== */}
+      {/* ===== ヘッダー ===== */}
       <header className="absolute inset-x-0 top-0 z-50">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow">
             <LogoRice className="h-5.5 w-5.5" />
           </span>
           <span className="text-sm font-bold tracking-wide text-white drop-shadow">みらい稲作管理</span>
-          {authed ? (
-            <Link
-              href="/menu"
-              aria-label="アカウント・設定"
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full glass-dark text-white transition-colors hover:bg-white/15"
-            >
-              <IconUserFill className="h-4.5 w-4.5" />
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="ml-auto rounded-full glass-dark px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15"
-            >
-              ログイン
-            </Link>
-          )}
+          <Link
+            href="/login"
+            className="ml-auto rounded-full glass-dark px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15"
+          >
+            ログイン
+          </Link>
         </div>
       </header>
 
       {/* ===== ヒーロー ===== */}
       <section className="relative overflow-hidden">
-        <HeroBackdrop slides={heroSlides} />
+        <HeroBackdrop slides={slides} />
 
         <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-24 md:grid-cols-2 md:items-center md:gap-6 md:pb-24 md:pt-32">
           {/* min-w-0: 中のクイックアクセス帯（横スクロール）がグリッド列の最小幅を
@@ -207,30 +131,22 @@ export default function LandingScreen() {
                 "空中写真の地図に自分の田んぼを登録して、写真と声で記録。異常も水位も農事暦も、開いた瞬間にわかります。"}
             </p>
 
-            {authed ? (
-              <div className="mt-8 space-y-4">
-                {quickAccess}
-                {/* 説明（バナー1〜5）と同じ順で「次にやること」へ誘導するチェックリスト */}
-                <StartChecklist />
-              </div>
-            ) : (
-              <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
-                <Link
-                  href="/login"
-                  className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full bg-emerald-500 py-4 text-base font-bold text-white shadow-[0_10px_40px_-8px_rgba(16,185,129,0.8)] transition-all hover:bg-emerald-400 active:scale-[0.98]"
-                >
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  無料ではじめる
-                  <IconChevronRight className="h-5 w-5" />
-                </Link>
-                <Link
-                  href="/guide"
-                  className="flex w-full items-center justify-center gap-2 rounded-full glass-dark py-4 text-base font-bold text-white transition-colors hover:bg-white/15"
-                >
-                  使い方を見る
-                </Link>
-              </div>
-            )}
+            <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
+              <Link
+                href="/login"
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full bg-emerald-500 py-4 text-base font-bold text-white shadow-[0_10px_40px_-8px_rgba(16,185,129,0.8)] transition-all hover:bg-emerald-400 active:scale-[0.98]"
+              >
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                無料ではじめる
+                <IconChevronRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="/guide"
+                className="flex w-full items-center justify-center gap-2 rounded-full glass-dark py-4 text-base font-bold text-white transition-colors hover:bg-white/15"
+              >
+                使い方を見る
+              </Link>
+            </div>
 
             {/* 信頼チップ */}
             <div className="mt-8 flex flex-wrap gap-2">
@@ -308,9 +224,8 @@ export default function LandingScreen() {
         </div>
       </section>
 
-      {/* ===== 使い方 3ステップ（初めての方向け。ログイン済みでは表示しない） ===== */}
-      {!authed && (
-        <section className="bg-[#0b1811] py-16 md:py-24">
+      {/* ===== 使い方 3ステップ（初めての方向け） ===== */}
+      <section className="bg-[#0b1811] py-16 md:py-24">
           <div className="mx-auto w-full max-w-6xl px-6">
             <motion.div {...reveal}>
               <div className="mb-2 flex items-center gap-3">
@@ -339,51 +254,38 @@ export default function LandingScreen() {
             </div>
           </div>
         </section>
-      )}
 
       {/* ===== 最終CTA ===== */}
-      <section className="bg-[#050d09] px-6 py-16 md:py-24">
-        <motion.div
-          {...reveal}
-          className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-green-800 px-6 py-12 text-center md:px-12 md:py-16"
-        >
-          <span className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-emerald-400/30 blur-3xl" />
-          <span className="pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-lime-300/20 blur-3xl" />
-          <div className="relative">
-            <div className="mb-4 flex justify-center gap-3 text-white/90">
-              <IconCamera className="h-6 w-6" />
-              <IconMic className="h-6 w-6" />
-              <IconMap className="h-6 w-6" />
+        <section className="bg-[#050d09] px-6 py-16 md:py-24">
+          <motion.div
+            {...reveal}
+            className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-green-800 px-6 py-12 text-center md:px-12 md:py-16"
+          >
+            <span className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-emerald-400/30 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-lime-300/20 blur-3xl" />
+            <div className="relative">
+              <div className="mb-4 flex justify-center gap-3 text-white/90">
+                <IconCamera className="h-6 w-6" />
+                <IconMic className="h-6 w-6" />
+                <IconMap className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-bold text-white md:text-3xl">今日の田んぼを、記録してみませんか</h2>
+              <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
+                はじめるのはかんたん。まずは一枚の写真から。
+              </p>
+              <Link
+                href="/login"
+                className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
+              >
+                無料ではじめる
+                <IconChevronRight className="h-5 w-5" />
+              </Link>
             </div>
-            {/*
-              hasFieldは3値: true(田んぼあり)/false(0件確定)/null(未確定=読み込み中 or 未ログイン)。
-              「記録する」へ送るのはtrueと確定したときだけにし、null（読み込み中）の間は
-              false同様に登録側の文言・リンクを暫定表示することで、Supabaseの応答が遅い/失敗した
-              初回ユーザーが登録前に記録画面へ抜けてしまう事故を防ぐ。
-            */}
-            <h2 className="text-2xl font-bold text-white md:text-3xl">
-              {authed && hasField !== true ? "まずは田んぼを登録しましょう" : "今日の田んぼを、記録してみませんか"}
-            </h2>
-            <p className="mx-auto mt-3 max-w-[20rem] text-sm leading-relaxed text-emerald-100">
-              {authed && hasField !== true
-                ? "マップで田んぼの輪郭をなぞるだけ。登録すればすぐに記録をはじめられます。"
-                : "はじめるのはかんたん。まずは一枚の写真から。"}
-            </p>
-            <Link
-              href={!authed ? "/login" : hasField !== true ? "/map?register=1" : "/records/new?returnTo=%2Ftalk"}
-              className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-green-800 shadow-xl transition-transform active:scale-95"
-            >
-              {!authed ? "無料ではじめる" : hasField !== true ? "田んぼを登録する" : "今日の記録を残す"}
-              <IconChevronRight className="h-5 w-5" />
-            </Link>
-          </div>
-        </motion.div>
-        <p className="mt-10 text-center text-xs text-white/40">みらい稲作管理 — 未来へつなぐ、農の記録</p>
-      </section>
+          </motion.div>
+          <p className="mt-10 text-center text-xs text-white/40">みらい稲作管理 — 未来へつなぐ、農の記録</p>
+        </section>
 
       <HomeShareSheet open={shareOpen} onClose={() => setShareOpen(false)} />
-      {/* ホームはAppShell外のため、次の推奨操作ポップアップを自前でマウントする */}
-      <NextActionNudge />
     </main>
   );
 }

@@ -1,285 +1,581 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
-import { staggerContainer, staggerItem } from "../../lib/motion/variants";
-import { ISSUE_POINT_TYPES } from "../../lib/data/records";
-import { TYPE_LABELS } from "../map/mapPins";
+import { fadeRise } from "../../lib/motion/variants";
+import { deleteComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { deleteRecord } from "../../lib/data/recordDetail";
 import { consumeJustSaved } from "./recordDraft";
-import { isUnresolvedIssue } from "../../lib/data/records";
-import type { RecordItem } from "../../types";
-import { RecordThumb } from "../../components/ui/PaddyPhoto";
-import { Card, CardContent } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
+import { useToast } from "../../components/ui/Toast";
+import { MemberAvatar } from "../../components/ui/avatar";
+import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
-import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyles";
-import { StatHero } from "../../components/patterns/StatHero";
-import { RevealCard } from "../../components/patterns/RevealCard";
-import { useRecordsList, type RecordsFilterLabel } from "./hooks/useRecordsList";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { Chip } from "../../components/ui/Chip";
+import { TYPE_TO_CATEGORY } from "../../lib/data/records";
+import { RECORDS_SEEN_KEY } from "../home/StartChecklist";
+import { useRecordsTimeline } from "./hooks/useRecordsTimeline";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
+import { useTransceiver, TransceiverOverlay, TalkMicButton } from "../talk/Transceiver";
 import {
   IconCamera,
+  IconChat,
+  IconChevronRight,
   IconDrop,
   IconMic,
-  IconPin,
-  IconSearch,
+  IconPlayFill,
   IconSprout,
+  IconTrash,
+  IconWarningFill,
 } from "../../components/ui/icons";
 
-const filterChips: { label: RecordsFilterLabel; Icon: typeof IconCamera | null }[] = [
-  { label: "すべて", Icon: null },
-  { label: "写真", Icon: IconCamera },
-  { label: "音声", Icon: IconMic },
-  { label: "作業", Icon: IconSprout },
-  { label: "水管理", Icon: IconDrop },
+/** 記録カテゴリの分類チップ+「会話」 */
+type FlowCategory = "すべて" | "作業" | "水管理" | "異常" | "音声" | "会話";
+
+const CATEGORY_CHIPS: { label: FlowCategory; icon: typeof IconSprout | null }[] = [
+  { label: "すべて", icon: null },
+  { label: "作業", icon: IconSprout },
+  { label: "水管理", icon: IconDrop },
+  { label: "異常", icon: IconWarningFill },
+  { label: "音声", icon: IconMic },
+  { label: "会話", icon: IconChat },
 ];
 
-/** 未対応・要確認のみ写真上に対応状況バッジを出す（解決済み/経過観察は既定状態のため出さない） */
-const STATUS_BADGE: Partial<Record<RecordItem["status"], { label: string; cls: string }>> = {
-  open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
-  needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
-};
+/**
+ * メッセージの分類を判定する（記録はrecord_type→カテゴリ表、コメントは「会話」固定）。
+ * record_type='other' は入力バーから送った「ひとこと」テキスト（sendTalkText）のため、
+ * records.ts の TYPE_TO_CATEGORY（other→作業）とは別に「会話」として扱う。
+ */
+function messageCategory(m: TalkMessage): FlowCategory {
+  if (m.kind === "comment" || m.recordType === "other") return "会話";
+  const type = (m.recordType ?? "other") as keyof typeof TYPE_TO_CATEGORY;
+  return TYPE_TO_CATEGORY[type] ?? "作業";
+}
 
-const thumbVariant = (record: RecordItem) =>
-  record.category === "作業" ? ("grass" as const) : record.category === "異常" ? ("sprout" as const) : ("water" as const);
+/**
+ * 記録タイムライン（再設計フェーズ5でみんなの記録/talkと記録一覧を統合した1本の時系列）。
+ * 全田んぼの記録・コメントが1本のタイムラインに時系列で流れる。
+ * メッセージの田んぼチップをタップするとその田んぼだけに絞り込める
+ * （別ルームは作らない: どこの履歴か分からなくなるのを防ぐ）。
+ */
 
 export default function RecordsScreen() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const pointFilter = searchParams.get("point");
-  const fieldFilter = searchParams.get("field");
-  // status=open は「未対応（open / needs_check）」をまとめて表示する
-  const statusFilter = searchParams.get("status");
+  const { showToast } = useToast();
+  const fieldParam = searchParams.get("field");
+  const [filterId, setFilterId] = useState<string | null>(() => fieldParam);
+  const [categoryFilter, setCategoryFilter] = useState<FlowCategory>("すべて");
+  // status=open は「未対応（open / needs_check の異常系）」だけに絞り込む
+  const openOnly = searchParams.get("status") === "open";
 
-  const [filter, setFilter] = useState<RecordsFilterLabel>("すべて");
-  const [query, setQuery] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
-
-  const { mode, records, groups, thumbUrls, categoryCounts } = useRecordsList({
-    pointFilter,
-    fieldFilter,
-    statusFilter,
-    filterChip: filter,
-    query,
-  });
-
+  // /records ページ上で ?field= だけが変わる遷移（例: 他画面から異なる田んぼの
+  // フィルタ付きリンクで着地）に追従する。useStateの初期化はマウント時の1回きりで
+  // 後続の変更を拾わないため、パラメータ変化を明示的に同期する
   useEffect(() => {
-    // 保存直後の遷移ならトーストを出す
-    if (consumeJustSaved()) setToast("記録を保存しました");
+    setFilterId(fieldParam);
+  }, [fieldParam]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const timeline = useRecordsTimeline(filterId);
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef } = timeline;
+
+  const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
+
+  const filteredMessages = messages
+    .filter((m) => categoryFilter === "すべて" || messageCategory(m) === categoryFilter)
+    .filter(
+      (m) =>
+        !openOnly ||
+        (m.kind === "record" && m.isIssue && (m.status === "open" || m.status === "needs_check"))
+    );
+
+  // 初期表示・新着時に最下部へスクロール
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, stickToBottomRef]);
+
+  // ホームの「はじめての流れ」チェックリスト用: この画面を開いたことを記録する
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECORDS_SEEN_KEY, "1");
+    } catch {
+      // 記録できない環境ではチェックリストの達成表示だけが付かない（実害なし）
+    }
   }, []);
 
+  // 保存直後にこの画面へ戻ってきた場合はトーストを出す
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
+    if (consumeJustSaved()) showToast("記録を保存しました");
+  }, [showToast]);
 
-  const thisMonthCount = useMemo(() => {
-    const now = new Date();
-    const ym = `${now.getFullYear()}年${now.getMonth() + 1}月`;
-    return records.filter((r) => r.date.startsWith(ym)).length;
-  }, [records]);
+  const handleLoadOlder = async () => {
+    const el = listRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    await loadOlder();
+    requestAnimationFrame(() => {
+      if (el) el.scrollTop = el.scrollHeight - prevHeight;
+    });
+  };
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+    setSending(true);
+    const { error } = await sendTalkText(trimmed, filterId);
+    setSending(false);
+    if (error) {
+      showToast(error, "error");
+      return;
+    }
+    setText("");
+    await reload(filterId);
+  };
+
+  // 自分のメッセージ（コメント・記録とも）を削除できる。確認はAlertDialogで行う
+  // 記録の削除は添付（写真・音声）とスレッドの返信も一緒に消える（cascade）ため、
+  // 消えるものを明示して確認する
+  const deleteExtrasText = (m: TalkMessage): string | null => {
+    if (m.kind !== "record") return null;
+    const extras = [
+      m.hasMedia ? "写真・音声の添付" : null,
+      m.commentCount != null && m.commentCount > 0 ? `返信${m.commentCount}件` : null,
+    ].filter(Boolean);
+    return extras.length > 0 ? `${extras.join("と")}も一緒に削除されます。元には戻せません。` : "元には戻せません。";
+  };
+
+  const handleDelete = async () => {
+    const m = pendingDelete;
+    if (!m || deleting) return;
+    setDeleting(true);
+    if (m.kind === "comment") {
+      const { error } = await deleteComment(m.key.replace(/^c-/, ""));
+      if (error) {
+        showToast(error, "error");
+        setDeleting(false);
+        return;
+      }
+    } else {
+      const result = await deleteRecord(m.recordId);
+      if (result.status !== "deleted") {
+        showToast(
+          result.status === "demo" ? "デモ環境では削除できません" : "削除できませんでした",
+          "error"
+        );
+        setDeleting(false);
+        return;
+      }
+    }
+    setDeleting(false);
+    setPendingDelete(null);
+    showToast("削除しました");
+    await reload(filterId);
+  };
+
+  const transceiver = useTransceiver({
+    onSaved: (fieldName) => {
+      showToast(fieldName ? `${fieldName} に送信しました` : "音声を送信しました");
+      reload(filterId);
+    },
+    onError: (message) => showToast(message, "error"),
+  });
+
+  if (mode === "anon") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+        <p className="text-base font-bold text-gray-900">ログインすると記録タイムラインが表示されます</p>
+        <Link
+          href="/login?redirect=%2Frecords"
+          className="rounded-full bg-green-700 px-8 py-3.5 text-sm font-bold text-white"
+        >
+          ログイン
+        </Link>
+      </div>
+    );
+  }
+
+  if (mode === "error") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+        <p className="text-sm text-gray-600">記録タイムラインを読み込めませんでした。通信環境を確認してください。</p>
+        <button
+          onClick={() => reload(filterId)}
+          className="rounded-full border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700"
+        >
+          再読み込み
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="px-3 pb-6 pt-3">
-      <div className="mb-3 px-1">
-        <h1 className="font-heading text-xl font-bold tracking-tight text-gray-900">記録一覧</h1>
-        <p className="mt-0.5 text-xs text-gray-500">
-          異常・要確認をまとめて探すための一覧です（日々の様子は「みんなの記録」へ）
-        </p>
+    <div className="flex h-full flex-col bg-flow-cream">
+      {/* 画面タイトル（文字階層1）。ブロックは タイトル/チップ/タイムライン/入力バー の4つに収める */}
+      <div className="shrink-0 px-4 pb-1 pt-3">
+        <h1 className="font-heading text-lg font-bold text-gray-900">記録タイムライン</h1>
       </div>
 
-      {/* 主役ヒーロー: 記録の積み重ねを可視化 */}
-      {mode !== "loading" && records.length > 0 && (
-        <motion.div initial="hidden" animate="show" variants={staggerItem} className="mb-3">
-          <StatHero
-            eyebrow="Records"
-            stats={[
-              { label: "読み込み済み", value: records.length },
-              { label: "読み込み分・今月", value: thisMonthCount },
-              { label: "表示中", value: groups.reduce((s, g) => s + g.items.length, 0) },
-            ]}
-            trendBars={categoryCounts.map(({ cat, count }) => ({
-              label: cat,
-              count,
-              color: CATEGORY_THEME[cat].dot,
-            }))}
-          />
-        </motion.div>
-      )}
-
-      {/* ピン/田んぼ/未対応 絞り込みバナー */}
-      {(pointFilter || fieldFilter || statusFilter === "open") && (
-        <div className="mb-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5">
-          <p className="text-sm font-semibold text-green-800">
-            {statusFilter === "open"
-              ? "未対応の記録を表示中"
-              : fieldFilter
-                ? "この田んぼの記録を表示中"
-                : "このピンの記録を表示中"}
-          </p>
+      {/* 未対応（status=open）絞り込みバナー */}
+      {openOnly && (
+        <div className="mx-3 mb-1 flex shrink-0 items-center justify-between rounded-xl bg-green-50 px-3 py-2">
+          <p className="text-xs font-semibold text-green-800">未対応の記録を表示中</p>
           <Link href="/records" className="text-xs font-bold text-green-700 underline">
             解除
           </Link>
         </div>
       )}
 
-      {/* フィルターチップ */}
-      <div className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-white p-2 shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)]">
-        {filterChips.map(({ label, Icon }) => (
-          <button
-            key={label}
-            onClick={() => setFilter(label)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
-              filter === label
-                ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.6)]"
-                : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {Icon && <Icon className="h-4 w-4" />}
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* 検索バー */}
-      <div className="mt-3">
-        <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
-          <IconSearch className="h-5 w-5 text-gray-400" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="キーワードで検索（圃場名・作業内容など）"
-            className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
-          />
-        </label>
-      </div>
-
-      {/* 未ログイン */}
-      {mode === "anon" && (
-        <Link href="/login?redirect=%2Frecords" className="mt-8 block rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-sm font-bold text-gray-900">ログインすると家族の記録が表示されます</p>
-          <p className="mt-1 text-sm font-bold text-green-700">タップしてログイン</p>
-        </Link>
-      )}
-
-      {/* 取得失敗 */}
-      {mode === "error" && (
-        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-sm font-bold text-gray-900">記録を読み込めませんでした</p>
-          <p className="mt-1 text-xs text-gray-500">通信環境を確認して開き直してください</p>
-        </div>
-      )}
-
-      {/* 記録がまだ1件もないとき */}
-      {mode === "live" && records.length === 0 && (
-        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-base font-bold text-gray-900">最初の記録を作りましょう</p>
-          <p className="mt-1 text-xs text-gray-500">田んぼの様子を写真で残すと、ここに一覧で並びます</p>
-          <Button asChild variant="primary" size="lg" className="mt-4">
-            <Link href="/records/new?returnTo=%2Frecords">
-              <IconCamera className="h-5 w-5" />
-              写真で記録する
-            </Link>
-          </Button>
-        </div>
-      )}
-
-      {/* 絞り込み結果が空のとき */}
-      {records.length > 0 && groups.length === 0 && (
-        <div className="mt-8 rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-sm font-bold text-gray-900">該当する記録がありません</p>
-          <p className="mt-1 text-xs text-gray-500">条件を変えて試してください</p>
-        </div>
-      )}
-
-      {/* 保存完了トースト */}
-      {toast && (
-        <div className="fixed bottom-24 inset-x-0 z-40 flex justify-center pointer-events-none">
-          <div className="rounded-xl bg-gray-900/90 px-4 py-2.5 text-xs font-semibold text-white shadow-lg pointer-events-auto">
-            {toast}
-          </div>
-        </div>
-      )}
-
-      {/* 読み込み中 */}
-      {mode === "loading" && (
-        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-56 w-full rounded-xl" />
+      {/* カテゴリ絞り込みチップ */}
+      <div className="shrink-0">
+        <div className="flex gap-1.5 overflow-x-auto px-3 pt-1" style={{ scrollbarWidth: "none" }}>
+          {CATEGORY_CHIPS.map(({ label, icon: Icon }) => (
+            <Chip
+              key={label}
+              active={categoryFilter === label}
+              onClick={() => setCategoryFilter(label)}
+              icon={Icon ? <Icon className="h-3.5 w-3.5" /> : undefined}
+            >
+              {label}
+            </Chip>
           ))}
         </div>
-      )}
 
-      {/* 日付グループ（写真主体のメディアカード。田んぼ詳細の記録タブと同じ見た目） */}
-      {groups.map((group, gi) => (
-        <RevealCard key={group.date} as="section" delay={gi * 0.04} className="mt-5">
-          <div className="flex items-center gap-2 px-1">
-            <span className="h-px w-4 shrink-0 bg-emerald-600" />
-            <h2 className="shrink-0 font-heading text-sm font-bold text-gray-800">{group.date}</h2>
-            <span className="h-px flex-1 bg-gray-200" />
-            <span className="shrink-0 text-xs text-gray-400">{group.items.length}件</span>
+        {/* 田んぼ絞り込みチップ */}
+        <div className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: "none" }}>
+          <Chip active={filterId === null} onClick={() => setFilterId(null)}>
+            すべての田んぼ
+          </Chip>
+          {fields.map((f) => (
+            <Chip
+              key={f.id}
+              active={filterId === f.id}
+              onClick={() => setFilterId((cur) => (cur === f.id ? null : f.id))}
+              icon={<IconSprout className="h-3.5 w-3.5" />}
+            >
+              {f.name}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {/* タイムライン */}
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+        {mode === "loading" ? (
+          <div className="space-y-3 pt-2">
+            <Skeleton className="ml-14 h-16 rounded-2xl" />
+            <Skeleton className="ml-14 h-40 rounded-2xl" />
+            <Skeleton className="ml-14 h-16 rounded-2xl" />
           </div>
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={staggerContainer}
-            className="mt-2.5 grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+        ) : (
+          <>
+            {/* 絞り込みで現在ページに一致がなくても、hasMoreなら過去ページに
+                一致がある可能性があるため空状態と排他にしない */}
+            {hasMore && (
+              <div className="pb-2 text-center">
+                <button
+                  onClick={handleLoadOlder}
+                  disabled={loadingOlder}
+                  className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-500 shadow-sm"
+                >
+                  {loadingOlder ? "読み込み中…" : "以前のやり取りを見る"}
+                </button>
+              </div>
+            )}
+            {filteredMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-flow-green-soft text-flow-green">
+                  <IconSprout className="h-7 w-7" />
+                </span>
+                <p className="text-sm font-bold text-gray-700">
+                  {categoryFilter !== "すべて"
+                    ? `「${categoryFilter}」のやり取りはまだありません`
+                    : filterName
+                      ? `「${filterName}」のやり取りはまだありません`
+                      : "まだやり取りがありません"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {hasMore ? "上の「以前のやり取りを見る」から遡れます" : "下のカメラやマイクから、最初の記録を送ってみましょう"}
+                </p>
+              </div>
+            ) : (
+              filteredMessages.map((m, i) => (
+                <TimelineEntry
+                  key={m.key}
+                  message={m}
+                  showDate={i === 0 || filteredMessages[i - 1].dateLabel !== m.dateLabel}
+                  isLast={i === filteredMessages.length - 1}
+                  onOpen={() => router.push(`/records/${m.recordId}`)}
+                  onFieldTap={(id) => setFilterId(id)}
+                  onDelete={
+                    // 自分のメッセージのみ削除可（コメント・写真/音声付き記録とも）。
+                    // 家族の誤削除を防ぐため他人のメッセージには出さない
+                    m.isMine ? () => setPendingDelete(m) : undefined
+                  }
+                />
+              ))
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 入力バー */}
+      <div className="shrink-0 border-t border-black/5 bg-white px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
+        {mode === "demo" && (
+          <p className="pb-1.5 text-center text-[10px] text-gray-400">デモ環境: 送信は保存されません</p>
+        )}
+        {!text.trim() && (
+          <p className="pb-1.5 text-center text-xs text-gray-500">
+            小さいマイク=声で文字入力　大きいマイク=音声メモをそのまま送信
+          </p>
+        )}
+        <div className="flex items-end gap-1.5">
+          <Link
+            href={`/records/new?returnTo=%2Frecords${filterId ? `&field=${encodeURIComponent(filterId)}` : ""}`}
+            aria-label="写真で記録"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green-soft text-flow-green transition-colors active:bg-flow-green-soft/70"
           >
-            {group.items.map((record) => {
-              const statusBadge = ISSUE_POINT_TYPES.includes(record.pointType)
-                ? STATUS_BADGE[record.status]
-                : undefined;
-              return (
-                <motion.div key={record.id} variants={staggerItem}>
-                  <Link href={`/records/${record.id}`} className="block transition-transform active:scale-[0.99]">
-                    <Card accent={isUnresolvedIssue(record) ? "issue" : undefined} className="overflow-hidden">
-                      <div className="relative h-36">
-                        <RecordThumb
-                          media={record.media}
-                          variant={thumbVariant(record)}
-                          duration={record.audioDuration}
-                          thumbUrl={thumbUrls[record.id]}
-                          className="h-full w-full"
-                        />
-                        <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent" />
-                        <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
-                          {record.category}
-                        </Badge>
-                        {statusBadge && (
-                          <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
-                            {statusBadge.label}
-                          </Badge>
-                        )}
-                        <span className="absolute bottom-2 right-3 text-xs font-bold text-white drop-shadow">
-                          {record.time}
-                        </span>
-                      </div>
-                      <CardContent className="px-3.5 py-2.5">
-                        <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                        <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                          <IconPin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">
-                            {record.fieldName}
-                            {record.fieldArea && `（${record.fieldArea}）`}
-                            {record.pointName
-                              ? `・${record.pointName}`
-                              : record.pointId && TYPE_LABELS[record.pointType]
-                                ? `・${TYPE_LABELS[record.pointType]}`
-                                : ""}
-                          </span>
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </RevealCard>
-      ))}
+            <IconCamera className="h-5.5 w-5.5" />
+          </Link>
+          {/* テキスト入力。中の小さいマイクは「音声入力」（音声→文字起こし）で、
+              右端の大きいマイク（トランシーバー=音声メモ送信）とは別機能 */}
+          <div className="flex h-11 min-w-0 flex-1 items-center rounded-full bg-gray-100 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-emerald-400">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={filterName ? `${filterName}へひとこと…` : "みんなへひとこと…"}
+              className="h-full min-w-0 flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            />
+            <VoiceInputButton
+              onText={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))}
+              disabled={sending}
+              className="shrink-0"
+            />
+          </div>
+          {text.trim() ? (
+            <button
+              onClick={handleSend}
+              disabled={sending}
+              aria-label="送信"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-flow-green text-white transition-transform active:scale-95 disabled:opacity-50"
+            >
+              <IconChevronRight className="h-6 w-6" />
+            </button>
+          ) : (
+            <TalkMicButton transceiver={transceiver} />
+          )}
+        </div>
+      </div>
+
+      <TransceiverOverlay transceiver={transceiver} />
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingDelete?.kind === "record" ? "この記録を削除しますか？" : "このメッセージを削除しますか？"}
+          </AlertDialogTitle>
+          {pendingDelete && (
+            <AlertDialogDescription>{deleteExtrasText(pendingDelete)}</AlertDialogDescription>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={deleting}>
+              {deleting ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+/**
+ * タイムラインの1エントリ（縦タイムライン構造）。
+ * 左に時刻の軸（時刻+ノード+縦線）、右に統一カード。自分/他人で左右を振り分けない
+ * （チャットではなく「今日の出来事の流れ」として全員分を1本の軸に載せる）。
+ */
+function TimelineEntry({
+  message: m,
+  showDate,
+  isLast,
+  onOpen,
+  onFieldTap,
+  onDelete,
+}: {
+  message: TalkMessage;
+  showDate: boolean;
+  /** 最後のエントリは軸の縦線を伸ばさない */
+  isLast: boolean;
+  onOpen: () => void;
+  onFieldTap: (fieldId: string) => void;
+  /** 自分のコメント/ひとことのみ削除可能（undefinedなら非表示） */
+  onDelete?: () => void;
+}) {
+  const fieldChip = m.fieldId && m.fieldName && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onFieldTap(m.fieldId!);
+      }}
+      // 親を div role="button" 化したため、keydownはclickと違いstopPropagationだけでは
+      // 止まらず親のonOpenまでバブリングする。Enter/Spaceでの二重発火を防ぐ
+      onKeyDown={(e) => e.stopPropagation()}
+      className="flex items-center gap-1 rounded-full bg-flow-green-soft px-2 py-0.5 text-[10px] font-bold text-flow-green"
+    >
+      <IconSprout className="h-3 w-3" />
+      {m.fieldName}
+    </button>
+  );
+
+  const openHandlers = {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: onOpen,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      // audio等のネストしたフォーカス可能要素のkeydownまで拾わないよう、
+      // コンテナ自身がフォーカスされている時だけEnter/Spaceを処理する
+      if (e.target !== e.currentTarget) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+  };
+
+  return (
+    <motion.div initial="hidden" animate="show" variants={fadeRise}>
+      {/* 日付見出し（文字階層2）。モック同様に左寄せ+カレンダーへの導線 */}
+      {showDate && (
+        <div className="flex items-center justify-between px-1 pb-2 pt-3">
+          <span className="font-heading text-sm font-bold text-gray-800">{m.dateLabel}</span>
+          <Link href="/calendar" className="text-xs font-semibold text-flow-green">
+            カレンダー
+          </Link>
+        </div>
+      )}
+      <div className="flex gap-2">
+        {/* 時刻の軸 */}
+        <span className="w-10 shrink-0 pt-0.5 text-right text-[11px] font-semibold tabular-nums text-gray-500">
+          {m.timeLabel}
+        </span>
+        <span className="relative w-3 shrink-0" aria-hidden>
+          <span className="absolute left-1/2 top-1.5 h-2 w-2 -translate-x-1/2 rounded-full bg-flow-green" />
+          {!isLast && (
+            <span className="absolute -bottom-1 left-1/2 top-4 w-px -translate-x-1/2 bg-flow-green/20" />
+          )}
+        </span>
+
+        {/* 本文カード */}
+        <div className="min-w-0 flex-1 pb-4">
+          <div className="flex items-center gap-1.5 pb-1">
+            <MemberAvatar name={m.author} className="h-5 w-5 text-[9px]" />
+            <span className="text-xs font-semibold text-gray-600">{m.author}</span>
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                aria-label="このメッセージを削除"
+                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-red-50 active:text-red-500"
+              >
+                <IconTrash className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {m.kind === "comment" ? (
+            // fieldChip がボタンのためネストボタンを避け、div+role="button" で代用する
+            <div
+              {...openHandlers}
+              className="cursor-pointer rounded-2xl bg-white px-4 py-3 text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
+            >
+              {/* 返信先の記録を引用表示（どのメッセージへの返信かを明示。タップで元記録=スレッドへ） */}
+              {m.recordTitle && (
+                <span className="mb-1 block truncate border-l-2 border-flow-green/40 pl-2 text-[11px] text-gray-500">
+                  ↩ {m.fieldName ? `${m.fieldName}・` : ""}
+                  {m.recordTitle}
+                </span>
+              )}
+              <p className="text-sm leading-relaxed text-gray-800">{m.text}</p>
+              {!m.recordTitle && fieldChip && <div className="mt-1.5 flex">{fieldChip}</div>}
+            </div>
+          ) : (
+            <div
+              {...openHandlers}
+              className="cursor-pointer overflow-hidden rounded-2xl bg-white text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
+            >
+              {/* 写真は主役: カード幅いっぱいで統一した比率に切り出す */}
+              {m.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- 署名URLの記録写真
+                <img src={m.photoUrl} alt="" className="aspect-[16/10] w-full object-cover" />
+              )}
+              <div className="px-4 py-3">
+                <p className="text-sm font-bold leading-snug text-gray-900">{m.title}</p>
+                {m.note && m.note !== m.title && (
+                  <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-600">{m.note}</p>
+                )}
+                {m.audioUrl && (
+                  <div
+                    className="mt-2 flex items-center gap-2 rounded-full bg-flow-green-soft py-1.5 pl-1.5 pr-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flow-green text-white">
+                      <IconPlayFill className="h-3.5 w-3.5" />
+                    </span>
+                    <audio controls preload="none" src={m.audioUrl} className="h-8 w-full min-w-0" />
+                  </div>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {fieldChip}
+                  {/* records.status は既定値が 'open' のため、異常系（isIssue）以外の
+                      ふつうの記録（写真/作業/ひとこと等）にまで「未対応」を出さない。
+                      isIssueでも解決済み（resolved等）になっていれば表示しない。
+                      需要確認（needs_check）は明示的に付けられた状態なので種別を問わず表示する */}
+                  {((m.isIssue && (m.status === "open" || m.status === "needs_check")) ||
+                    m.status === "needs_check") && (
+                    <StatusBadge
+                      status={m.isIssue && m.status === "open" ? "open" : "needs_check"}
+                      className="text-[10px]"
+                    />
+                  )}
+                  {m.photoCount != null && m.photoCount > 1 && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                      <IconCamera className="h-3 w-3" />
+                      {m.photoCount}枚
+                    </span>
+                  )}
+                  {/* スレッドの存在を明示（返信の履歴は元記録に集約されている） */}
+                  {m.commentCount != null && m.commentCount > 0 && (
+                    <span className="flex items-center gap-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">
+                      <IconChat className="h-3 w-3" />
+                      返信{m.commentCount}件
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
