@@ -73,10 +73,18 @@ export default function RecordsScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
-  const [filterId, setFilterId] = useState<string | null>(() => searchParams.get("field"));
+  const fieldParam = searchParams.get("field");
+  const [filterId, setFilterId] = useState<string | null>(() => fieldParam);
   const [categoryFilter, setCategoryFilter] = useState<FlowCategory>("すべて");
   // status=open は「未対応（open / needs_check の異常系）」だけに絞り込む
   const openOnly = searchParams.get("status") === "open";
+
+  // /records ページ上で ?field= だけが変わる遷移（例: 他画面から異なる田んぼの
+  // フィルタ付きリンクで着地）に追従する。useStateの初期化はマウント時の1回きりで
+  // 後続の変更を拾わないため、パラメータ変化を明示的に同期する
+  useEffect(() => {
+    setFilterId(fieldParam);
+  }, [fieldParam]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
