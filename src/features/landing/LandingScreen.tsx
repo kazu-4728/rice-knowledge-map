@@ -61,7 +61,7 @@ const PAINS = [
 const STEPS = [
   { n: "1", title: "田んぼをなぞって登録", desc: "空中写真の上に指でなぞるだけ。面積も自動で計算されます。" },
   { n: "2", title: "ボタンひとつで記録", desc: "写真・音声・異常報告。畑の真ん中でも数秒で残せます。" },
-  { n: "3", title: "家族に自動で届く", desc: "記録はそのまま家族のトークに。離れていても今日の田んぼが分かります。" },
+  { n: "3", title: "家族に自動で届く", desc: "記録はそのまま記録タイムラインに。離れていても今日の田んぼが分かります。" },
 ];
 
 export default function LandingScreen({ includeHomeBanners = false }: { includeHomeBanners?: boolean }) {

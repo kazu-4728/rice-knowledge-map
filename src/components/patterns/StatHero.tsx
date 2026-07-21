@@ -20,7 +20,7 @@ const TONE_TEXT: Record<NonNullable<StatHeroStat["tone"]>, string> = {
 };
 
 /**
- * ランディングの DashboardMockup（数値カード+進捗バー）の実データ拡大版。
+ * 数値カード+進捗バーで実データを見せるヒーロー。
  * /records の「積み重ね」ヒーローで使用。
  */
 export function StatHero({

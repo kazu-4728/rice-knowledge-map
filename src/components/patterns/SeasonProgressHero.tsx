@@ -5,8 +5,8 @@ import type { SeasonIconKey } from "../../lib/season";
 import { RemotePhoto } from "../ui/RemotePhoto";
 
 /**
- * ランディングの StoryMockup（グラデーション背景+進捗バー）の拡大版。
- * /calendar のヒーローで「次の農作業タイミング」を主役化する。
+ * グラデーション背景+進捗バーで「次の農作業タイミング」を主役化するヒーロー。
+ * /calendar のヒーローで使用。
  * coverImageUrl を渡すと季節に応じた実写を背景にし、スクリムで可読性を保つ。
  */
 export function SeasonProgressHero({

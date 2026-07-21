@@ -23,7 +23,7 @@ type Section = {
 };
 
 /**
- * 使い方ガイド。名称はナビ・ホームと同一（マップ／みんなの記録／各場所の記録）。
+ * 使い方ガイド。名称はナビ・ホームと同一（マップ／記録タイムライン／各場所の記録）。
  * 各セクションにアプリ実画面のステップ再生を付け、文字だけの説明にしない。
  * 導線やUIを変更するPRでは、該当セクションの文言・実画面もあわせて更新すること。
  */
@@ -43,9 +43,9 @@ const sections: Section[] = [
     Icon: IconMap,
     title: "マップ（見る・登録する）",
     screens: [
-      { src: defaultImage("screen-map-overview.webp"), caption: "開くと自分の田んぼが色つきで見える" },
-      { src: defaultImage("screen-map-fab.webp"), caption: "右下の＋から記録や田んぼ登録を始める" },
-      { src: defaultImage("screen-map-draw.webp"), caption: "指でなぞって新しい田んぼを登録" },
+      { src: defaultImage("screen-map-overview-v2.webp"), caption: "開くと自分の田んぼが色つきで見える" },
+      { src: defaultImage("screen-map-fab-v2.webp"), caption: "右下の＋から記録や田んぼ登録を始める" },
+      { src: defaultImage("screen-map-draw-v2.webp"), caption: "指でなぞって新しい田んぼを登録" },
     ],
     steps: [
       "マップを開くと空中写真の上に田んぼが信号色（緑=順調・黄=要確認・赤=異常）で表示されます。",
@@ -59,15 +59,15 @@ const sections: Section[] = [
     Icon: IconCamera,
     title: "記録を残す（写真・音声）",
     screens: [
-      { src: defaultImage("screen-record-photo.webp"), caption: "写真を撮ってメモを添える" },
-      { src: defaultImage("screen-record-confirm.webp"), caption: "内容を確認して保存" },
-      { src: defaultImage("screen-talk-timeline.webp"), caption: "そのままみんなの記録に流れる" },
+      { src: defaultImage("screen-record-photo-v2.webp"), caption: "写真を撮ってメモを添える" },
+      { src: defaultImage("screen-record-confirm-v2.webp"), caption: "状況・次のアクションも添えて確認して保存" },
+      { src: defaultImage("screen-records-timeline.webp"), caption: "そのまま記録タイムラインに流れる" },
     ],
     steps: [
-      "ホームの「今日の記録を残す」か、マップ右下の＋ボタン、みんなの記録のカメラボタンから始めます。",
+      "ホームの「写真で記録」「音声メモ」か、マップ右下の＋ボタン、記録タイムラインのカメラボタンから始めます。",
       "メモ欄はマイクアイコンでしゃべるだけでも入力できます。",
-      "対象の田んぼとポイント種別を選んで「次へ」→「保存する」。",
-      "保存すると、みんなの記録と田んぼの履歴に反映されます。",
+      "対象の田んぼとポイント種別を選んで「次へ」→ 状況・次のアクションを添えて「保存する」。",
+      "保存すると、記録タイムラインと田んぼの履歴に反映されます。",
     ],
   },
   {
@@ -83,29 +83,29 @@ const sections: Section[] = [
   {
     id: "talk",
     Icon: IconChat,
-    title: "みんなの記録",
+    title: "記録タイムライン（見る・絞り込む）",
     screens: [
-      { src: defaultImage("screen-talk-timeline.webp"), caption: "今日の記録が時系列で並ぶ" },
-      { src: defaultImage("screen-record-detail.webp"), caption: "記録を開いてコメントでやり取り" },
+      { src: defaultImage("screen-records-timeline.webp"), caption: "今日の記録が時系列で並ぶ" },
+      { src: defaultImage("screen-record-detail-v2.webp"), caption: "記録を開いてコメントでやり取り" },
     ],
     steps: [
-      "みんなの記録には、仲間全員の記録と会話が時系列で流れます。",
+      "記録タイムラインには、仲間全員の記録と会話が時系列で流れます。",
       "田んぼの名札やカテゴリで絞り込みができます。",
       "下の入力欄からひとことメッセージや音声も送れます。",
-      "田んぼ別にまとめて見たいときは「各場所の記録」、異常・要確認だけを横断で探したいときはメニュー→「記録一覧」を使います。",
+      "特定の田んぼだけ振り返りたいときは、田んぼの名札をタップするとその田んぼの記録・場所の情報にまとめて移動できます。",
     ],
   },
   {
     id: "fields",
     Icon: IconFieldGrid,
-    title: "各場所の記録",
+    title: "各場所の記録（場所詳細）",
     screens: [
-      { src: defaultImage("screen-fields-list.webp"), caption: "田んぼごとのカードで状態を確認" },
-      { src: defaultImage("screen-field-detail.webp"), caption: "記録の蓄積と写真の変化を確認できる" },
+      { src: defaultImage("screen-field-detail-v2.webp"), caption: "田んぼ切替チップ・小さな地図・状態・記録の蓄積をまとめて確認できる" },
     ],
     steps: [
-      "各場所の記録では、田んぼを1枚ずつ選んで状態・記録・写真の変化を確認できます。",
-      "田んぼカードをタップすると詳細（記録一覧・定点観測の写真比較）に移動します。",
+      "田んぼを1枚選ぶと、その田んぼの状態・記録の蓄積・写真の変化をまとめて確認できます。",
+      "マップでピンや区画をタップ、ホームの「今日の田んぼ」チップ、記録タイムラインの田んぼの名札のいずれかから移動できます。",
+      "画面上部の田んぼ切替チップで、マップやホームに戻らず隣の田んぼへそのまま移動できます。",
       "カメラアイコンから田んぼのカバー写真を登録できます（オーナー・編集者）。",
     ],
   },
@@ -114,8 +114,8 @@ const sections: Section[] = [
     Icon: IconShare,
     title: "共有する",
     screens: [
-      { src: defaultImage("screen-share-sheet.webp"), caption: "共有したい田んぼを選ぶ" },
-      { src: defaultImage("screen-field-detail.webp"), caption: "相手はリンクから田んぼの様子を見られる" },
+      { src: defaultImage("screen-share-sheet-v2.webp"), caption: "共有したい田んぼを選ぶ" },
+      { src: defaultImage("screen-field-detail-v2.webp"), caption: "相手はリンクから田んぼの様子を見られる" },
     ],
     steps: [
       "ホームの「共有する」か、田んぼ詳細の「共有する」ボタンから共有できます。",
@@ -136,6 +136,7 @@ const sections: Section[] = [
 ];
 
 const changelog = [
+  { date: "2026-07-22", note: "再設計フェーズ5（記録タイムライン統合・記録詳細/場所詳細の再設計）に合わせて実画面・名称を更新。旧「田んぼストーリー」「みんなの記録」の画像・名称が残っていたのを解消" },
   { date: "2026-07-18", note: "「使い方の流れ」バーを追加（マップで登録→記録→みんなで確認→振り返り・共有）。記録保存後はみんなの記録に着地するよう変更" },
   { date: "2026-07-16", note: "ホームを一新（名称統一・実画面つき説明・次の操作の提案）。マップに田んぼ登録ボタンとヘルプを追加" },
   { date: "2026-06-13", note: "ヒーローセクション・アプリ説明・使い方ページを追加（PR-B）" },
