@@ -394,7 +394,7 @@ export default function RecordDetailPage() {
           </button>
         </div>
         <p className="-mt-1 text-center text-xs text-gray-500">
-          共有するはLINEなど、アプリの外にいる人へ送ります（仲間にはすでに「みんなの記録」で見えています）
+          共有するはLINEなど、アプリの外にいる人へ送ります（仲間にはすでに「記録タイムライン」で見えています）
         </p>
 
         {/* 記録情報カード */}
