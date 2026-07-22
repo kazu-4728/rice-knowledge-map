@@ -97,7 +97,7 @@ export default function AccountSection({ redirectPath }: Props = {}) {
           </button>
         </div>
 
-        {/* 表示名の変更。記録・みんなの記録で「誰の投稿か」を示す名前 */}
+        {/* 表示名の変更。記録・記録タイムラインで「誰の投稿か」を示す名前 */}
         {editing ? (
           <div className="mt-3">
             <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function AccountSection({ redirectPath }: Props = {}) {
               </button>
             </div>
             <p className="mt-1.5 text-xs text-gray-500">
-              「みんなの記録」や記録で表示される名前です（20文字まで）
+              「記録タイムライン」や記録で表示される名前です（20文字まで）
             </p>
           </div>
         ) : (

@@ -459,7 +459,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           共有する
         </Button>
         <p className="mt-1.5 text-center text-xs text-gray-500">
-          LINEなど、アプリの外にいる人へ送ります（仲間にはすでに「みんなの記録」で見えています）
+          LINEなど、アプリの外にいる人へ送ります（仲間にはすでに「記録タイムライン」で見えています）
         </p>
       </div>
 
