@@ -30,10 +30,12 @@ import {
 import {
   loadRecordDetail,
   addComment,
-  resolveRecord,
+  changeRecordStatus,
   deleteRecord,
+  statusLabelFor,
   type RecordDetailData,
   type MediaUrls,
+  type RecordStatus,
 } from "../../../lib/data/recordDetail";
 import type { RecordDetail } from "../../../types";
 import { VoiceInputButton } from "../../../components/ui/VoiceInputButton";
@@ -56,7 +58,7 @@ export default function RecordDetailPage() {
   const [commentText, setCommentText] = useState("");
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [resolving, setResolving] = useState(false);
+  const [statusBusy, setStatusBusy] = useState<RecordStatus | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -170,6 +172,25 @@ export default function RecordDetailPage() {
     return params.toString();
   })();
 
+  // 小さな地図に渡す座標。記録そのものの位置（GPS）と、写真ごとの位置を分けて扱う
+  const recordPoints: [number, number][] =
+    record.latitude !== null && record.longitude !== null ? [[record.longitude, record.latitude]] : [];
+  const photoMarkers = mediaUrls.photos.flatMap((p, i) =>
+    p.latitude !== null && p.longitude !== null
+      ? [{
+          lngLat: [p.longitude, p.latitude] as [number, number],
+          label: mediaUrls.photos.length > 1 ? String(i + 1) : undefined,
+        }]
+      : []
+  );
+
+  /**
+   * 状態の選択肢。異常記録では 'open' を「通常」と呼ばない
+   * （ホーム・マップの未対応集計は異常記録の open/needs_check を未対応として数えるため、
+   * 「通常」と表示すると詳細と警告が食い違う。tasks/TASKS.md PR1 制約1）。
+   */
+  const statusChoices: RecordStatus[] = ["open", "needs_check", "monitoring", "resolved"];
+
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
     setMessage(null);
@@ -199,16 +220,16 @@ export default function RecordDetailPage() {
     else if (result === "failed") setMessage("共有に失敗しました");
   };
 
-  const handleResolve = async () => {
-    if (isResolved) return;
+  const handleChangeStatus = async (next: RecordStatus) => {
+    if (statusBusy || next === record.status) return;
     setMessage(null);
-    setResolving(true);
-    const { error } = await resolveRecord(id);
-    // ステータス更新自体は成功している可能性があるため、エラー有無に関わらず再読込する
+    setStatusBusy(next);
+    const { error } = await changeRecordStatus(id, next);
+    // 状態更新自体は成功している可能性があるため、エラー有無に関わらず再読込する
     const refreshed = await loadRecordDetail(id);
     setData(refreshed);
     if (error) setMessage(error);
-    setResolving(false);
+    setStatusBusy(null);
   };
 
   const handleDelete = async () => {
@@ -287,12 +308,38 @@ export default function RecordDetailPage() {
             Supabase未設定の純デモ等、実写が用意できないときの最終フォールバックのみ） */}
         <section className="rounded-2xl bg-white p-3 shadow-sm">
           {mediaUrls.photos.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={mediaUrls.photos[0]}
-              alt="記録写真"
-              className="h-52 w-full rounded-xl object-cover"
-            />
+            <div className="space-y-3">
+              {mediaUrls.photos.map((photo, i) => (
+                <figure key={photo.id}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.url}
+                    alt={mediaUrls.photos.length > 1 ? `記録写真${i + 1}` : "記録写真"}
+                    className="h-52 w-full rounded-xl object-cover"
+                  />
+                  {/* 写真ごとの撮影日時・位置（record_media に保存済みだが表示されていなかった） */}
+                  {(photo.capturedAtLabel || photo.latitude !== null) && (
+                    <figcaption className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 px-0.5 text-[11px] text-gray-500">
+                      {mediaUrls.photos.length > 1 && (
+                        <span className="font-bold text-gray-600">写真{i + 1}</span>
+                      )}
+                      {photo.capturedAtLabel && (
+                        <span className="flex items-center gap-1">
+                          <IconCalendar className="h-3.5 w-3.5 text-green-700" />
+                          {photo.capturedAtLabel}
+                        </span>
+                      )}
+                      {photo.latitude !== null && photo.longitude !== null && (
+                        <span className="flex items-center gap-1">
+                          <IconPinFill className="h-3.5 w-3.5 text-green-700" />
+                          {photo.latitude.toFixed(5)}, {photo.longitude.toFixed(5)}
+                        </span>
+                      )}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
           ) : (
             <RemotePhoto
               src={resolveRecordCoverUrl(undefined, TYPE_TO_CATEGORY[record.recordType] ?? "作業", imageSlots)}
@@ -347,11 +394,13 @@ export default function RecordDetailPage() {
               )}
             </div>
 
-            {/* 小さな地図（場所確認用の脇役。圃場未紐付けの記録では非表示） */}
-            {record.fieldId && record.latitude !== null && record.longitude !== null && (
+            {/* 小さな地図（場所確認用の脇役。圃場未紐付けの記録では非表示）。
+                写真ごとの位置情報があれば、その地点にピンを立てる */}
+            {record.fieldId && (recordPoints.length > 0 || photoMarkers.length > 0) && (
               <FieldMiniMap
                 href={`/fields/${encodeURIComponent(record.fieldId)}`}
-                points={[[record.longitude, record.latitude]]}
+                points={recordPoints}
+                markers={photoMarkers}
                 className="h-20 w-24 shrink-0 rounded-xl"
                 ariaLabel="場所詳細を見る"
               />
@@ -396,6 +445,60 @@ export default function RecordDetailPage() {
         <p className="-mt-1 text-center text-xs text-gray-500">
           共有するはLINEなど、アプリの外にいる人へ送ります（仲間にはすでに「記録タイムライン」で見えています）
         </p>
+
+        {/* 状態の変更。保存時に選んだ状態を、後からいつでも変えられるようにする */}
+        <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <IconCheck className="h-5 w-5 shrink-0 text-green-700" strokeWidth={2.2} />
+            <p className="text-sm font-bold text-gray-900">この記録の状態</p>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {statusChoices.map((s) => {
+              const active = record.status === s;
+              const busy = statusBusy === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleChangeStatus(s)}
+                  disabled={statusBusy !== null || active}
+                  aria-pressed={active}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors disabled:opacity-70 ${
+                    active
+                      ? "bg-green-700 text-white"
+                      : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {busy ? "変更中…" : statusLabelFor(s, record.isIssue)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            {record.isIssue
+              ? "「未対応」「要確認」の異常記録は、ホームとマップで未対応として表示されます"
+              : "変更するとホーム・マップの表示にも反映されます"}
+          </p>
+
+          {/* 状態変更の履歴（record_status_events。これまで記録だけされて表示されていなかった） */}
+          {record.statusEvents.length > 0 && (
+            <div className="mt-3 border-t border-gray-100 pt-2.5">
+              <p className="text-xs font-bold text-gray-600">状態の変更履歴</p>
+              <ul className="mt-1.5 space-y-1.5">
+                {record.statusEvents.map((e) => (
+                  <li key={e.id} className="flex flex-wrap items-baseline gap-x-1.5 text-xs text-gray-600">
+                    <span className="text-gray-400">{e.at}</span>
+                    <span className="font-semibold text-gray-800">
+                      {e.fromLabel} → {e.toLabel}
+                    </span>
+                    <span className="text-gray-500">{e.by}</span>
+                    {e.comment && <span className="w-full text-gray-500">{e.comment}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
 
         {/* 記録情報カード */}
         <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">
@@ -518,14 +621,15 @@ export default function RecordDetailPage() {
 
       {/* 下部アクション */}
       <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        {/* 現場での最頻操作だけを常設ボタンに置く（他の状態へは上の「この記録の状態」から変更する） */}
         <Button
           variant={isResolved ? "tertiary" : "secondary"}
           className="flex-1"
-          onClick={handleResolve}
-          disabled={isResolved || resolving}
+          onClick={() => handleChangeStatus("resolved")}
+          disabled={isResolved || statusBusy !== null}
         >
           <IconCheck className="h-5 w-5" strokeWidth={2.2} />
-          {isResolved ? "対応済み" : resolving ? "更新中…" : "対応済みにする"}
+          {isResolved ? "対応済み" : statusBusy === "resolved" ? "更新中…" : "対応済みにする"}
         </Button>
         <Button
           variant="primary"

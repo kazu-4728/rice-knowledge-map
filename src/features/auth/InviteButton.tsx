@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getSupabase } from "../../lib/supabase/client";
 import { ensureGroupId } from "../../lib/data/farm";
+import { ROLE_DESCRIPTIONS, ROLE_LABELS, type InviteRole } from "../../lib/data/members";
 import { IconCheck, IconPlus } from "../../components/ui/icons";
 
 async function sha256Hex(text: string): Promise<string> {
@@ -13,10 +14,14 @@ async function sha256Hex(text: string): Promise<string> {
     .join("");
 }
 
-/** 家族を招待するURLを発行する（owner専用・有効期限7日・editor権限） */
+const INVITE_ROLES: InviteRole[] = ["editor", "viewer"];
+
+/** 家族を招待するURLを発行する（owner専用・有効期限7日・権限は編集者/閲覧者から選ぶ） */
 export default function InviteButton() {
   const [busy, setBusy] = useState(false);
+  const [role, setRole] = useState<InviteRole>("editor");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [invitedRole, setInvitedRole] = useState<InviteRole>("editor");
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -54,7 +59,7 @@ export default function InviteButton() {
       const { error } = await sb.from("farm_group_invites").insert({
         group_id: groupId,
         token_hash: tokenHash,
-        role: "editor",
+        role,
         expires_at: expiresAt,
         created_by: user.id,
       });
@@ -65,6 +70,7 @@ export default function InviteButton() {
       }
 
       const url = `${window.location.origin}/invite#${token}`;
+      setInvitedRole(role);
       setInviteUrl(url);
       try {
         await navigator.clipboard.writeText(url);
@@ -79,20 +85,41 @@ export default function InviteButton() {
 
   return (
     <div className="mt-3">
+      {/* 招待する権限（invite_role は editor / viewer のみ。管理者は招待では付与しない） */}
+      <p className="text-xs font-bold text-gray-600">招待する人の権限</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {INVITE_ROLES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRole(r)}
+            aria-pressed={role === r}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              role === r
+                ? "bg-green-700 text-white"
+                : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {ROLE_LABELS[r]}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-gray-500">{ROLE_DESCRIPTIONS[role]}</p>
+
       <button
         onClick={handleInvite}
         disabled={busy}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50 disabled:opacity-50"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-green-700 bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-green-50 disabled:opacity-50"
       >
         <IconPlus className="h-4.5 w-4.5" strokeWidth={2.2} />
-        家族を招待（URLを発行）
+        {busy ? "発行中…" : "家族を招待（URLを発行）"}
       </button>
 
       {inviteUrl && (
         <div className="mt-2 rounded-xl bg-green-50 p-3">
           <p className="flex items-center gap-1.5 text-xs font-bold text-green-800">
             <IconCheck className="h-4 w-4" strokeWidth={2.4} />
-            招待URLを発行しました（7日間有効・編集者権限）
+            招待URLを発行しました（7日間有効・{ROLE_LABELS[invitedRole]}権限）
             {copied && "・コピー済み"}
           </p>
           <p className="mt-1.5 break-all rounded-lg bg-white px-2 py-1.5 text-[11px] text-gray-700">

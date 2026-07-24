@@ -6,26 +6,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft, type RecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import { loadFarmData } from "../../lib/data/farm";
+import { isPointType } from "../map/mapPins";
+import { POINT_TYPE_CHOICES } from "../map/pointTypeMeta";
 import type { FieldPointType } from "../../types";
-
-const VALID_POINT_TYPES = new Set<string>(["inlet","outlet","canal","weed","caution","levee_damage","poor_drainage","other"]);
 import {
   IconChevronRight,
-  IconDropFill,
   IconMic,
   IconPinFill,
-  IconSprout,
-  IconWarningFill,
-  IconWaves,
 } from "../../components/ui/icons";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
-
-const pointTypes: { type: FieldPointType; icon: React.ReactNode; label: string }[] = [
-  { type: "inlet", icon: <IconDropFill className="h-6 w-6 text-sky-500" />, label: "入水口" },
-  { type: "outlet", icon: <IconWaves className="h-6 w-6 text-blue-500" />, label: "出水口" },
-  { type: "weed", icon: <IconSprout className="h-6 w-6 text-green-600" />, label: "雑草" },
-  { type: "caution", icon: <IconWarningFill className="h-6 w-6 text-amber-500" />, label: "異常" },
-];
 
 /** 録音の最大長（秒）。ファイルサイズと聞き直しやすさのため短めに区切る */
 const MAX_SECONDS = 120;
@@ -92,7 +81,7 @@ export default function AudioRecordScreen() {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
       const rawPointType = searchParams.get("pointType");
-      const pointTypeParam: FieldPointType | null = rawPointType && VALID_POINT_TYPES.has(rawPointType) ? rawPointType as FieldPointType : null;
+      const pointTypeParam: FieldPointType | null = isPointType(rawPointType) ? rawPointType : null;
       if (fieldParam) setSelectedFieldId(fieldParam);
       if (pointParam) {
         setPointId(pointParam);
@@ -362,7 +351,7 @@ export default function AudioRecordScreen() {
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-gray-900">何の記録ですか？（任意）</p>
             <div className="mt-3 grid grid-cols-4 gap-2">
-              {pointTypes.map((pt) => (
+              {POINT_TYPE_CHOICES.map((pt) => (
                 <button
                   key={pt.type}
                   onClick={() => setPointType(pointType === pt.type ? null : pt.type)}
@@ -372,8 +361,11 @@ export default function AudioRecordScreen() {
                       : "border-gray-100 bg-white hover:border-green-300"
                   }`}
                 >
-                  {pt.icon}
-                  <span className="text-xs font-semibold text-gray-700">{pt.label}</span>
+                  <pt.Icon className={`h-6 w-6 ${pt.color}`} />
+                  {/* 8種類を4列2段に並べるため、「水抜け不良」等の長いラベルも折り返さず収まる字送りにする */}
+                  <span className="px-0.5 text-center text-[11px] font-semibold leading-tight text-gray-700">
+                    {pt.label}
+                  </span>
                 </button>
               ))}
             </div>

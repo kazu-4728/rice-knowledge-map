@@ -12,6 +12,10 @@ export const PIN_COLORS: Record<FieldPointType, string> = {
   other: "#6B7280",
 };
 
+/**
+ * ポイント種別の表示名。アプリ全体でこの1箇所を元データとする
+ * （記録作成の選択肢・記録詳細・場所詳細はここから引く。画面ごとに定義しない）。
+ */
 export const TYPE_LABELS: Record<FieldPointType, string> = {
   inlet: "入水口",
   outlet: "出水口",
@@ -22,6 +26,26 @@ export const TYPE_LABELS: Record<FieldPointType, string> = {
   poor_drainage: "水抜け不良",
   other: "その他",
 };
+
+/**
+ * ポイント種別の並び順（記録作成画面の選択肢の並びもこれに従う）。
+ * 水まわり → 手入れ → 異常 → その他 の順。
+ */
+export const POINT_TYPES: readonly FieldPointType[] = [
+  "inlet",
+  "outlet",
+  "canal",
+  "weed",
+  "caution",
+  "levee_damage",
+  "poor_drainage",
+  "other",
+];
+
+/** 外部由来の文字列（URLクエリ・DBのai_category等）がポイント種別かを判定する */
+export function isPointType(value: string | null | undefined): value is FieldPointType {
+  return !!value && (POINT_TYPES as readonly string[]).includes(value);
+}
 
 export const STATUS_LABELS: Record<string, string> = {
   normal: "正常",

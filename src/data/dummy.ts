@@ -221,8 +221,12 @@ export const sampleRecordDetail: RecordDetail = {
   note: "",
   nextAction: "夕方にもう一度、水量を確認する。",
   recordType: "check",
+  isIssue: false,
   latitude: null,
   longitude: null,
+  statusEvents: [
+    { id: "event-sample-1", fromLabel: "通常", toLabel: "要確認", by: "お父さん", at: "5月24日 07:50", comment: null },
+  ],
   comments: [
     { author: "お父さん", isRecorder: true, text: "今朝の確認記録です。念のため夕方にも見に行きます。", timestamp: "5月24日 07:45" },
     { author: "お母さん", isMine: true, text: "ありがとう！夕方にもう一度確認しておくね。", timestamp: "5月24日 08:12" },

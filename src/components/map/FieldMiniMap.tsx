@@ -6,6 +6,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { GeoJSON } from "geojson";
 import { IconExpand } from "../ui/icons";
 
+export type MiniMapMarker = {
+  lngLat: [number, number];
+  /** ピン内に出す短い文字（写真の連番など）。省略時は点のみ */
+  label?: string;
+};
+
 type Props = {
   /** タップ時の遷移先（マップ画面） */
   href: string;
@@ -13,6 +19,8 @@ type Props = {
   boundary?: GeoJSON.Polygon | null;
   /** 輪郭が無い場合の中心候補（記録地点・ポイント等） */
   points?: [number, number][];
+  /** 目に見えるピンを立てる地点（写真ごとの位置情報など）。表示範囲にも含める */
+  markers?: MiniMapMarker[];
   /** 田んぼ名ラベル（本体マップと同じ白チップをHTML Markerで表示） */
   label?: string;
   className?: string;
@@ -24,9 +32,17 @@ type Props = {
  * 場所詳細・記録では実写写真が主役、地図は確認用の小さな脇役として埋め込む）。
  * 操作不可（tap-throughでマップ画面へ遷移）の非インタラクティブなMapLibre表示。
  */
-export function FieldMiniMap({ href, boundary, points = [], label, className = "", ariaLabel = "マップで見る" }: Props) {
+export function FieldMiniMap({
+  href,
+  boundary,
+  points = [],
+  markers = [],
+  label,
+  className = "",
+  ariaLabel = "マップで見る",
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const depKey = JSON.stringify({ boundary, points, label });
+  const depKey = JSON.stringify({ boundary, points, markers, label });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -35,8 +51,10 @@ export function FieldMiniMap({ href, boundary, points = [], label, className = "
     let map: import("maplibre-gl").Map | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
-    const coords: [number, number][] =
+    const baseCoords: [number, number][] =
       boundary?.coordinates?.[0]?.map((c) => [c[0], c[1]] as [number, number]) ?? points;
+    // ピンを立てた地点が枠外に切れないよう、表示範囲の計算にも含める
+    const coords: [number, number][] = [...baseCoords, ...markers.map((m) => m.lngLat)];
     if (coords.length === 0) return;
 
     import("maplibre-gl").then((maplibre) => {
@@ -88,6 +106,14 @@ export function FieldMiniMap({ href, boundary, points = [], label, className = "
             "rounded-lg glass-light px-2 py-0.5 text-[11px] font-bold text-emerald-900 shadow-md pointer-events-none whitespace-nowrap";
           new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(center).addTo(map);
         }
+        // 写真ごとの撮影位置などの目印（小さな緑の丸ピン）
+        for (const marker of markers) {
+          const el = document.createElement("div");
+          el.textContent = marker.label ?? "";
+          el.className =
+            "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-[10px] font-bold text-white shadow pointer-events-none";
+          new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
+        }
         const bounds = coords.reduce(
           (b, c) => b.extend(c),
           new maplibre.LngLatBounds(coords[0], coords[0])
@@ -105,7 +131,7 @@ export function FieldMiniMap({ href, boundary, points = [], label, className = "
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depKey]);
 
-  if (!boundary && points.length === 0) return null;
+  if (!boundary && points.length === 0 && markers.length === 0) return null;
 
   return (
     <Link href={href} aria-label={ariaLabel} className={`relative block overflow-hidden bg-gray-200 ${className}`}>

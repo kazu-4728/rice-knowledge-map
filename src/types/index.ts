@@ -78,6 +78,27 @@ export type RecordComment = {
   timestamp: string;
 };
 
+/** 記録に紐づく写真1枚（署名URL + 記録時に保存したメタ情報） */
+export type RecordPhoto = {
+  id: string;
+  url: string;
+  /** record_media.captured_at（記録した時刻。写真EXIFの撮影時刻ではない） */
+  capturedAtLabel: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+/** 状態変更の履歴1件（record_status_events） */
+export type RecordStatusEvent = {
+  id: string;
+  fromLabel: string;
+  toLabel: string;
+  /** 変更した人の表示名（自分なら「あなた」） */
+  by: string;
+  at: string;
+  comment: string | null;
+};
+
 export type RecordDetail = {
   id: string;
   fieldId: string | null;
@@ -97,6 +118,13 @@ export type RecordDetail = {
   nextAction: string;
   recordType: "photo" | "voice" | "water" | "work" | "issue" | "check" | "other";
   comments: RecordComment[];
+  /** 状態変更の履歴（新しい順） */
+  statusEvents: RecordStatusEvent[];
+  /**
+   * 異常系の記録か（record_type='issue' または異常系のポイント種別）。
+   * 同じ status='open' でも、異常記録は「未対応」、それ以外は「通常」と表示するために使う
+   */
+  isIssue: boolean;
   latitude: number | null;
   longitude: number | null;
 };

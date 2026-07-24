@@ -68,6 +68,14 @@ Supabase関連のファイルを置くディレクトリです。
   - ただしSupabase migration履歴上に本ファイル名相当の履歴は確認できない。
   - SQLで再現できるのはバケット作成のみ。既定WebP 5枚はStorageオブジェクトとして別途投入が必要。
 
+- `0009_set_record_status.sql` — 記録の状態変更を1トランザクション化するRPC
+  - `set_record_status(p_record_id, p_to_status, p_comment)` を追加
+  - `records.status` の更新と `record_status_events` への履歴追加を、行ロック付きで同一トランザクションにまとめる
+    （従来は2リクエストに分かれ、履歴INSERTだけ失敗すると履歴が欠けた）
+  - SECURITY DEFINER のため関数内で `has_group_role(owner/editor)` を明示的に検証する
+  - 実行権限は `authenticated` のみ（0002 の方針に合わせる）
+  - **未適用**: オーナー承認後に適用する
+
 ## 今後migrationを追加するとき
 
 1. `0009_xxx.sql` のように連番でこのディレクトリに追加する
