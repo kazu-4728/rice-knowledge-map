@@ -2,9 +2,9 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-07-25）
+## 適用状況（2026-07-09）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0009相当まで適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0008相当まで適用済み**。
   ただし `0007` / `0008` 相当の変更は、Supabase側のmigration履歴名とリポジトリ内ファイル名が一致していない。
 - 実DBでは `group_site_content.image_slots` が存在し、`jsonb not null default jsonb_build_object()` として適用済み。
   Supabase migration履歴上は、2026-07-06に以下の4件として記録されている。
@@ -79,7 +79,7 @@ Supabase関連のファイルを置くディレクトリです。
 
 ## 今後migrationを追加するとき
 
-1. `0010_xxx.sql` のように連番でこのディレクトリに追加する
+1. `0009_xxx.sql` のように連番でこのディレクトリに追加する
 2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
    （docs/NEGATIVE_ACTIONS.md 参照）
 3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
