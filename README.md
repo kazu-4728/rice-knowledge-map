@@ -79,16 +79,19 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 
 ### 記録
 
-- 写真撮影→圧縮→Supabase Storage 保存→一覧サムネ表示
+- 写真撮影→圧縮→Supabase Storage 保存→一覧サムネ表示（記録時刻・記録時の端末位置も表示。PC等で既存写真を選んだ場合は写真のEXIFではなく記録操作時の値）
 - 音声メモ録音（MediaRecorder）→ Storage 保存→再生
 - 保存前確認画面（田んぼ・地点・カテゴリ・状態・メモ）
-- 記録詳細・コメント・「対応済みにする」
+- 地点の分類は8種類（入水口/出水口/水路/雑草/注意箇所/畦崩れ/水抜け不良/その他）
+- 記録詳細・コメント・状態の任意変更（`open`/`needs_check`/`monitoring`/`resolved`の4種類。`open`は記録種別に応じて「通常」または「未対応」と表示し分けるのみで別状態ではない）と変更履歴表示
+- 田んぼ詳細の定点観測（同じ地点の写真を時系列比較）
 - 記録削除（記録者本人 or owner のみ）
 
-### 認証・共有
+### 認証・共有・権限
 
 - Google ログイン / メールリンクログイン
-- グループ招待 URL（`/invite`）
+- グループ招待 URL（`/invite`、招待時に editor/viewer の権限を選択可能）
+- 家族・作業者の一覧、権限（owner/editor/viewer）の確認・変更（`/menu/family`）
 - グループ単位の RLS（閲覧は全メンバー・書き込みは owner/editor）
 
 ### その他
@@ -100,16 +103,15 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 
 ---
 
-## 画面一覧（16 ルート）
+## 画面一覧
 
 | ルート | 画面 |
 |---|---|
-| `/` | スプラッシュ（ランディング） |
-| `/home` | ホーム（ステータスダッシュボード） |
+| `/` | ホーム（未ログイン: ランディング／ログイン後: ダッシュボード） |
 | `/map` | メインマップ（MapCanvas） |
 | `/fields` | 田んぼ一覧 |
-| `/fields/[id]` | 田んぼ詳細 |
-| `/records` | 記録一覧 |
+| `/fields/[id]` | 田んぼ詳細（概要／記録／定点観測タブ） |
+| `/records` | 記録タイムライン（記録一覧） |
 | `/records/[id]` | 記録詳細 |
 | `/records/new` | 記録作成（写真/音声） |
 | `/records/new/confirm` | 保存前確認 |
@@ -117,16 +119,18 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 | `/guide` | 使い方 |
 | `/export` | エクスポート（PDF） |
 | `/menu` | メニュー |
+| `/menu/family` | 家族・作業者（メンバー一覧・権限変更・招待） |
 | `/menu/site` | サイト設定（owner のみ） |
 | `/login` | ログイン |
 | `/invite` | 招待引き換え |
+| `/home`, `/talk` | 旧URL互換のリダイレクト専用（`/` `/records` へ） |
 
 ---
 
 ## Supabase 構成
 
 - プロジェクト: `rice-farm-app`（無料プランのため長期間放置で一時停止に注意）
-- スキーマ: migration 0001〜0006 適用済み（`supabase/README.md` 参照）
+- スキーマ: migration 0001〜0010 適用済み（詳細・適用状況は `supabase/README.md` 参照）
 - テーブル: profiles / farm_groups / farm_group_members / farm_group_invites / farm_fields / field_seasons / field_points / records / record_media / record_comments / record_status_events / group_site_content / farm_schedules
 
 ---
