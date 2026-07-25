@@ -1,0 +1,178 @@
+import { getSupabase } from "../supabase/client";
+
+export type MemberRole = "owner" | "editor" | "viewer";
+/** 招待で付与できる権限（owner は招待では付与しない。0001_init.sql の invite_role） */
+export type InviteRole = "editor" | "viewer";
+
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  owner: "管理者",
+  editor: "編集者",
+  viewer: "閲覧者",
+};
+
+export const ROLE_DESCRIPTIONS: Record<MemberRole, string> = {
+  owner: "記録・田んぼの編集に加えて、メンバーの権限変更と招待ができます",
+  editor: "記録・田んぼの追加と編集ができます",
+  viewer: "記録や田んぼを見るだけできます（追加・編集はできません）",
+};
+
+export type GroupMember = {
+  userId: string;
+  displayName: string;
+  role: MemberRole;
+  /** ログイン中の自分自身か */
+  isMe: boolean;
+  joinedAt: string;
+};
+
+export type GroupMembersData = {
+  /**
+   * demo: Supabase未設定
+   * anon: 未ログイン
+   * live: ログイン済み（グループ未作成なら members が空）
+   * error: 取得失敗
+   */
+  mode: "demo" | "anon" | "live" | "error";
+  groupId: string | null;
+  groupName: string;
+  /** ログイン中の自分の権限（未所属なら null） */
+  myRole: MemberRole | null;
+  members: GroupMember[];
+};
+
+const VALID_ROLES: readonly MemberRole[] = ["owner", "editor", "viewer"];
+
+function toRole(value: unknown): MemberRole {
+  return (VALID_ROLES as readonly string[]).includes(value as string) ? (value as MemberRole) : "viewer";
+}
+
+function formatJoinedAt(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+type MemberRow = {
+  user_id: string;
+  role: string;
+  joined_at: string;
+  profiles: { display_name: string } | null;
+};
+
+/**
+ * 所属グループのメンバー一覧を読み込む。
+ * グループが無いユーザーに対してここでグループを作りはしない（閲覧が作成の副作用を持たないようにする）。
+ */
+export async function loadGroupMembers(): Promise<GroupMembersData> {
+  const empty = { groupId: null, groupName: "", myRole: null, members: [] };
+  const sb = getSupabase();
+  if (!sb) return { mode: "demo", ...empty };
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData.session) return { mode: "anon", ...empty };
+    const userId = sessionData.session.user.id;
+
+    const { data: mine, error: mineError } = await sb
+      .from("farm_group_members")
+      .select("group_id, role, farm_groups(name)")
+      .eq("user_id", userId)
+      .order("joined_at")
+      .limit(1);
+    if (mineError) {
+      console.warn("[members] my membership fetch failed", mineError);
+      return { mode: "error", ...empty };
+    }
+    const myRow = mine?.[0] as unknown as
+      | { group_id: string; role: string; farm_groups: { name: string } | null }
+      | undefined;
+    if (!myRow) return { mode: "live", ...empty };
+
+    const { data, error } = await sb
+      .from("farm_group_members")
+      .select("user_id, role, joined_at, profiles(display_name)")
+      .eq("group_id", myRow.group_id)
+      .order("joined_at");
+    if (error) {
+      console.warn("[members] fetch failed", error);
+      return { mode: "error", ...empty };
+    }
+
+    const rows = (data ?? []) as unknown as MemberRow[];
+    return {
+      mode: "live",
+      groupId: myRow.group_id,
+      groupName: myRow.farm_groups?.name ?? "",
+      myRole: toRole(myRow.role),
+      members: rows.map((r) => ({
+        userId: r.user_id,
+        displayName: r.profiles?.display_name || "名前未設定",
+        role: toRole(r.role),
+        isMe: r.user_id === userId,
+        joinedAt: formatJoinedAt(r.joined_at),
+      })),
+    };
+  } catch (err) {
+    console.warn("[members] load error", err);
+    return { mode: "error", ...empty };
+  }
+}
+
+export type UpdateRoleResult =
+  | { status: "saved" }
+  | { status: "denied" }
+  | { status: "last_owner" }
+  | { status: "demo" }
+  | { status: "error"; message: string };
+
+/**
+ * メンバーの権限を変更する。
+ *
+ * 制約3（tasks/TASKS.md PR1）: 最後の管理者を降格させると、以後グループの誰も
+ * 権限変更・招待発行・グループ更新ができなくなり、自己回復もできない
+ * （members_update / invites_insert / groups_update がいずれも owner 権限を要求するため）。
+ *
+ * 人数確認と更新は update_member_role RPC の中で行ロック付きの単一トランザクションに
+ * まとめている（supabase/migrations/0010_update_member_role.sql）。以前のようにクライアント側で
+ * 「SELECTで人数確認 → 別リクエストでUPDATE」に分けると、異なる端末の2人のownerが
+ * ほぼ同時に互いを降格した場合、両方の事前SELECTが「まだ2人いる」を観測してから
+ * 別行を更新するため両方成功してしまい、owner不在（自己回復不能な状態）になり得るため。
+ */
+export async function updateMemberRole(
+  groupId: string,
+  targetUserId: string,
+  nextRole: MemberRole
+): Promise<UpdateRoleResult> {
+  const sb = getSupabase();
+  if (!sb) return { status: "demo" };
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    if (!sessionData.session) return { status: "denied" };
+
+    const { error } = await sb.rpc("update_member_role", {
+      p_group_id: groupId,
+      p_target_user_id: targetUserId,
+      p_next_role: nextRole,
+    });
+
+    if (error) {
+      console.warn("[members] update_member_role failed", error);
+      // RPC側が errcode を付けて raise しているため、文言ではなく SQLSTATE で分岐する
+      switch (error.code) {
+        case "42501":
+          return { status: "denied" };
+        case "P0002":
+          return { status: "denied" };
+        case "LSTOW":
+          return { status: "last_owner" };
+        default:
+          return { status: "error", message: error.message };
+      }
+    }
+    return { status: "saved" };
+  } catch (err) {
+    console.warn("[members] role update error", err);
+    return { status: "error", message: "権限の変更に失敗しました" };
+  }
+}

@@ -1,7 +1,14 @@
-import type { FieldPointType, RecordDetail, RecordComment } from "../../types";
+import type {
+  FieldPointType,
+  RecordComment,
+  RecordDetail,
+  RecordPhoto,
+  RecordStatusEvent,
+} from "../../types";
 import { getSupabase } from "../supabase/client";
 import { sampleRecordDetail } from "../../data/dummy";
 import { ISSUE_POINT_TYPES } from "./records";
+import { TYPE_LABELS, isPointType } from "../../features/map/mapPins";
 
 type MediaRow = {
   id: string;
@@ -9,6 +16,19 @@ type MediaRow = {
   storage_bucket: string;
   storage_path: string;
   created_at: string;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  captured_at: string | null;
+};
+
+type StatusEventRow = {
+  id: string;
+  from_status: string;
+  to_status: string;
+  changed_by: string;
+  comment: string | null;
+  created_at: string;
+  profiles: { display_name: string } | null;
 };
 
 type CommentRow = {
@@ -38,39 +58,37 @@ type DetailRow = {
   farm_fields: { name: string } | null;
   record_media: MediaRow[];
   record_comments: CommentRow[];
+  record_status_events: StatusEventRow[];
   profiles: { display_name: string } | null;
 };
 
 export type RecordDetailData =
-  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
-  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
+  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean; canChangeStatus: boolean }
+  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean; canChangeStatus: boolean }
   | { mode: "notfound" }
   | { mode: "error"; message: string }
   | { mode: "anon" };
 
 export type MediaUrls = {
-  /** 写真の署名URL一覧（created_at昇順） */
-  photos: string[];
+  /** 写真（created_at昇順。署名URLと撮影メタ情報） */
+  photos: RecordPhoto[];
   /** 音声の署名URL（最初の1件）*/
   audio: string | null;
 };
 
 const DEMO_MEDIA: MediaUrls = { photos: [], audio: null };
 
-const POINT_TYPE_LABELS: Record<string, string> = {
-  inlet: "入水口",
-  outlet: "出水口",
-  canal: "水路",
-  weed: "雑草",
-  caution: "異常",
-  levee_damage: "畦崩れ",
-  poor_drainage: "水抜け不良",
-  other: "その他",
-};
-
-const VALID_POINT_TYPES: ReadonlySet<string> = new Set<FieldPointType>([
-  "inlet", "outlet", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
-]);
+/**
+ * 画像の署名URLの有効期限（秒）。
+ * 画面を開いたまま長時間放置しても画像が切れないよう24時間にしている
+ * （署名URL自体を知っていれば認証なしでアクセスできるため、URLが漏れた場合の
+ * 露出期間も24時間になる。URLを取得できるのはRLSを通ったグループメンバーだけで、
+ * 外部への共有導線を作る場合はこの前提が崩れるため再検討する。tasks/TASKS.md PR1）。
+ * 延長を承認したのは画像のみのため、音声は従来どおり1時間のままにする
+ * （AUDIO_SIGNED_URL_TTL_SEC）。
+ */
+const SIGNED_URL_TTL_SEC = 24 * 60 * 60;
+const AUDIO_SIGNED_URL_TTL_SEC = 60 * 60;
 
 const STATUS_LABELS: Record<string, string> = {
   open: "未対応",
@@ -78,6 +96,17 @@ const STATUS_LABELS: Record<string, string> = {
   resolved: "解決済み",
   monitoring: "経過観察",
 };
+
+/**
+ * 状態の表示名。records.status の既定値は record_type を問わず 'open' のため、
+ * 異常系でない記録の 'open' は「未対応」ではなく「通常」と表示する。
+ * 逆に異常記録では「通常」と表示しない（ホーム・マップの未対応集計 isUnresolvedIssue() が
+ * open/needs_check を未対応として数えるため、「通常」表示だと警告と食い違う。制約1）。
+ */
+export function statusLabelFor(status: string, isIssue: boolean): string {
+  if (status === "open" && !isIssue) return "通常";
+  return STATUS_LABELS[status] ?? status;
+}
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -100,7 +129,9 @@ function toNullableNumber(v: string | number | null): number | null {
 
 export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const sb = getSupabase();
-  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false };
+  // デモには権限モデルが無いため、従来どおり操作ボタンは常に表示する
+  // （押すと changeRecordStatus() が「デモモードでは状態を変更できません」を返す）
+  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false, canChangeStatus: true };
 
   const { data: sessionData } = await sb.auth.getSession();
   if (!sessionData.session) return { mode: "anon" };
@@ -113,8 +144,9 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
       `id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, next_action, recorded_by, recorded_at, latitude, longitude,
        profiles(display_name),
        farm_fields(name),
-       record_media(id, media_type, storage_bucket, storage_path, created_at),
-       record_comments(id, user_id, comment, created_at, profiles(display_name))`
+       record_media(id, media_type, storage_bucket, storage_path, created_at, latitude, longitude, captured_at),
+       record_comments(id, user_id, comment, created_at, profiles(display_name)),
+       record_status_events(id, from_status, to_status, changed_by, comment, created_at, profiles(display_name))`
     )
     .eq("id", id)
     .single();
@@ -132,26 +164,37 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  const imagePaths = sortedMedia
-    .filter((m) => m.media_type === "image" && m.storage_bucket === "images")
-    .map((m) => m.storage_path);
+  const imageMedia = sortedMedia.filter((m) => m.media_type === "image" && m.storage_bucket === "images");
   const audioMedia = sortedMedia.find((m) => m.media_type === "audio" && m.storage_bucket === "audio");
 
-  const photos: string[] = [];
-  if (imagePaths.length > 0) {
-    const { data: signed, error: signError } = await sb.storage.from("images").createSignedUrls(imagePaths, 3600);
+  const photos: RecordPhoto[] = [];
+  if (imageMedia.length > 0) {
+    const { data: signed, error: signError } = await sb.storage
+      .from("images")
+      .createSignedUrls(imageMedia.map((m) => m.storage_path), SIGNED_URL_TTL_SEC);
     if (signError) {
       console.warn("[recordDetail] image sign urls failed", signError);
     } else {
-      signed?.forEach((s) => {
-        if (s.signedUrl && !s.error) photos.push(s.signedUrl);
+      // createSignedUrls は入力パスと同じ並びで返るため、添字でメディア行と対応付ける
+      signed?.forEach((s, i) => {
+        const media = imageMedia[i];
+        if (!media || !s.signedUrl || s.error) return;
+        photos.push({
+          id: media.id,
+          url: s.signedUrl,
+          capturedAtLabel: media.captured_at ? formatDateTime(media.captured_at) : null,
+          latitude: toNullableNumber(media.latitude),
+          longitude: toNullableNumber(media.longitude),
+        });
       });
     }
   }
 
   let audio: string | null = null;
   if (audioMedia) {
-    const { data: signed, error: signError } = await sb.storage.from("audio").createSignedUrl(audioMedia.storage_path, 3600);
+    const { data: signed, error: signError } = await sb.storage
+      .from("audio")
+      .createSignedUrl(audioMedia.storage_path, AUDIO_SIGNED_URL_TTL_SEC);
     if (signError) {
       console.warn("[recordDetail] audio sign url failed", signError);
     } else if (signed?.signedUrl) {
@@ -177,8 +220,6 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     ? isSelf ? `${displayName}（あなた）` : displayName
     : isSelf ? "あなた" : "メンバー";
 
-  const pointTypeLabel = row.ai_category ? (POINT_TYPE_LABELS[row.ai_category] ?? "") : "";
-
   const VALID_STATUSES: RecordDetail["status"][] = ["open", "needs_check", "resolved", "monitoring"];
   const VALID_RECORD_TYPES: RecordDetail["recordType"][] = ["photo", "voice", "water", "work", "issue", "check", "other"];
   const safeStatus = (VALID_STATUSES as string[]).includes(row.status)
@@ -187,15 +228,25 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const safeRecordType = (VALID_RECORD_TYPES as string[]).includes(row.record_type)
     ? (row.record_type as RecordDetail["recordType"])
     : "other";
-  const safePointType: FieldPointType | null =
-    row.ai_category && VALID_POINT_TYPES.has(row.ai_category)
-      ? (row.ai_category as FieldPointType)
-      : null;
+  const safePointType: FieldPointType | null = isPointType(row.ai_category) ? row.ai_category : null;
+  const pointTypeLabel = safePointType ? TYPE_LABELS[safePointType] : "";
 
   // records.status は record_type を問わず既定値 'open' のため、異常系（issue/旧データのpointType）
   // 以外の open は「未対応」ではなく「通常」として表示する
   const isIssueRecord = row.record_type === "issue" || (safePointType !== null && ISSUE_POINT_TYPES.includes(safePointType));
-  const statusLabel = row.status === "open" && !isIssueRecord ? "通常" : (STATUS_LABELS[row.status] ?? row.status);
+  const statusLabel = statusLabelFor(row.status, isIssueRecord);
+
+  // 状態変更の履歴（新しい順）。表示名は同じ isIssue 基準で揃える
+  const statusEvents: RecordStatusEvent[] = [...(row.record_status_events ?? [])]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .map((e) => ({
+      id: e.id,
+      fromLabel: statusLabelFor(e.from_status, isIssueRecord),
+      toLabel: statusLabelFor(e.to_status, isIssueRecord),
+      by: e.changed_by === userId ? "あなた" : e.profiles?.display_name || "メンバー",
+      at: formatCommentTime(e.created_at),
+      comment: e.comment,
+    }));
 
   const record: RecordDetail = {
     id: row.id,
@@ -215,24 +266,30 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     nextAction: row.next_action || "",
     recordType: safeRecordType,
     comments,
+    statusEvents,
+    isIssue: isIssueRecord,
     latitude: toNullableNumber(row.latitude),
     longitude: toNullableNumber(row.longitude),
   };
 
+  // 自分のグループ内ロールを取得する（削除・状態変更の両方の可否判定に使う）
+  const { data: member } = await sb
+    .from("farm_group_members")
+    .select("role")
+    .eq("group_id", row.group_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const myRole = member?.role as "owner" | "editor" | "viewer" | undefined;
+
   // 削除権限: 記録者本人 OR グループのowner（DB側のRLSは owner/editor 全員に許可しているが、
   // 家族間の誤削除を防ぐためUI上は本人 OR owner に限定する）
-  let canDelete = isSelf;
-  if (!canDelete) {
-    const { data: member } = await sb
-      .from("farm_group_members")
-      .select("role")
-      .eq("group_id", row.group_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    canDelete = member?.role === "owner";
-  }
+  const canDelete = isSelf || myRole === "owner";
 
-  return { mode: "live", record, mediaUrls: { photos, audio }, canDelete };
+  // 状態変更権限: set_record_status RPC が owner/editor のみ許可するため、
+  // viewer には押しても必ず拒否される操作ボタンを見せない
+  const canChangeStatus = myRole === "owner" || myRole === "editor";
+
+  return { mode: "live", record, mediaUrls: { photos, audio }, canDelete, canChangeStatus };
 }
 
 export async function addComment(recordId: string, text: string): Promise<{ error: string | null }> {
@@ -251,47 +308,45 @@ export async function addComment(recordId: string, text: string): Promise<{ erro
   return { error: error?.message ?? null };
 }
 
-export async function resolveRecord(recordId: string): Promise<{ error: string | null }> {
+export type RecordStatus = RecordDetail["status"];
+
+/**
+ * 記録の状態を任意の値へ変更する（履歴 record_status_events も同時に残す）。
+ *
+ * 状態更新と履歴追加は set_record_status RPC の中で1トランザクションにまとめている
+ * （supabase/migrations/0009_set_record_status.sql）。以前のように2リクエストに分けると、
+ * 履歴のINSERTだけ失敗したときに「状態は進んだのに履歴が無い」記録が生まれ、
+ * 履歴表示にそのまま矛盾が現れるため（tasks/TASKS.md PR1 制約2）。
+ */
+export async function changeRecordStatus(
+  recordId: string,
+  toStatus: RecordStatus
+): Promise<{ error: string | null }> {
   const sb = getSupabase();
-  if (!sb) return { error: "Supabase未設定" };
+  if (!sb) return { error: "デモモードでは状態を変更できません" };
 
   const { data: sessionData } = await sb.auth.getSession();
   if (!sessionData.session) return { error: "ログインが必要です" };
 
-  const userId = sessionData.session.user.id;
-
-  // 現在のステータスを確認
-  const { data: current, error: fetchError } = await sb
-    .from("records")
-    .select("status")
-    .eq("id", recordId)
-    .single();
-  if (fetchError || !current) return { error: fetchError?.message ?? "記録が見つかりません" };
-
-  // すでにresolvedなら二重更新・二重イベントを防ぐ
-  if (current.status === "resolved") return { error: null };
-
-  // select()で返り値の配列件数を見てRLS拒否（0件更新）を検知する
-  const { data: updated, error: updateError } = await sb
-    .from("records")
-    .update({ status: "resolved" })
-    .eq("id", recordId)
-    .select("id");
-
-  if (updateError) return { error: updateError.message };
-  if (!updated || updated.length === 0) return { error: "更新できませんでした。権限を確認してください" };
-
-  // ステータス変更イベントを記録
-  const { error: eventError } = await sb.from("record_status_events").insert({
-    record_id: recordId,
-    from_status: current.status,
-    to_status: "resolved",
-    changed_by: userId,
+  const { error } = await sb.rpc("set_record_status", {
+    p_record_id: recordId,
+    p_to_status: toStatus,
   });
 
-  if (eventError) {
-    console.warn("[resolveRecord] event insert failed", eventError);
-    return { error: `ステータスは更新しましたが、変更ログの記録に失敗しました: ${eventError.message}` };
+  if (error) {
+    console.warn("[recordDetail] set_record_status failed", error);
+    // RPC側が errcode を付けて raise しているため、メッセージ文言ではなく SQLSTATE で分岐する
+    // （文言はPostgREST・Supabase側の変更やロケールで変わりうる）
+    switch (error.code) {
+      case "42501":
+        return { error: "状態を変更できませんでした（権限がありません）" };
+      case "P0002":
+        return { error: "記録が見つかりませんでした" };
+      case "28000":
+        return { error: "ログインが必要です" };
+      default:
+        return { error: "状態を変更できませんでした。通信環境を確認してもう一度お試しください" };
+    }
   }
 
   return { error: null };

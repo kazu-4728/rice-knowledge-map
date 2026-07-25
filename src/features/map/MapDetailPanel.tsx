@@ -147,13 +147,23 @@ export default function MapDetailPanel({
 
             <div className="mt-3 space-y-2">
               {!selectedField.id.startsWith("user-field-") && (
-                <Link
-                  href={`/fields/${encodeURIComponent(selectedField.id)}`}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  詳細を見る
-                  <IconChevronRight className="h-4 w-4" />
-                </Link>
+                <>
+                  <Link
+                    href={`/fields/${encodeURIComponent(selectedField.id)}`}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    詳細を見る
+                    <IconChevronRight className="h-4 w-4" />
+                  </Link>
+                  {/* 定点観測（場所詳細の写真タブ）への直接導線 */}
+                  <Link
+                    href={`/fields/${encodeURIComponent(selectedField.id)}?tab=photos`}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <IconCamera className="h-4 w-4 text-green-700" />
+                    写真で見くらべる
+                  </Link>
+                </>
               )}
               <button
                 onClick={() =>

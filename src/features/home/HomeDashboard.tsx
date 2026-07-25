@@ -63,6 +63,9 @@ export default function HomeDashboard() {
 
   const hasField = attention ? attention.fields.length > 0 : null;
 
+  /** 「見くらべる」の遷移先。直近に記録した田んぼを優先し、無ければ最初の田んぼ */
+  const compareFieldId = records.find((r) => r.fieldId)?.fieldId ?? attention?.fields[0]?.id ?? null;
+
   /** 田んぼ状態チップ（issue > needs_check > normal の優先順で信号色を出す） */
   const fieldChips =
     attention?.fields.map((f) => {
@@ -154,6 +157,24 @@ export default function HomeDashboard() {
           </button>
         )}
       </section>
+
+      {/* 定点観測への導線（場所詳細の3番目のタブ。これまで画面内にたどり着く導線が無かった）。
+          直近で記録した田んぼ、無ければ最初の田んぼの写真タブを直接開く */}
+      {compareFieldId && (
+        <Link
+          href={`/fields/${encodeURIComponent(compareFieldId)}?tab=photos`}
+          className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-transform active:scale-98"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-flow-green-soft">
+            <IconCamera className="h-5 w-5 text-flow-green" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-gray-900">同じ場所の写真を見くらべる</p>
+            <p className="mt-0.5 text-xs text-gray-500">前に撮った写真と並べて、田んぼの変化を確認できます</p>
+          </div>
+          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-300" />
+        </Link>
+      )}
 
       {/* 最近の記録 */}
       <section>

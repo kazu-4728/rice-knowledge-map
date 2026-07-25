@@ -141,13 +141,23 @@ export default function MapBottomSheet({
 
               <div className="mt-2 flex gap-2">
                 {!selectedField.id.startsWith("user-field-") && (
-                  <Link
-                    href={`/fields/${encodeURIComponent(selectedField.id)}`}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
-                  >
-                    詳細を見る
-                    <IconChevronRight className="h-4 w-4" />
-                  </Link>
+                  <>
+                    <Link
+                      href={`/fields/${encodeURIComponent(selectedField.id)}`}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                    >
+                      詳細を見る
+                      <IconChevronRight className="h-4 w-4" />
+                    </Link>
+                    {/* 定点観測（場所詳細の写真タブ）への直接導線 */}
+                    <Link
+                      href={`/fields/${encodeURIComponent(selectedField.id)}?tab=photos`}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                    >
+                      <IconCamera className="h-4 w-4 text-emerald-600" />
+                      見くらべる
+                    </Link>
+                  </>
                 )}
                 <button
                   onClick={() =>

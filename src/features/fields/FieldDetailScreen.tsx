@@ -23,30 +23,27 @@ import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
 import { useAuth } from "../auth/useAuth";
 import { shareFieldStory } from "../../lib/utils/share";
-import type { FieldPoint } from "../../types";
+import type { FieldPoint, FieldPointType } from "../../types";
+import { POINT_TYPE_META } from "../map/pointTypeMeta";
 import {
   IconCamera,
   IconChevronRight,
-  IconDropFill,
   IconFieldGrid,
   IconMic,
   IconPinFill,
   IconShare,
   IconSprout,
-  IconWarningFill,
-  IconWaves,
 } from "../../components/ui/icons";
 
-const POINT_TYPE_LABELS: Record<string, { label: string; icon: ReactNode; color: string }> = {
-  inlet: { label: "入水口", icon: <IconDropFill className="h-4 w-4 text-sky-500" />, color: "bg-sky-50" },
-  outlet: { label: "出水口", icon: <IconWaves className="h-4 w-4 text-blue-500" />, color: "bg-blue-50" },
-  canal: { label: "水路", icon: <IconWaves className="h-4 w-4 text-cyan-500" />, color: "bg-cyan-50" },
-  weed: { label: "雑草", icon: <IconSprout className="h-4 w-4 text-green-600" />, color: "bg-green-50" },
-  caution: { label: "異常", icon: <IconWarningFill className="h-4 w-4 text-amber-500" />, color: "bg-amber-50" },
-  levee_damage: { label: "畦崩れ", icon: <IconWarningFill className="h-4 w-4 text-red-500" />, color: "bg-red-50" },
-  poor_drainage: { label: "水抜け不良", icon: <IconDropFill className="h-4 w-4 text-orange-500" />, color: "bg-orange-50" },
-  other: { label: "その他", icon: <IconPinFill className="h-4 w-4 text-gray-500" />, color: "bg-gray-50" },
-};
+/** ポイント種別の表示（ラベル・アイコンは mapPins.ts / pointTypeMeta.ts が元データ） */
+function pointTypeView(type: FieldPointType | string | undefined) {
+  const meta = POINT_TYPE_META[(type ?? "caution") as FieldPointType] ?? POINT_TYPE_META.caution;
+  return {
+    label: meta.label,
+    icon: <meta.Icon className={`h-4 w-4 ${meta.color}`} />,
+    color: meta.bg,
+  };
+}
 
 /** ピンの状態バッジ */
 const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: string }> = {
@@ -179,7 +176,11 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  // ホーム・マップからの「見くらべる」導線は ?tab=photos で定点観測タブを直接開く
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    const requested = searchParams.get("tab");
+    return TABS.some((t) => t.key === requested) ? (requested as TabKey) : "overview";
+  });
   const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
 
   const {
@@ -479,7 +480,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
               <SectionHeading level={3}>ポイントの状態</SectionHeading>
               <ul className="space-y-2">
                 {sortedPoints.map((point) => {
-                    const meta = POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"];
+                    const meta = pointTypeView(point.type);
                     const status = POINT_STATUS_META[point.status];
                     const highlighted = point.id === highlightPointId;
                     return (
@@ -585,7 +586,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             <div className="space-y-3">
               {observationGroups.map((g) => {
                 const point = g.pointId ? pointById.get(g.pointId) : undefined;
-                const meta = point ? POINT_TYPE_LABELS[point.type] ?? POINT_TYPE_LABELS["caution"] : null;
+                const meta = point ? pointTypeView(point.type) : null;
                 const label = point ? point.name || meta!.label : "田んぼ全体";
                 const icon = meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />;
                 return <ObservationGroup key={g.key} label={label} icon={icon} photos={g.photos} />;

@@ -1,7 +1,6 @@
 import AppShell from "../../components/layout/AppShell";
 import Link from "next/link";
 import AccountSection from "../../features/auth/AccountSection";
-import InviteButton from "../../features/auth/InviteButton";
 import { SUB_NAV_ITEMS } from "../../components/layout/navItems";
 import { SectionEyebrow } from "../../components/patterns/SectionEyebrow";
 import { RevealCard } from "../../components/patterns/RevealCard";
@@ -11,14 +10,6 @@ import {
   IconChevronRight,
   IconUsers,
 } from "../../components/ui/icons";
-
-function ComingSoonBadge() {
-  return (
-    <span className="shrink-0 rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">
-      準備中
-    </span>
-  );
-}
 
 export default function MenuPage() {
   return (
@@ -39,19 +30,16 @@ export default function MenuPage() {
         {/* 家族・その他導線・サイト設定を1枚の設定グループカードに統合（優先度の視覚化） */}
         <RevealCard as="section" delay={0.05} className="divide-y divide-gray-100 overflow-hidden rounded-3xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)]">
           {/* 家族・作業者 */}
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <IconUsers className="h-6 w-6 text-green-700" />
-                <h2 className="text-base font-bold text-gray-900">家族・作業者</h2>
-              </div>
-              <ComingSoonBadge />
+          <Link href="/menu/family" className="flex w-full items-center gap-3 p-4 transition-colors hover:bg-gray-50">
+            <IconUsers className="h-6 w-6 shrink-0 text-green-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-gray-900">家族・作業者</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                メンバーと権限の確認・変更、招待URLの発行
+              </p>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              メンバー一覧は準備中です。招待URLを発行して家族をアプリに招待できます
-            </p>
-            <InviteButton />
-          </div>
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+          </Link>
 
           {/* 記録・田んぼ・カレンダー等への二次導線（ナビ再設計に伴いここへ集約） */}
           <div className="p-4">

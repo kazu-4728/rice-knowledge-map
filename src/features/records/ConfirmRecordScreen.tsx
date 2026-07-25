@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft, clearRecordDraft, markJustSaved } from "./recordDraft";
 import { saveRecord, POINT_TYPE_TO_RECORD_TYPE } from "../../lib/data/recordSave";
-import { TYPE_TO_CATEGORY } from "../../lib/data/records";
+import { TYPE_TO_CATEGORY, ISSUE_POINT_TYPES } from "../../lib/data/records";
 import { TYPE_LABELS } from "../map/mapPins";
 import {
   IconCheck,
@@ -69,6 +69,13 @@ export default function ConfirmRecordScreen() {
   // それ以外はpointType由来、無ければphoto）に合わせてカテゴリチップを表示する
   const recordType = draft.kind === "audio" ? "voice" : (draft.pointType && POINT_TYPE_TO_RECORD_TYPE[draft.pointType]) || "photo";
   const categoryLabel = TYPE_TO_CATEGORY[recordType] ?? "作業";
+
+  // 異常系のポイント種別（caution/levee_damage/poor_drainage）を選んだ記録は、
+  // 未選択のままDB既定値'open'で保存すると記録詳細では「未対応」表示になる
+  // （isUnresolvedIssue()が異常記録のopen/needs_checkを未対応として集計するため）。
+  // ここで「通常」を選べてしまうと、保存後の実際の表示・集計と食い違うため選択肢から除く（制約1）
+  const isIssueDraft = !!draft.pointType && ISSUE_POINT_TYPES.includes(draft.pointType);
+  const visibleStatusChoices = isIssueDraft ? STATUS_CHOICES.filter((c) => c.key !== "open") : STATUS_CHOICES;
 
   const handleSave = async () => {
     if (busy) return;
@@ -146,8 +153,13 @@ export default function ConfirmRecordScreen() {
         {/* 状況（今回の観測状態。将来AIが初期値を埋める予定の項目） */}
         <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
           <p className="text-sm font-semibold text-gray-700">状況</p>
+          {isIssueDraft && (
+            <p className="mt-1 text-xs text-gray-500">
+              異常の記録は既定で「未対応」として保存されます。対応不要になったら記録詳細からいつでも変更できます
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {STATUS_CHOICES.map((c) => (
+            {visibleStatusChoices.map((c) => (
               <button
                 key={c.key}
                 type="button"
