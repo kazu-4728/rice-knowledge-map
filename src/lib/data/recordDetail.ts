@@ -326,13 +326,18 @@ export async function changeRecordStatus(
 
   if (error) {
     console.warn("[recordDetail] set_record_status failed", error);
-    if (error.message.includes("permission denied")) {
-      return { error: "状態を変更できませんでした（権限がありません）" };
+    // RPC側が errcode を付けて raise しているため、メッセージ文言ではなく SQLSTATE で分岐する
+    // （文言はPostgREST・Supabase側の変更やロケールで変わりうる）
+    switch (error.code) {
+      case "42501":
+        return { error: "状態を変更できませんでした（権限がありません）" };
+      case "P0002":
+        return { error: "記録が見つかりませんでした" };
+      case "28000":
+        return { error: "ログインが必要です" };
+      default:
+        return { error: "状態を変更できませんでした。通信環境を確認してもう一度お試しください" };
     }
-    if (error.message.includes("record not found")) {
-      return { error: "記録が見つかりませんでした" };
-    }
-    return { error: "状態を変更できませんでした。通信環境を確認してもう一度お試しください" };
   }
 
   return { error: null };

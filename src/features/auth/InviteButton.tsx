@@ -94,7 +94,9 @@ export default function InviteButton() {
             type="button"
             onClick={() => setRole(r)}
             aria-pressed={role === r}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+            // 発行中は選択を固定する（発行済みURLの権限とUIの選択がずれて見えるのを防ぐ）
+            disabled={busy}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
               role === r
                 ? "bg-green-700 text-white"
                 : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
