@@ -21,11 +21,10 @@ Supabase関連のファイルを置くディレクトリです。
 - 注意: `app-defaults` バケットは実DBに存在するが、`list_migrations` では
   `0008_app_defaults_bucket` 相当の履歴名は確認できない。バケット作成とファイル投入は
   migration履歴外で行われた可能性が高い。
-- セキュリティアドバイザリの残りWARN 5件（`is_group_member` / `has_group_role` /
-  `redeem_group_invite` / `create_farm_group` / `set_record_status` が authenticated から実行可能）は
+- セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
+  `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
   **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
-  各関数の内部で権限・トークン検証を行っている（`set_record_status` は
-  `has_group_role(owner/editor)` を関数内で明示的に検証する）。
+  各関数の内部で権限・トークン検証を行っている。
 
 ## migrations/
 
@@ -75,7 +74,7 @@ Supabase関連のファイルを置くディレクトリです。
     （従来は2リクエストに分かれ、履歴INSERTだけ失敗すると履歴が欠けた）
   - SECURITY DEFINER のため関数内で `has_group_role(owner/editor)` を明示的に検証する
   - 実行権限は `authenticated` のみ（0002 の方針に合わせる）
-  - 適用済み: 2026-07-25（オーナー承認後、MCP `apply_migration` で `set_record_status` として適用）
+  - **未適用**: オーナー承認後に適用する
 
 ## 今後migrationを追加するとき
 
