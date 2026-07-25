@@ -2,9 +2,9 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-07-09）
+## 適用状況（2026-07-25）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0008相当まで適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0010相当まで適用済み**。
   ただし `0007` / `0008` 相当の変更は、Supabase側のmigration履歴名とリポジトリ内ファイル名が一致していない。
 - 実DBでは `group_site_content.image_slots` が存在し、`jsonb not null default jsonb_build_object()` として適用済み。
   Supabase migration履歴上は、2026-07-06に以下の4件として記録されている。
@@ -21,10 +21,12 @@ Supabase関連のファイルを置くディレクトリです。
 - 注意: `app-defaults` バケットは実DBに存在するが、`list_migrations` では
   `0008_app_defaults_bucket` 相当の履歴名は確認できない。バケット作成とファイル投入は
   migration履歴外で行われた可能性が高い。
-- セキュリティアドバイザリの残りWARN 4件（`is_group_member` / `has_group_role` /
-  `redeem_group_invite` / `create_farm_group` が authenticated から実行可能）は
-  **設計上意図したもの**。RLSポリシー評価とログインユーザー向けRPCに必要で、
-  各関数の内部で権限・トークン検証を行っている。
+- セキュリティアドバイザリの残りWARN 6件（`is_group_member` / `has_group_role` /
+  `redeem_group_invite` / `create_farm_group` / `set_record_status` / `update_member_role`
+  が authenticated から実行可能）は**設計上意図したもの**。RLSポリシー評価とログインユーザー
+  向けRPCに必要で、各関数の内部で権限・トークン検証を行っている
+  （`set_record_status`・`update_member_role` はいずれも `has_group_role(owner/editor)`
+  または `has_group_role(owner)` を関数内で明示的に検証する）。
 
 ## migrations/
 
@@ -74,11 +76,21 @@ Supabase関連のファイルを置くディレクトリです。
     （従来は2リクエストに分かれ、履歴INSERTだけ失敗すると履歴が欠けた）
   - SECURITY DEFINER のため関数内で `has_group_role(owner/editor)` を明示的に検証する
   - 実行権限は `authenticated` のみ（0002 の方針に合わせる）
-  - **未適用**: オーナー承認後に適用する
+  - 適用済み: 2026-07-25（PR #80・オーナー承認後にMCP `apply_migration` で適用）
+- `0010_update_member_role.sql` — メンバーの権限変更を1トランザクション化するRPC
+  - `update_member_role(p_group_id, p_target_user_id, p_next_role)` を追加
+  - グループの全メンバー行を行ロックしてから owner 人数を確認し、最後の owner を降格しようとした
+    場合は `LSTOW`（カスタムSQLSTATE）で例外を返す
+    （従来はクライアント側で「SELECTで人数確認→別リクエストでUPDATE」に分かれており、
+    異なる端末の2人のownerがほぼ同時に互いを降格すると両方成功しowner不在になり得た。
+    Codexレビュー指摘・PR #80で修正）
+  - SECURITY DEFINER のため関数内で `has_group_role(owner)` を明示的に検証する
+  - 実行権限は `authenticated` のみ（0002 の方針に合わせる）
+  - 適用済み: 2026-07-25（PR #80・オーナー承認後にMCP `apply_migration` で適用）
 
 ## 今後migrationを追加するとき
 
-1. `0009_xxx.sql` のように連番でこのディレクトリに追加する
+1. `0011_xxx.sql` のように連番でこのディレクトリに追加する
 2. ユーザー承認を得てから Supabase MCP / SQL Editor で適用する
    （docs/NEGATIVE_ACTIONS.md 参照）
 3. 適用後に `get_advisors`（security）で新たな警告が出ていないか確認する
