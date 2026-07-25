@@ -160,6 +160,7 @@ export default function RecordDetailPage() {
   const mediaUrls: MediaUrls = data.mediaUrls;
   const isResolved = record.status === "resolved";
   const canDelete = data.canDelete;
+  const canChangeStatus = data.canChangeStatus;
 
   // 「追記する」のクエリ: 現在の記録と同じ田んぼ・ピンに紐づくよう field/point/pointType を引き継ぐ
   // （未指定だと新規記録画面はGPSで田んぼを自動選択するため、隣接圃場で別の田んぼに保存される事故を防ぐ）
@@ -452,33 +453,46 @@ export default function RecordDetailPage() {
             <IconCheck className="h-5 w-5 shrink-0 text-green-700" strokeWidth={2.2} />
             <p className="text-sm font-bold text-gray-900">この記録の状態</p>
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {statusChoices.map((s) => {
-              const active = record.status === s;
-              const busy = statusBusy === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => handleChangeStatus(s)}
-                  disabled={statusBusy !== null || active}
-                  aria-pressed={active}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors disabled:opacity-70 ${
-                    active
-                      ? "bg-green-700 text-white"
-                      : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {busy ? "変更中…" : statusLabelFor(s, record.isIssue)}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-xs text-gray-500">
-            {record.isIssue
-              ? "「未対応」「要確認」の異常記録は、ホームとマップで未対応として表示されます"
-              : "変更するとホーム・マップの表示にも反映されます"}
-          </p>
+          {canChangeStatus ? (
+            <>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {statusChoices.map((s) => {
+                  const active = record.status === s;
+                  const busy = statusBusy === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => handleChangeStatus(s)}
+                      disabled={statusBusy !== null || active}
+                      aria-pressed={active}
+                      className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors disabled:opacity-70 ${
+                        active
+                          ? "bg-green-700 text-white"
+                          : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {busy ? "変更中…" : statusLabelFor(s, record.isIssue)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {record.isIssue
+                  ? "「未対応」「要確認」の異常記録は、ホームとマップで未対応として表示されます"
+                  : "変更するとホーム・マップの表示にも反映されます"}
+              </p>
+            </>
+          ) : (
+            // viewer は set_record_status RPC が owner/editor 限定のため必ず拒否される。
+            // 押せないボタンを見せず、現在の状態を読み取り専用で示す
+            <div className="mt-2.5 flex items-center gap-2">
+              <span className="rounded-full bg-gray-100 px-3.5 py-1.5 text-sm font-semibold text-gray-600">
+                {record.statusLabel}
+              </span>
+              <p className="text-xs text-gray-400">閲覧のみの権限のため変更できません</p>
+            </div>
+          )}
 
           {/* 状態変更の履歴（record_status_events。これまで記録だけされて表示されていなかった） */}
           {record.statusEvents.length > 0 && (
@@ -621,16 +635,19 @@ export default function RecordDetailPage() {
 
       {/* 下部アクション */}
       <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-        {/* 現場での最頻操作だけを常設ボタンに置く（他の状態へは上の「この記録の状態」から変更する） */}
-        <Button
-          variant={isResolved ? "tertiary" : "secondary"}
-          className="flex-1"
-          onClick={() => handleChangeStatus("resolved")}
-          disabled={isResolved || statusBusy !== null}
-        >
-          <IconCheck className="h-5 w-5" strokeWidth={2.2} />
-          {isResolved ? "対応済み" : statusBusy === "resolved" ? "更新中…" : "対応済みにする"}
-        </Button>
+        {/* 現場での最頻操作だけを常設ボタンに置く（他の状態へは上の「この記録の状態」から変更する）。
+            viewer には押しても必ず拒否される操作を見せない */}
+        {canChangeStatus && (
+          <Button
+            variant={isResolved ? "tertiary" : "secondary"}
+            className="flex-1"
+            onClick={() => handleChangeStatus("resolved")}
+            disabled={isResolved || statusBusy !== null}
+          >
+            <IconCheck className="h-5 w-5" strokeWidth={2.2} />
+            {isResolved ? "対応済み" : statusBusy === "resolved" ? "更新中…" : "対応済みにする"}
+          </Button>
+        )}
         <Button
           variant="primary"
           className="flex-1"

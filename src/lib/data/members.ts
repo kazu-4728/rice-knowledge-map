@@ -131,9 +131,12 @@ export type UpdateRoleResult =
  * 制約3（tasks/TASKS.md PR1）: 最後の管理者を降格させると、以後グループの誰も
  * 権限変更・招待発行・グループ更新ができなくなり、自己回復もできない
  * （members_update / invites_insert / groups_update がいずれも owner 権限を要求するため）。
- * そのため「グループに owner が1人しか居ないとき、その owner を降格する」変更は
- * 送信前にここで止める。UI側でもボタンを無効化しているが、
- * 一覧が古いまま操作された場合に備えて最新のメンバー構成を読み直して判定する。
+ *
+ * 人数確認と更新は update_member_role RPC の中で行ロック付きの単一トランザクションに
+ * まとめている（supabase/migrations/0010_update_member_role.sql）。以前のようにクライアント側で
+ * 「SELECTで人数確認 → 別リクエストでUPDATE」に分けると、異なる端末の2人のownerが
+ * ほぼ同時に互いを降格した場合、両方の事前SELECTが「まだ2人いる」を観測してから
+ * 別行を更新するため両方成功してしまい、owner不在（自己回復不能な状態）になり得るため。
  */
 export async function updateMemberRole(
   groupId: string,
@@ -147,37 +150,26 @@ export async function updateMemberRole(
     const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) return { status: "denied" };
 
-    const { data: current, error: currentError } = await sb
-      .from("farm_group_members")
-      .select("user_id, role")
-      .eq("group_id", groupId);
-    if (currentError) {
-      console.warn("[members] role precheck failed", currentError);
-      return { status: "error", message: currentError.message };
-    }
+    const { error } = await sb.rpc("update_member_role", {
+      p_group_id: groupId,
+      p_target_user_id: targetUserId,
+      p_next_role: nextRole,
+    });
 
-    const rows = (current ?? []) as { user_id: string; role: string }[];
-    const target = rows.find((r) => r.user_id === targetUserId);
-    if (!target) return { status: "denied" };
-    if (toRole(target.role) === nextRole) return { status: "saved" };
-
-    const owners = rows.filter((r) => toRole(r.role) === "owner");
-    if (nextRole !== "owner" && toRole(target.role) === "owner" && owners.length <= 1) {
-      return { status: "last_owner" };
-    }
-
-    // RLSで弾かれた更新はエラーにならず0件成功になるため、結果行で判定する
-    const { data, error } = await sb
-      .from("farm_group_members")
-      .update({ role: nextRole })
-      .eq("group_id", groupId)
-      .eq("user_id", targetUserId)
-      .select("user_id");
     if (error) {
-      console.warn("[members] role update failed", error);
-      return { status: "error", message: error.message };
+      console.warn("[members] update_member_role failed", error);
+      // RPC側が errcode を付けて raise しているため、文言ではなく SQLSTATE で分岐する
+      switch (error.code) {
+        case "42501":
+          return { status: "denied" };
+        case "P0002":
+          return { status: "denied" };
+        case "LSTOW":
+          return { status: "last_owner" };
+        default:
+          return { status: "error", message: error.message };
+      }
     }
-    if (!data || data.length === 0) return { status: "denied" };
     return { status: "saved" };
   } catch (err) {
     console.warn("[members] role update error", err);

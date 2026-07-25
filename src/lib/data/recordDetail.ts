@@ -63,8 +63,8 @@ type DetailRow = {
 };
 
 export type RecordDetailData =
-  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
-  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean }
+  | { mode: "live"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean; canChangeStatus: boolean }
+  | { mode: "demo"; record: RecordDetail; mediaUrls: MediaUrls; canDelete: boolean; canChangeStatus: boolean }
   | { mode: "notfound" }
   | { mode: "error"; message: string }
   | { mode: "anon" };
@@ -79,13 +79,16 @@ export type MediaUrls = {
 const DEMO_MEDIA: MediaUrls = { photos: [], audio: null };
 
 /**
- * 画像・音声の署名URLの有効期限（秒）。
+ * 画像の署名URLの有効期限（秒）。
  * 画面を開いたまま長時間放置しても画像が切れないよう24時間にしている
  * （署名URL自体を知っていれば認証なしでアクセスできるため、URLが漏れた場合の
  * 露出期間も24時間になる。URLを取得できるのはRLSを通ったグループメンバーだけで、
  * 外部への共有導線を作る場合はこの前提が崩れるため再検討する。tasks/TASKS.md PR1）。
+ * 延長を承認したのは画像のみのため、音声は従来どおり1時間のままにする
+ * （AUDIO_SIGNED_URL_TTL_SEC）。
  */
 const SIGNED_URL_TTL_SEC = 24 * 60 * 60;
+const AUDIO_SIGNED_URL_TTL_SEC = 60 * 60;
 
 const STATUS_LABELS: Record<string, string> = {
   open: "未対応",
@@ -126,7 +129,9 @@ function toNullableNumber(v: string | number | null): number | null {
 
 export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   const sb = getSupabase();
-  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false };
+  // デモには権限モデルが無いため、従来どおり操作ボタンは常に表示する
+  // （押すと changeRecordStatus() が「デモモードでは状態を変更できません」を返す）
+  if (!sb) return { mode: "demo", record: sampleRecordDetail, mediaUrls: DEMO_MEDIA, canDelete: false, canChangeStatus: true };
 
   const { data: sessionData } = await sb.auth.getSession();
   if (!sessionData.session) return { mode: "anon" };
@@ -189,7 +194,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
   if (audioMedia) {
     const { data: signed, error: signError } = await sb.storage
       .from("audio")
-      .createSignedUrl(audioMedia.storage_path, SIGNED_URL_TTL_SEC);
+      .createSignedUrl(audioMedia.storage_path, AUDIO_SIGNED_URL_TTL_SEC);
     if (signError) {
       console.warn("[recordDetail] audio sign url failed", signError);
     } else if (signed?.signedUrl) {
@@ -267,20 +272,24 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
     longitude: toNullableNumber(row.longitude),
   };
 
+  // 自分のグループ内ロールを取得する（削除・状態変更の両方の可否判定に使う）
+  const { data: member } = await sb
+    .from("farm_group_members")
+    .select("role")
+    .eq("group_id", row.group_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const myRole = member?.role as "owner" | "editor" | "viewer" | undefined;
+
   // 削除権限: 記録者本人 OR グループのowner（DB側のRLSは owner/editor 全員に許可しているが、
   // 家族間の誤削除を防ぐためUI上は本人 OR owner に限定する）
-  let canDelete = isSelf;
-  if (!canDelete) {
-    const { data: member } = await sb
-      .from("farm_group_members")
-      .select("role")
-      .eq("group_id", row.group_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    canDelete = member?.role === "owner";
-  }
+  const canDelete = isSelf || myRole === "owner";
 
-  return { mode: "live", record, mediaUrls: { photos, audio }, canDelete };
+  // 状態変更権限: set_record_status RPC が owner/editor のみ許可するため、
+  // viewer には押しても必ず拒否される操作ボタンを見せない
+  const canChangeStatus = myRole === "owner" || myRole === "editor";
+
+  return { mode: "live", record, mediaUrls: { photos, audio }, canDelete, canChangeStatus };
 }
 
 export async function addComment(recordId: string, text: string): Promise<{ error: string | null }> {
