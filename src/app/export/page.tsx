@@ -43,11 +43,17 @@ export default function ExportPage() {
   }, []);
 
   // 年・田んぼの絞り込みが変わるたびにサーバー側で絞り込んで取得し直す
-  // （記録に紐づく全写真の署名URLを発行するため、一覧全件を毎回取得すると重い）
+  // （記録に紐づく全写真の署名URLを発行するため、一覧全件を毎回取得すると重い）。
+  // 絞り込みを素早く連続変更すると古いリクエストが後から解決しうるため、
+  // cancelledフラグで古い結果の反映を防ぐ
   useEffect(() => {
+    let cancelled = false;
     setData(null);
     setMessage(null);
-    loadExportRecords({ year, fieldId: selectedFieldId === "all" ? undefined : selectedFieldId }).then(setData);
+    loadExportRecords({ year, fieldId: selectedFieldId === "all" ? undefined : selectedFieldId }).then((result) => {
+      if (!cancelled) setData(result);
+    });
+    return () => { cancelled = true; };
   }, [year, selectedFieldId]);
 
   const records = data?.records ?? [];
@@ -68,9 +74,24 @@ export default function ExportPage() {
     ? "全田んぼ"
     : fields.find((f) => f.id === selectedFieldId)?.name ?? "不明";
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setPrinting(true);
-    setTimeout(() => { window.print(); setPrinting(false); }, 100);
+    // 印刷レイアウトの写真（署名URL・ネットワーク画像）が読み込み切る前にwindow.print()を
+    // 呼ぶと、生成されるPDFの写真欄が空白になる（画像埋め込みPDFが本来の目的のため致命的）。
+    // 固定タイムアウトではなく、印刷レイアウト内の全<img>の読み込み完了を待つ
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".print-photo"));
+    await Promise.all(
+      imgs.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+            })
+      )
+    );
+    window.print();
+    setPrinting(false);
   };
 
   const handleCsv = () => {
@@ -237,7 +258,7 @@ export default function ExportPage() {
                 <div key={r.id} className="flex gap-3 mb-4 break-inside-avoid">
                   {coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverUrl} alt="" className="h-24 w-32 shrink-0 rounded object-cover" />
+                    <img src={coverUrl} alt="" className="print-photo h-24 w-32 shrink-0 rounded object-cover" />
                   ) : (
                     <div className="h-24 w-32 shrink-0 rounded bg-gray-100" />
                   )}

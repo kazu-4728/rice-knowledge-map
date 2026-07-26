@@ -111,18 +111,17 @@ export async function buildRecordsZip(
     latitude: r.latitude,
     longitude: r.longitude,
     hasAudio: r.hasAudio,
-    photos: r.photos.map((p, i) => {
-      const usesOriginalExif = p.exifCapturedAt !== null || p.exifLatitude !== null;
-      return {
-        file: `photos/${r.id}_${i + 1}.jpg`,
-        // 元写真のEXIFを検出できた場合は撮影情報として、できなかった場合は
-        // 記録操作時の時刻・端末位置であることを明示する（撮影情報と誤認させない。制約4）
-        source: usesOriginalExif ? "photo_exif" : "recorded_at_fallback",
-        capturedAt: p.exifCapturedAt ?? p.recordedAt,
-        latitude: p.exifLatitude ?? p.recordedLatitude,
-        longitude: p.exifLongitude ?? p.recordedLongitude,
-      };
-    }),
+    // 撮影時刻とGPSは元EXIFの有無が別々に決まる（例: 日時だけEXIFにあり位置情報はオフだった写真）。
+    // 1つの source フラグにまとめると、一方だけ元EXIF由来のときに他方まで「撮影情報」と
+    // 誤認させてしまうため、capturedAtSource/locationSource を独立に判定する（制約1件目のレビュー指摘対応）
+    photos: r.photos.map((p, i) => ({
+      file: `photos/${r.id}_${i + 1}.jpg`,
+      capturedAt: p.exifCapturedAt ?? p.recordedAt,
+      capturedAtSource: p.exifCapturedAt !== null ? "photo_exif" : p.recordedAt !== null ? "recorded_at_fallback" : "none",
+      latitude: p.exifLatitude ?? p.recordedLatitude,
+      longitude: p.exifLongitude ?? p.recordedLongitude,
+      locationSource: p.exifLatitude !== null ? "photo_exif" : p.recordedLatitude !== null ? "recorded_at_fallback" : "none",
+    })),
   }));
   zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
