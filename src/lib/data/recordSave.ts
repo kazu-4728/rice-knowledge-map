@@ -108,6 +108,11 @@ export async function saveRecord(draft: RecordDraft): Promise<SaveRecordResult> 
         latitude: draft.location?.lat ?? null,
         longitude: draft.location?.lng ?? null,
         captured_at: draft.recordedAt,
+        // 写真ファイル自体のEXIF（抽出できた場合のみ・音声はundefined）。
+        // record_media.captured_at/latitude/longitude（記録操作時の値）とは別に保持する（tasks/TASKS.md PR2 制約4）
+        exif_captured_at: draft.exif?.capturedAt ?? null,
+        exif_latitude: draft.exif?.latitude ?? null,
+        exif_longitude: draft.exif?.longitude ?? null,
       });
       if (mediaError) {
         console.warn("[record] media insert failed", mediaError);

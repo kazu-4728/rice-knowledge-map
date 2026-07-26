@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getRecordDraft, setRecordDraft, type RecordDraft } from "./recordDraft";
 import { useRecordFields } from "./useRecordFields";
 import { loadFarmData } from "../../lib/data/farm";
+import type { PhotoExif } from "../../lib/utils/exif";
 import { isPointType } from "../map/mapPins";
 import { POINT_TYPE_CHOICES } from "../map/pointTypeMeta";
 import type { FieldPointType } from "../../types";
@@ -51,6 +52,8 @@ export default function PhotoRecordScreen() {
   const recordedAtRef = useRef<string | null>(null);
   const statusRef = useRef<RecordDraft["status"]>(undefined);
   const nextActionRef = useRef<string | undefined>(undefined);
+  // 選択中の写真ファイル自体のEXIF（撮り直す/選び直すとリセットする）
+  const exifRef = useRef<PhotoExif | undefined>(undefined);
 
   // 「修正する」で戻ってきたときは下書きを復元、なければURLクエリで初期選択
   useEffect(() => {
@@ -65,6 +68,7 @@ export default function PhotoRecordScreen() {
       recordedAtRef.current = draft.recordedAt;
       statusRef.current = draft.status;
       nextActionRef.current = draft.nextAction;
+      exifRef.current = draft.exif;
     } else {
       const fieldParam = searchParams.get("field");
       const pointParam = searchParams.get("point");
@@ -92,10 +96,17 @@ export default function PhotoRecordScreen() {
     setProcessing(true);
     setMessage(null);
     try {
-      const compressed = await compressImage(file);
+      // exifr（EXIF抽出）は写真選択時にだけ必要なので、記録作成画面の初期バンドルを
+      // 増やさないよう動的importにする。圧縮（canvas経由）はEXIFを保持しないため、
+      // オリジナルファイルからのEXIF抽出は圧縮と並行して行う
+      const [compressed, exif] = await Promise.all([
+        compressImage(file),
+        import("../../lib/utils/exif").then((m) => m.extractPhotoExif(file)),
+      ]);
       if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl);
       setPhoto(compressed);
       recordedAtRef.current = null;
+      exifRef.current = exif;
     } catch (err) {
       console.warn("[photo] compress failed", err);
       setMessage("写真を読み込めませんでした。別の写真でお試しください");
@@ -126,6 +137,7 @@ export default function PhotoRecordScreen() {
       recordedAt: recordedAtRef.current ?? new Date().toISOString(),
       status: statusRef.current,
       nextAction: nextActionRef.current,
+      exif: exifRef.current,
     });
     const returnTo = searchParams.get("returnTo");
     const confirmUrl = returnTo ? `/records/new/confirm?returnTo=${encodeURIComponent(returnTo)}` : "/records/new/confirm";
