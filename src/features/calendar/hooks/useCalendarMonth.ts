@@ -8,6 +8,7 @@ import {
 import { loadFarmData, getMyRole, ensureGroupId } from "../../../lib/data/farm";
 import { loadImageSlots } from "../../../lib/data/siteContent";
 import { resolveCalendarCoverUrl } from "../../../lib/data/media";
+import { loadRecordsForMonth, type CalendarRecordItem } from "../../../lib/data/records";
 import type { ImageSlots } from "../../../lib/supabase/types";
 
 export type FieldOption = { id: string; name: string };
@@ -19,6 +20,9 @@ function toYMD(d: Date): string {
 export type CalendarMonth = {
   schedules: ScheduleItem[];
   schedulesByDate: Record<string, ScheduleItem[]>;
+  /** その月の記録（予定とは別。実際に行ったこと）。写真URL等は含まない軽量版 */
+  records: CalendarRecordItem[];
+  recordsByDate: Record<string, CalendarRecordItem[]>;
   fields: FieldOption[];
   canEdit: boolean;
   createItem: (input: { title: string; scheduledDate: string; category: ScheduleCategory; fieldId: string | null; memo: string | null }) => Promise<ScheduleItem | null>;
@@ -30,6 +34,7 @@ export type CalendarMonth = {
 /** /calendar のデータ取得を1本化するフック。フォームのローカル状態はコンポーネント側に残す */
 export function useCalendarMonth(viewYear: number, viewMonth: number): CalendarMonth {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [records, setRecords] = useState<CalendarRecordItem[]>([]);
   const [fields, setFields] = useState<FieldOption[]>([]);
   // viewer は予定の追加/完了/削除が RLS で拒否されるため、書き込み操作を隠す（デモ/未ログインは操作可）
   const [canEdit, setCanEdit] = useState(true);
@@ -43,6 +48,10 @@ export function useCalendarMonth(viewYear: number, viewMonth: number): CalendarM
   useEffect(() => {
     loadSchedules(from, to).then(setSchedules);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewYear, viewMonth]);
+
+  useEffect(() => {
+    loadRecordsForMonth(viewYear, viewMonth).then(setRecords);
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
@@ -79,6 +88,15 @@ export function useCalendarMonth(viewYear: number, viewMonth: number): CalendarM
     return map;
   }, [schedules]);
 
+  const recordsByDate = useMemo(() => {
+    const map: Record<string, CalendarRecordItem[]> = {};
+    records.forEach((r) => {
+      if (!map[r.date]) map[r.date] = [];
+      map[r.date].push(r);
+    });
+    return map;
+  }, [records]);
+
   const createItem: CalendarMonth["createItem"] = async (input) => {
     const result = await createSchedule(input);
     if (result) {
@@ -99,5 +117,5 @@ export function useCalendarMonth(viewYear: number, viewMonth: number): CalendarM
     return ok;
   };
 
-  return { schedules, schedulesByDate, fields, canEdit, createItem, toggleItem, deleteItem, coverImageUrl };
+  return { schedules, schedulesByDate, records, recordsByDate, fields, canEdit, createItem, toggleItem, deleteItem, coverImageUrl };
 }

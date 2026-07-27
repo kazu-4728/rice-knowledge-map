@@ -21,6 +21,7 @@ import {
   IconMap,
   IconMic,
   IconMoreVertical,
+  IconPencil,
   IconPinFill,
   IconPlus,
   IconShare,
@@ -37,6 +38,7 @@ import {
   type MediaUrls,
   type RecordStatus,
 } from "../../../lib/data/recordDetail";
+import { deleteComment, updateComment } from "../../../lib/data/talk";
 import type { RecordDetail } from "../../../types";
 import { VoiceInputButton } from "../../../components/ui/VoiceInputButton";
 import { Button } from "../../../components/ui/button";
@@ -63,6 +65,12 @@ export default function RecordDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [imageSlots, setImageSlots] = useState<ImageSlots>({});
+  // コメントの編集・削除（自分のコメントのみ。record.comments[].isMineで判定）
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [commentEditSubmitting, setCommentEditSubmitting] = useState(false);
+  const [pendingCommentDelete, setPendingCommentDelete] = useState<string | null>(null);
+  const [commentDeleting, setCommentDeleting] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -206,6 +214,46 @@ export default function RecordDetailPage() {
       setData(refreshed);
     }
     setSubmitting(false);
+  };
+
+  const handleStartEditComment = (commentId: string, text: string) => {
+    setEditingCommentId(commentId);
+    setEditCommentText(text);
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentText("");
+  };
+
+  const handleSaveEditComment = async () => {
+    if (!editingCommentId || commentEditSubmitting || !editCommentText.trim()) return;
+    setCommentEditSubmitting(true);
+    const { error } = await updateComment(editingCommentId, editCommentText.trim());
+    setCommentEditSubmitting(false);
+    if (error) {
+      setMessage(`コメントの編集に失敗しました: ${error}`);
+      return;
+    }
+    setEditingCommentId(null);
+    setEditCommentText("");
+    const refreshed = await loadRecordDetail(id);
+    setData(refreshed);
+  };
+
+  const handleDeleteComment = async () => {
+    if (!pendingCommentDelete || commentDeleting) return;
+    setCommentDeleting(true);
+    const { error } = await deleteComment(pendingCommentDelete);
+    setCommentDeleting(false);
+    if (error) {
+      setMessage(`コメントの削除に失敗しました: ${error}`);
+      setPendingCommentDelete(null);
+      return;
+    }
+    setPendingCommentDelete(null);
+    const refreshed = await loadRecordDetail(id);
+    setData(refreshed);
   };
 
   /** 記録の共有（LINE等のOS共有シート。非対応環境はリンクコピー） */
@@ -603,27 +651,77 @@ export default function RecordDetailPage() {
           {/* 短い相槌ログ（吹き出しは廃止。会話はLINEに委ねる） */}
           {record.comments.length > 0 ? (
             <div className="mt-3 divide-y divide-gray-100">
-              {record.comments.map((comment, i) => (
-                <div key={comment.id ?? i} className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                  <MemberAvatar name={comment.isMine ? "あなた" : comment.author} className="mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-1.5">
-                      <span className="text-xs font-bold text-gray-700">
-                        {comment.isMine ? "あなた" : comment.author}
-                      </span>
-                      {comment.isRecorder && (
-                        <span className="rounded border border-green-600 px-1 text-[10px] font-semibold text-green-700">
-                          本人
+              {record.comments.map((comment, i) => {
+                const isEditingThis = comment.id != null && editingCommentId === comment.id;
+                return (
+                  <div key={comment.id ?? i} className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0">
+                    <MemberAvatar name={comment.isMine ? "あなた" : comment.author} className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-1.5">
+                        <span className="text-xs font-bold text-gray-700">
+                          {comment.isMine ? "あなた" : comment.author}
                         </span>
+                        {comment.isRecorder && (
+                          <span className="rounded border border-green-600 px-1 text-[10px] font-semibold text-green-700">
+                            本人
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-400">{comment.timestamp}</span>
+                        {/* 自分のコメントのみ編集・削除できる */}
+                        {comment.isMine && comment.id != null && !isEditingThis && (
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              onClick={() => handleStartEditComment(comment.id!, comment.text)}
+                              aria-label="コメントを編集"
+                              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-green-50 active:text-green-600"
+                            >
+                              <IconPencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setPendingCommentDelete(comment.id!)}
+                              aria-label="コメントを削除"
+                              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-red-50 active:text-red-500"
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {isEditingThis ? (
+                        <div className="mt-1.5">
+                          <textarea
+                            value={editCommentText}
+                            onChange={(e) => setEditCommentText(e.target.value)}
+                            rows={2}
+                            autoFocus
+                            className="w-full resize-none rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-800 outline-none focus:border-green-600"
+                          />
+                          <div className="mt-1.5 flex justify-end gap-3">
+                            <button
+                              onClick={handleCancelEditComment}
+                              disabled={commentEditSubmitting}
+                              className="text-xs font-semibold text-gray-500"
+                            >
+                              キャンセル
+                            </button>
+                            <button
+                              onClick={handleSaveEditComment}
+                              disabled={commentEditSubmitting || !editCommentText.trim()}
+                              className="text-xs font-bold text-green-700 disabled:text-gray-300"
+                            >
+                              {commentEditSubmitting ? "保存中…" : "保存"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-800">
+                          {comment.text}
+                        </p>
                       )}
-                      <span className="text-[11px] text-gray-400">{comment.timestamp}</span>
                     </div>
-                    <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-800">
-                      {comment.text}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="mt-3 text-sm text-gray-400">まだコメントはありません</p>
@@ -672,6 +770,23 @@ export default function RecordDetailPage() {
               disabled={deleting}
             >
               {deleting ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* コメント削除確認モーダル */}
+      <AlertDialog open={pendingCommentDelete !== null} onOpenChange={(open) => { if (!open) setPendingCommentDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>このコメントを削除しますか？</AlertDialogTitle>
+          <AlertDialogDescription>元には戻せません。</AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={commentDeleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteComment(); }}
+              disabled={commentDeleting}
+            >
+              {commentDeleting ? "削除中…" : "削除する"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

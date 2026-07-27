@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { fadeRise } from "../../lib/motion/variants";
-import { deleteComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
+import { deleteComment, updateComment, sendTalkText, type TalkMessage } from "../../lib/data/talk";
 import { deleteRecord } from "../../lib/data/recordDetail";
 import { consumeJustSaved } from "./recordDraft";
 import { useToast } from "../../components/ui/Toast";
@@ -33,6 +33,7 @@ import {
   IconChevronRight,
   IconDrop,
   IconMic,
+  IconPencil,
   IconPlayFill,
   IconSprout,
   IconTrash,
@@ -89,6 +90,10 @@ export default function RecordsScreen() {
   const [sending, setSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<TalkMessage | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // 編集中のコメント（キー=TalkMessage.key）。編集はコメントのみ対象（記録本文の編集は対象外）
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const timeline = useRecordsTimeline(filterId);
@@ -185,6 +190,30 @@ export default function RecordsScreen() {
     setDeleting(false);
     setPendingDelete(null);
     showToast("削除しました");
+    await reload(filterId);
+  };
+
+  const handleStartEdit = (m: TalkMessage) => {
+    setEditingKey(m.key);
+    setEditText(m.text ?? "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingKey(null);
+    setEditText("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingKey || editSubmitting || !editText.trim()) return;
+    setEditSubmitting(true);
+    const { error } = await updateComment(editingKey.replace(/^c-/, ""), editText.trim());
+    setEditSubmitting(false);
+    if (error) {
+      showToast(error, "error");
+      return;
+    }
+    setEditingKey(null);
+    setEditText("");
     await reload(filterId);
   };
 
@@ -327,6 +356,16 @@ export default function RecordsScreen() {
                     // 家族の誤削除を防ぐため他人のメッセージには出さない
                     m.isMine ? () => setPendingDelete(m) : undefined
                   }
+                  onEdit={
+                    // 編集は自分のコメントのみ対象（記録本文の編集は非対象）
+                    m.isMine && m.kind === "comment" ? () => handleStartEdit(m) : undefined
+                  }
+                  isEditing={editingKey === m.key}
+                  editText={editText}
+                  onEditTextChange={setEditText}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  editSubmitting={editSubmitting}
                 />
               ))
             )}
@@ -422,6 +461,13 @@ function TimelineEntry({
   onOpen,
   onFieldTap,
   onDelete,
+  onEdit,
+  isEditing,
+  editText,
+  onEditTextChange,
+  onSaveEdit,
+  onCancelEdit,
+  editSubmitting,
 }: {
   message: TalkMessage;
   showDate: boolean;
@@ -431,6 +477,14 @@ function TimelineEntry({
   onFieldTap: (fieldId: string) => void;
   /** 自分のコメント/ひとことのみ削除可能（undefinedなら非表示） */
   onDelete?: () => void;
+  /** 自分のコメントのみ編集可能（undefinedなら非表示。記録本文の編集は対象外） */
+  onEdit?: () => void;
+  isEditing: boolean;
+  editText: string;
+  onEditTextChange: (text: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  editSubmitting: boolean;
 }) {
   const fieldChip = m.fieldId && m.fieldName && (
     <button
@@ -491,11 +545,20 @@ function TimelineEntry({
           <div className="flex items-center gap-1.5 pb-1">
             <MemberAvatar name={m.author} className="h-5 w-5 text-[9px]" />
             <span className="text-xs font-semibold text-gray-600">{m.author}</span>
-            {onDelete && (
+            {onEdit && !isEditing && (
+              <button
+                onClick={onEdit}
+                aria-label="このコメントを編集"
+                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-green-50 active:text-green-600"
+              >
+                <IconPencil className="h-4 w-4" />
+              </button>
+            )}
+            {onDelete && !isEditing && (
               <button
                 onClick={onDelete}
                 aria-label="このメッセージを削除"
-                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-red-50 active:text-red-500"
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-colors active:bg-red-50 active:text-red-500 ${onEdit ? "" : "ml-auto"}`}
               >
                 <IconTrash className="h-4 w-4" />
               </button>
@@ -503,21 +566,45 @@ function TimelineEntry({
           </div>
 
           {m.kind === "comment" ? (
-            // fieldChip がボタンのためネストボタンを避け、div+role="button" で代用する
-            <div
-              {...openHandlers}
-              className="cursor-pointer rounded-2xl bg-white px-4 py-3 text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
-            >
-              {/* 返信先の記録を引用表示（どのメッセージへの返信かを明示。タップで元記録=スレッドへ） */}
-              {m.recordTitle && (
-                <span className="mb-1 block truncate border-l-2 border-flow-green/40 pl-2 text-[11px] text-gray-500">
-                  ↩ {m.fieldName ? `${m.fieldName}・` : ""}
-                  {m.recordTitle}
-                </span>
-              )}
-              <p className="text-sm leading-relaxed text-gray-800">{m.text}</p>
-              {!m.recordTitle && fieldChip && <div className="mt-1.5 flex">{fieldChip}</div>}
-            </div>
+            isEditing ? (
+              <div className="rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]">
+                <textarea
+                  value={editText}
+                  onChange={(e) => onEditTextChange(e.target.value)}
+                  rows={2}
+                  autoFocus
+                  className="w-full resize-none rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-800 outline-none focus:border-green-600"
+                />
+                <div className="mt-2 flex justify-end gap-3">
+                  <button onClick={onCancelEdit} disabled={editSubmitting} className="text-xs font-semibold text-gray-500">
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={onSaveEdit}
+                    disabled={editSubmitting || !editText.trim()}
+                    className="text-xs font-bold text-flow-green disabled:text-gray-300"
+                  >
+                    {editSubmitting ? "保存中…" : "保存"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // fieldChip がボタンのためネストボタンを避け、div+role="button" で代用する
+              <div
+                {...openHandlers}
+                className="cursor-pointer rounded-2xl bg-white px-4 py-3 text-left shadow-[0_8px_24px_-10px_rgba(16,40,28,0.18)]"
+              >
+                {/* 返信先の記録を引用表示（どのメッセージへの返信かを明示。タップで元記録=スレッドへ） */}
+                {m.recordTitle && (
+                  <span className="mb-1 block truncate border-l-2 border-flow-green/40 pl-2 text-[11px] text-gray-500">
+                    ↩ {m.fieldName ? `${m.fieldName}・` : ""}
+                    {m.recordTitle}
+                  </span>
+                )}
+                <p className="text-sm leading-relaxed text-gray-800">{m.text}</p>
+                {!m.recordTitle && fieldChip && <div className="mt-1.5 flex">{fieldChip}</div>}
+              </div>
+            )
           ) : (
             <div
               {...openHandlers}

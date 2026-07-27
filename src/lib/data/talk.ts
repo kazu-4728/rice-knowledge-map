@@ -278,6 +278,30 @@ export async function loadTalkTimeline(opts?: {
 }
 
 /**
+ * 自分のコメントを編集する。RLSにより本人のコメントのみ更新できる
+ * （comments_update: user_id = auth.uid()）。
+ */
+export async function updateComment(commentId: string, text: string): Promise<{ error: string | null }> {
+  const trimmed = text.trim();
+  if (!trimmed) return { error: "コメントを入力してください" };
+
+  const sb = getSupabase();
+  if (!sb) return { error: "デモ環境では編集できません" };
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return { error: "ログインが必要です" };
+
+  const { data, error } = await sb
+    .from("record_comments")
+    .update({ comment: trimmed })
+    .eq("id", commentId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "編集できませんでした（本人のコメントのみ編集できます）" };
+  return { error: null };
+}
+
+/**
  * 自分のコメントを削除する。RLSにより本人のコメントのみ削除できる
  * （record_comments_delete = user_id = auth.uid()）。
  */
