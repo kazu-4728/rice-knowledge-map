@@ -1,4 +1,5 @@
 import type { FieldPointType } from "../../types";
+import type { PhotoExif } from "../../lib/utils/exif";
 
 /**
  * 記録の下書き。撮影画面 → 保存前確認画面への受け渡しに使う。
@@ -25,6 +26,11 @@ export type RecordDraft = {
   status?: "open" | "needs_check" | "resolved" | "monitoring";
   /** 次のアクション（任意の短い自由記述。確認画面で入力し records.next_action に保存する） */
   nextAction?: string;
+  /**
+   * 写真ファイル自体から抽出したEXIF（撮影時刻・GPS。写真のみ・抽出できた場合のみ）。
+   * record_media.exif_captured_at/exif_latitude/exif_longitude に保存する（tasks/TASKS.md PR2 制約4）
+   */
+  exif?: PhotoExif;
 };
 
 let draft: RecordDraft | null = null;

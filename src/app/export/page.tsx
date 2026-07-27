@@ -1,64 +1,67 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
-import { loadRecords } from "../../lib/data/records";
 import { loadFarmData } from "../../lib/data/farm";
 import { loadImageSlots } from "../../lib/data/siteContent";
 import { resolveRecordCoverUrl } from "../../lib/data/media";
-import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { loadExportRecords, type ExportRecord, type ExportRecordsData } from "../../lib/data/exportData";
+import { buildRecordsCsv } from "../../lib/utils/exportCsv";
+import { downloadBlob } from "../../lib/utils/download";
 import type { ImageSlots } from "../../lib/supabase/types";
-import type { RecordItem } from "../../types";
 
 type FieldOption = { id: string; name: string };
 
+function formatDateTime(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  return {
+    date: `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${youbi}）`,
+    time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+  };
+}
+
 export default function ExportPage() {
   const [fields, setFields] = useState<FieldOption[]>([]);
-  const [records, setRecords] = useState<RecordItem[]>([]);
-  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [data, setData] = useState<ExportRecordsData | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string>("all");
   const [year, setYear] = useState(new Date().getFullYear());
   const [printing, setPrinting] = useState(false);
+  const [zipping, setZipping] = useState(false);
+  const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [imageSlots, setImageSlots] = useState<ImageSlots>({});
-  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadImageSlots().then(setImageSlots);
-    // エクスポートは年次/田んぼ別の全件が対象のため、ページングで全件取得する
-    Promise.all([loadFarmData(), loadRecords({ all: true })]).then(([farm, rec]) => {
+    loadFarmData().then((farm) => {
       setFields(farm.fieldsGeoJSON.features.map((f) => ({
         id: String(f.id ?? f.properties?.id ?? ""),
         name: String(f.properties?.name ?? ""),
       })));
-      setRecords(rec.records);
-      setThumbUrls(rec.thumbUrls);
     });
   }, []);
 
-  // 表示日（r.date）と同じローカル時刻基準で年/月を判定する（UTC文字列の前方一致だと
-  // 年末年始に表示上の年とズレる）
-  const localYm = (iso: string | undefined): { year: number; month: string } | null => {
-    if (!iso) return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    return { year: d.getFullYear(), month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
-  };
+  // 年・田んぼの絞り込みが変わるたびにサーバー側で絞り込んで取得し直す
+  // （記録に紐づく全写真の署名URLを発行するため、一覧全件を毎回取得すると重い）。
+  // 絞り込みを素早く連続変更すると古いリクエストが後から解決しうるため、
+  // cancelledフラグで古い結果の反映を防ぐ
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setMessage(null);
+    loadExportRecords({ year, fieldId: selectedFieldId === "all" ? undefined : selectedFieldId }).then((result) => {
+      if (!cancelled) setData(result);
+    });
+    return () => { cancelled = true; };
+  }, [year, selectedFieldId]);
 
-  const filtered = records.filter((r) => {
-    const matchField = selectedFieldId === "all" || r.fieldId === selectedFieldId;
-    const matchYear = localYm(r.recordedAt)?.year === year;
-    return matchField && matchYear;
-  });
+  const records = data?.records ?? [];
 
-  const handlePrint = () => {
-    setPrinting(true);
-    setTimeout(() => { window.print(); setPrinting(false); }, 100);
-  };
-
-  // ローカル日付由来の "YYYY-MM" キーで月別にまとめる（表示日と基準を揃える）
-  const grouped: Record<string, RecordItem[]> = {};
-  filtered.forEach((r) => {
-    const month = localYm(r.recordedAt)?.month ?? "不明";
+  const grouped: Record<string, ExportRecord[]> = {};
+  records.forEach((r) => {
+    const d = new Date(r.recordedAtISO);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     if (!grouped[month]) grouped[month] = [];
     grouped[month].push(r);
   });
@@ -70,6 +73,55 @@ export default function ExportPage() {
   const fieldName = selectedFieldId === "all"
     ? "全田んぼ"
     : fields.find((f) => f.id === selectedFieldId)?.name ?? "不明";
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    // 印刷レイアウトの写真（署名URL・ネットワーク画像）が読み込み切る前にwindow.print()を
+    // 呼ぶと、生成されるPDFの写真欄が空白になる（画像埋め込みPDFが本来の目的のため致命的）。
+    // 固定タイムアウトではなく、印刷レイアウト内の全<img>の読み込み完了を待つ
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".print-photo"));
+    await Promise.all(
+      imgs.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+            })
+      )
+    );
+    window.print();
+    setPrinting(false);
+  };
+
+  const handleCsv = () => {
+    const csv = buildRecordsCsv(records);
+    // Excelでの文字化けを防ぐためUTF-8 BOMを付与する
+    const blob = new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" });
+    downloadBlob(blob, `記録_${fieldName}_${year}.csv`);
+  };
+
+  const handleZip = async () => {
+    if (zipping) return;
+    setMessage(null);
+    setZipping(true);
+    setZipProgress({ done: 0, total: records.reduce((n, r) => n + r.photos.length, 0) });
+    try {
+      // jszip/piexifjsはZIP作成時にしか使わないため動的importにする
+      const { buildRecordsZip } = await import("../../lib/utils/exportZip");
+      const result = await buildRecordsZip(records, (done, total) => setZipProgress({ done, total }));
+      downloadBlob(result.blob, `記録_${fieldName}_${year}.zip`);
+      if (result.failedCount > 0) {
+        setMessage(`${result.failedCount}枚の写真を取得できずZIPから除外しました（他は正常に出力されています）`);
+      }
+    } catch (err) {
+      console.warn("[export] zip build failed", err);
+      setMessage("ZIPの作成に失敗しました。通信環境を確認してもう一度お試しください");
+    } finally {
+      setZipping(false);
+      setZipProgress(null);
+    }
+  };
 
   return (
     <AppShell>
@@ -101,18 +153,62 @@ export default function ExportPage() {
               })}
             </select>
           </div>
-          <p className="text-xs text-gray-500">{filtered.length}件の記録</p>
+          <p className="text-xs text-gray-500">
+            {data === null ? "読み込み中…" : `${records.length}件の記録`}
+          </p>
+
+          {data?.mode === "anon" && (
+            <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-800">ログインするとエクスポートできます</p>
+          )}
+          {data?.mode === "demo" && (
+            <p className="rounded-xl bg-gray-50 px-3 py-2.5 text-xs text-gray-500">
+              Supabase未設定のためエクスポートは利用できません
+            </p>
+          )}
+          {data?.mode === "error" && (
+            <p className="rounded-xl bg-red-50 px-3 py-2.5 text-xs text-red-700">
+              読み込みに失敗しました。通信環境を確認してもう一度開いてください
+            </p>
+          )}
+
           <button
             onClick={handlePrint}
-            disabled={filtered.length === 0 || printing}
+            disabled={records.length === 0 || printing}
             className="w-full rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white disabled:bg-gray-300 active:scale-95 transition-transform"
           >
             {printing ? "準備中…" : "PDFとして印刷・保存"}
           </button>
+          <p className="text-center text-[11px] text-gray-400">写真＋日時・田んぼ・状況を1件ずつまとめたレイアウトで印刷します</p>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleCsv}
+              disabled={records.length === 0}
+              className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 disabled:opacity-50 active:scale-95 transition-transform"
+            >
+              CSVダウンロード
+            </button>
+            <button
+              onClick={handleZip}
+              disabled={records.length === 0 || zipping}
+              className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 disabled:opacity-50 active:scale-95 transition-transform"
+            >
+              {zipping
+                ? zipProgress && zipProgress.total > 0
+                  ? `作成中… ${zipProgress.done}/${zipProgress.total}`
+                  : "作成中…"
+                : "ZIPダウンロード"}
+            </button>
+          </div>
+          <p className="text-center text-[11px] text-gray-400">
+            CSV: 構造化データのみ（画像なし）・ZIP: 写真＋位置情報等をEXIFに書き戻した画像＋JSONメタデータ
+          </p>
+
+          {message && <p className="text-xs text-amber-700">{message}</p>}
         </div>
 
         {/* プレビュー */}
-        {filtered.length > 0 && (
+        {records.length > 0 && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-gray-900 mb-3">プレビュー</p>
             {Object.entries(grouped).sort().map(([month, items]) => (
@@ -121,21 +217,24 @@ export default function ExportPage() {
                   {formatMonth(month)}
                 </p>
                 <ul className="space-y-2">
-                  {items.map((r) => (
-                    <li key={r.id} className="flex items-center gap-3">
-                      <RecordThumb
-                        media={r.media}
-                        variant={r.category === "作業" ? "grass" : r.category === "異常" ? "sprout" : "water"}
-                        thumbUrl={thumbUrls[r.id]}
-                        fallbackUrl={resolveRecordCoverUrl(undefined, r.category, imageSlots)}
-                        className="h-10 w-14 shrink-0 rounded-lg"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gray-900 truncate">{r.title}</p>
-                        <p className="text-xs text-gray-400">{r.date} {r.time} · {r.fieldName}</p>
-                      </div>
-                    </li>
-                  ))}
+                  {items.map((r) => {
+                    const { date, time } = formatDateTime(r.recordedAtISO);
+                    const coverUrl = r.photos[0]?.url ?? resolveRecordCoverUrl(undefined, r.category, imageSlots);
+                    return (
+                      <li key={r.id} className="flex items-center gap-3">
+                        {coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={coverUrl} alt="" className="h-10 w-14 shrink-0 rounded-lg object-cover bg-gray-100" />
+                        ) : (
+                          <div className="h-10 w-14 shrink-0 rounded-lg bg-gray-100" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900 truncate">{r.title}</p>
+                          <p className="text-xs text-gray-400">{date} {time} · {r.fieldName}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
@@ -144,25 +243,42 @@ export default function ExportPage() {
       </div>
 
       {/* 印刷用レイアウト（print: クラスで表示） */}
-      <div className="hidden print:block p-8" ref={reportRef}>
+      <div className="hidden print:block p-8">
         <h1 className="text-2xl font-bold mb-1">{fieldName} 作業記録</h1>
-        <p className="text-sm text-gray-500 mb-6">{year}年 · {filtered.length}件</p>
+        <p className="text-sm text-gray-500 mb-6">{year}年 · {records.length}件</p>
         {Object.entries(grouped).sort().map(([month, items]) => (
-          <div key={month} className="mb-6 break-inside-avoid">
-            <h2 className="text-base font-bold border-b pb-1 mb-3">
+          <div key={month} className="mb-6">
+            <h2 className="text-base font-bold border-b pb-1 mb-3 break-after-avoid">
               {formatMonth(month)}
             </h2>
-            {items.map((r) => (
-              <div key={r.id} className="flex gap-3 mb-3">
-                <div className="text-xs text-gray-500 w-24 shrink-0 pt-0.5">
-                  {r.date}<br />{r.time}
+            {items.map((r) => {
+              const { date, time } = formatDateTime(r.recordedAtISO);
+              const coverUrl = r.photos[0]?.url;
+              return (
+                <div key={r.id} className="flex gap-3 mb-4 break-inside-avoid">
+                  {coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={coverUrl} alt="" className="print-photo h-24 w-32 shrink-0 rounded object-cover" />
+                  ) : (
+                    <div className="h-24 w-32 shrink-0 rounded bg-gray-100" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">{r.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {date} {time} · {r.fieldName}
+                      {r.pointTypeLabel && ` · ${r.pointTypeLabel}`}
+                      {` · ${r.statusLabel}`}
+                    </p>
+                    {r.latitude !== null && r.longitude !== null && (
+                      <p className="text-xs text-gray-400">{r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}</p>
+                    )}
+                    {(r.summary || r.note) && (
+                      <p className="mt-1 text-xs text-gray-700 whitespace-pre-wrap">{r.summary || r.note}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold">{r.title}</p>
-                  <p className="text-xs text-gray-500">{r.fieldName} · {r.category}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>
