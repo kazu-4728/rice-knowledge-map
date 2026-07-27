@@ -14,7 +14,7 @@
 
 （未定。次のタスクはオーナーに確認してから設定する。候補は「次の実行候補」を参照）
 
-- 参考（検証環境）: E2E専用アカウント `e2e-verifier@rice-knowledge-map.test`（専用グループ、RLSで実データと分離）。Playwrightは`e2e/global-setup.ts`が`.auth/user.json`を生成。Claude Codeサンドボックスでは `NODE_USE_ENV_PROXY=1 PW_SANDBOX_PROXY_RELAY=1 PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test`（実マシン・CIではこれらの環境変数は不要）。
+- 参考（検証環境）: E2E専用アカウント `e2e-verifier@rice-knowledge-map.test`（専用グループ、RLSで実データと分離）。実行手順は`e2e/global-setup.ts`を参照。
 
 ## 次の実行候補
 
