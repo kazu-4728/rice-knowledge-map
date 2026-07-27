@@ -134,12 +134,15 @@ export async function loadExportRecords(opts: { year: number; fieldId?: string }
         .from("images")
         .createSignedUrls(imagePaths.map((p) => p.path), 3600);
       if (signError) {
+        // 一括署名が丸ごと失敗した場合、ここで握りつぶすと写真0枚のPDF/ZIPが
+        // 「正常」として生成され、主力の画像エクスポートが欠落したことに気付けない
+        // （レビュー指摘対応）。呼び出し側にエラーとして伝える
         console.warn("[exportData] sign urls failed", signError);
-      } else {
-        signed?.forEach((s, i) => {
-          if (s.signedUrl && !s.error) urlByMediaId[imagePaths[i].mediaId] = s.signedUrl;
-        });
+        return { mode: "error", records: [] };
       }
+      signed?.forEach((s, i) => {
+        if (s.signedUrl && !s.error) urlByMediaId[imagePaths[i].mediaId] = s.signedUrl;
+      });
     }
 
     const records: ExportRecord[] = rows.map((r) => {

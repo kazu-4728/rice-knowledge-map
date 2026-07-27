@@ -10,6 +10,15 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
+/**
+ * Excel等の表計算ソフトはセルの先頭が =, +, -, @ だと数式として評価する。
+ * 田んぼ名・タイトル・メモ・AI要約・次のアクションはグループの利用者が自由入力できる
+ * 文字列のため、そのまま出力すると数式インジェクションになりうる（レビュー指摘対応）
+ */
+function sanitizeFormulaLeadingChar(value: string): string {
+  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
 function toCsvRow(fields: (string | number | null)[]): string {
   return fields.map((f) => escapeCsvField(f === null ? "" : String(f))).join(",");
 }
@@ -24,14 +33,14 @@ export function buildRecordsCsv(records: ExportRecord[]): string {
     lines.push(
       toCsvRow([
         r.recordedAtISO,
-        r.fieldName,
+        sanitizeFormulaLeadingChar(r.fieldName),
         r.category,
         r.pointTypeLabel,
         r.statusLabel,
-        r.title,
-        r.note,
-        r.summary,
-        r.nextAction,
+        sanitizeFormulaLeadingChar(r.title),
+        sanitizeFormulaLeadingChar(r.note),
+        sanitizeFormulaLeadingChar(r.summary),
+        sanitizeFormulaLeadingChar(r.nextAction),
         r.latitude,
         r.longitude,
         r.photos.length,

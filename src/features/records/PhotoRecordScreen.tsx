@@ -7,6 +7,9 @@ import { getRecordDraft, setRecordDraft, type RecordDraft } from "./recordDraft"
 import { useRecordFields } from "./useRecordFields";
 import { loadFarmData } from "../../lib/data/farm";
 import type { PhotoExif } from "../../lib/utils/exif";
+
+/** EXIF抽出用チャンクの動的import自体が失敗した場合（デプロイ切替時のチャンク消失等）のフォールバック値 */
+const EMPTY_PHOTO_EXIF: PhotoExif = { capturedAt: null, latitude: null, longitude: null };
 import { isPointType } from "../map/mapPins";
 import { POINT_TYPE_CHOICES } from "../map/pointTypeMeta";
 import type { FieldPointType } from "../../types";
@@ -98,10 +101,17 @@ export default function PhotoRecordScreen() {
     try {
       // exifr（EXIF抽出）は写真選択時にだけ必要なので、記録作成画面の初期バンドルを
       // 増やさないよう動的importにする。圧縮（canvas経由）はEXIFを保持しないため、
-      // オリジナルファイルからのEXIF抽出は圧縮と並行して行う
+      // オリジナルファイルからのEXIF抽出は圧縮と並行して行う。
+      // EXIFはあくまで付加情報なので、チャンク読み込み自体が失敗しても（通信断等）
+      // 圧縮済み写真での記録作成を止めない（レビュー指摘対応）
       const [compressed, exif] = await Promise.all([
         compressImage(file),
-        import("../../lib/utils/exif").then((m) => m.extractPhotoExif(file)),
+        import("../../lib/utils/exif")
+          .then((m) => m.extractPhotoExif(file))
+          .catch((err) => {
+            console.warn("[exif] extract module failed", err);
+            return EMPTY_PHOTO_EXIF;
+          }),
       ]);
       if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl);
       setPhoto(compressed);

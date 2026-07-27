@@ -39,17 +39,37 @@ function toExifDateTime(iso: string): string {
   return `${d.getFullYear()}:${pad(d.getMonth() + 1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+type LocationSource = "photo_exif" | "recorded_at_fallback" | "none";
+type PhotoLocation = { latitude: number | null; longitude: number | null; source: LocationSource };
+
+/**
+ * 緯度・経度は片方だけ元EXIF由来という混在を避けるため、必ずペアで同一ソースから選ぶ。
+ * 元EXIFの緯度経度が両方揃っていればそれを、無ければ記録時の緯度経度が両方揃っている場合のみ
+ * それを使う（metadata.json向け。JPEG本体へのEXIF書き込みには使わない＝下のwriteExifToJpeg参照）。
+ */
+function resolvePhotoLocation(photo: ExportPhoto): PhotoLocation {
+  if (photo.exifLatitude !== null && photo.exifLongitude !== null) {
+    return { latitude: photo.exifLatitude, longitude: photo.exifLongitude, source: "photo_exif" };
+  }
+  if (photo.recordedLatitude !== null && photo.recordedLongitude !== null) {
+    return { latitude: photo.recordedLatitude, longitude: photo.recordedLongitude, source: "recorded_at_fallback" };
+  }
+  return { latitude: null, longitude: null, source: "none" };
+}
+
 /**
  * 写真1枚にEXIF（撮影時刻・GPS）を書き戻す。
- * 元EXIF（photo.exifCapturedAt等）があればそれを、無ければ記録操作時の値
- * （photo.recordedAt等）を使う。後者の場合は「撮影時刻」ではなく「記録した時刻・場所」
- * であることを、ZIP付随のJSONメタデータ側で明示する（呼び出し側の責務。tasks/TASKS.md PR2 制約4）。
+ * 写真ファイル自体から抽出できた元EXIF（photo.exifCapturedAt等）がある場合のみ書き込む。
+ * 記録操作時の時刻・位置（photo.recordedAt等）へフォールバックしてDateTimeOriginal/GPSタグに
+ * 書くと、画像だけを読む外部ツール・AIには本物の撮影情報に見えてしまい、PCで既存写真を選んだ
+ * ケース等で誤った撮影日時・場所を渡すことになる（migration 0011の意図と矛盾するためレビュー
+ * 指摘で修正）。フォールバック値はmetadata.json側にのみ、由来を明示して記載する。
  */
 async function writeExifToJpeg(blob: Blob, photo: ExportPhoto): Promise<Blob> {
-  const capturedAt = photo.exifCapturedAt ?? photo.recordedAt;
-  const latitude = photo.exifLatitude ?? photo.recordedLatitude;
-  const longitude = photo.exifLongitude ?? photo.recordedLongitude;
-  if (!capturedAt && latitude === null) return blob;
+  const capturedAt = photo.exifCapturedAt;
+  const latitude = photo.exifLatitude;
+  const longitude = photo.exifLongitude;
+  if (!capturedAt && (latitude === null || longitude === null)) return blob;
 
   try {
     const buf = await blob.arrayBuffer();
@@ -81,9 +101,18 @@ async function writeExifToJpeg(blob: Blob, photo: ExportPhoto): Promise<Blob> {
 
 export type BuildZipResult = { blob: Blob; photoCount: number; failedCount: number };
 
+type PhotoMetadata = {
+  file: string;
+  capturedAt: string | null;
+  capturedAtSource: "photo_exif" | "recorded_at_fallback" | "none";
+  latitude: number | null;
+  longitude: number | null;
+  locationSource: LocationSource;
+};
+
 /**
  * 画像ファイル＋JSON形式のメタデータ一覧をZIPにまとめる（他アプリ・自作パイプライン連携用）。
- * 画像ファイル自体にも位置情報・時刻をEXIFとして書き戻す（canvas圧縮でEXIFが失われている現状の補完）。
+ * 画像ファイル自体にも元EXIFの位置情報・時刻を書き戻す（canvas圧縮でEXIFが失われている現状の補完）。
  */
 export async function buildRecordsZip(
   records: ExportRecord[],
@@ -96,36 +125,13 @@ export async function buildRecordsZip(
   const totalPhotos = records.reduce((n, r) => n + r.photos.length, 0);
   let done = 0;
   let failedCount = 0;
-
-  const metadata = records.map((r) => ({
-    id: r.id,
-    title: r.title,
-    fieldName: r.fieldName,
-    category: r.category,
-    pointType: r.pointTypeLabel || null,
-    status: r.statusLabel,
-    recordedAt: r.recordedAtISO,
-    note: r.note || null,
-    summary: r.summary || null,
-    nextAction: r.nextAction || null,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    hasAudio: r.hasAudio,
-    // 撮影時刻とGPSは元EXIFの有無が別々に決まる（例: 日時だけEXIFにあり位置情報はオフだった写真）。
-    // 1つの source フラグにまとめると、一方だけ元EXIF由来のときに他方まで「撮影情報」と
-    // 誤認させてしまうため、capturedAtSource/locationSource を独立に判定する（制約1件目のレビュー指摘対応）
-    photos: r.photos.map((p, i) => ({
-      file: `photos/${r.id}_${i + 1}.jpg`,
-      capturedAt: p.exifCapturedAt ?? p.recordedAt,
-      capturedAtSource: p.exifCapturedAt !== null ? "photo_exif" : p.recordedAt !== null ? "recorded_at_fallback" : "none",
-      latitude: p.exifLatitude ?? p.recordedLatitude,
-      longitude: p.exifLongitude ?? p.recordedLongitude,
-      locationSource: p.exifLatitude !== null ? "photo_exif" : p.recordedLatitude !== null ? "recorded_at_fallback" : "none",
-    })),
-  }));
-  zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+  const metadata: Record<string, unknown>[] = [];
 
   for (const r of records) {
+    // 取得・書き込みに成功した写真だけをmetadata.jsonへ載せる。失敗分まで載せると、
+    // 自作パイプラインが存在しないphotos/*.jpgを参照して停止しうるため（レビュー指摘対応）
+    const photoEntries: PhotoMetadata[] = [];
+
     for (let i = 0; i < r.photos.length; i++) {
       const photo = r.photos[i];
       try {
@@ -133,7 +139,22 @@ export async function buildRecordsZip(
         if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
         const original = await res.blob();
         const withExif = await writeExifToJpeg(original, photo);
-        photosFolder.file(`${r.id}_${i + 1}.jpg`, withExif);
+        const file = `photos/${r.id}_${i + 1}.jpg`;
+        photosFolder.file(file, withExif);
+
+        // 撮影時刻とGPSは元EXIFの有無が別々に決まる（例: 日時だけEXIFにあり位置情報はオフだった写真）。
+        // 1つの source フラグにまとめると、一方だけ元EXIF由来のときに他方まで「撮影情報」と
+        // 誤認させてしまうため、capturedAtSource/locationSourceを独立に判定する
+        const location = resolvePhotoLocation(photo);
+        photoEntries.push({
+          file,
+          capturedAt: photo.exifCapturedAt ?? photo.recordedAt,
+          capturedAtSource:
+            photo.exifCapturedAt !== null ? "photo_exif" : photo.recordedAt !== null ? "recorded_at_fallback" : "none",
+          latitude: location.latitude,
+          longitude: location.longitude,
+          locationSource: location.source,
+        });
       } catch (err) {
         console.warn("[exportZip] photo fetch/write failed", r.id, i, err);
         failedCount++;
@@ -141,7 +162,26 @@ export async function buildRecordsZip(
       done++;
       onProgress?.(done, totalPhotos);
     }
+
+    metadata.push({
+      id: r.id,
+      title: r.title,
+      fieldName: r.fieldName,
+      category: r.category,
+      pointType: r.pointTypeLabel || null,
+      status: r.statusLabel,
+      recordedAt: r.recordedAtISO,
+      note: r.note || null,
+      summary: r.summary || null,
+      nextAction: r.nextAction || null,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      hasAudio: r.hasAudio,
+      photos: photoEntries,
+    });
   }
+
+  zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
   const blob = await zip.generateAsync({ type: "blob" });
   return { blob, photoCount: totalPhotos - failedCount, failedCount };
