@@ -243,9 +243,14 @@ export default function CalendarScreen() {
                   href={`/records/${r.id}`}
                   className="flex items-center gap-2.5 rounded-xl px-1 py-1.5 transition-colors active:bg-gray-50"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
-                    <IconSprout className="h-4 w-4" />
-                  </span>
+                  {r.thumbUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- 署名URLの記録サムネイル
+                    <img src={r.thumbUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                      <IconSprout className="h-4 w-4" />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{r.title}</p>
                     <div className="mt-0.5 flex items-center gap-1.5">

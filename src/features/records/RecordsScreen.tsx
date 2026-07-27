@@ -97,7 +97,7 @@ export default function RecordsScreen() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const timeline = useRecordsTimeline(filterId);
-  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef } = timeline;
+  const { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, patchMessageText, stickToBottomRef } = timeline;
 
   const filterName = filterId ? fields.find((f) => f.id === filterId)?.name ?? null : null;
 
@@ -205,16 +205,19 @@ export default function RecordsScreen() {
 
   const handleSaveEdit = async () => {
     if (!editingKey || editSubmitting || !editText.trim()) return;
+    const trimmed = editText.trim();
     setEditSubmitting(true);
-    const { error } = await updateComment(editingKey.replace(/^c-/, ""), editText.trim());
+    const { error } = await updateComment(editingKey.replace(/^c-/, ""), trimmed);
     setEditSubmitting(false);
     if (error) {
       showToast(error, "error");
       return;
     }
+    // 全体reloadだと「以前のやり取りを見る」で読み込んだ過去ページが最新1ページに
+    // 置き換わって消えてしまうため、編集対象のメッセージだけをローカルで差し替える
+    patchMessageText(editingKey, trimmed);
     setEditingKey(null);
     setEditText("");
-    await reload(filterId);
   };
 
   const transceiver = useTransceiver({

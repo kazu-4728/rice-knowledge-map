@@ -51,7 +51,12 @@ export function useCalendarMonth(viewYear: number, viewMonth: number): CalendarM
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
-    loadRecordsForMonth(viewYear, viewMonth).then(setRecords);
+    // 前月/翌月の連打で古い月のレスポンスが後から届いても、表示中の月を上書きしないようにする
+    let cancelled = false;
+    loadRecordsForMonth(viewYear, viewMonth).then((r) => {
+      if (!cancelled) setRecords(r);
+    });
+    return () => { cancelled = true; };
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
