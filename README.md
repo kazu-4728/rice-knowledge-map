@@ -130,7 +130,7 @@ Deploy   : GitHub → Vercel（main マージで自動デプロイ）
 ## Supabase 構成
 
 - プロジェクト: `rice-farm-app`（無料プランのため長期間放置で一時停止に注意）
-- スキーマ: migration 0001〜0010 適用済み（詳細・適用状況は `supabase/README.md` 参照）
+- スキーマ: migration 0001〜0011 適用済み（詳細・適用状況は `supabase/README.md` 参照）
 - テーブル: profiles / farm_groups / farm_group_members / farm_group_invites / farm_fields / field_seasons / field_points / records / record_media / record_comments / record_status_events / group_site_content / farm_schedules
 
 ---

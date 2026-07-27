@@ -2,9 +2,9 @@
 
 Supabase関連のファイルを置くディレクトリです。
 
-## 適用状況（2026-07-25）
+## 適用状況（2026-07-26）
 
-- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0010相当まで適用済み**。
+- プロジェクト `rice-farm-app`（uakcrkylonvgcmwuyyyk）に **0001〜0011相当まで適用済み**。
   ただし `0007` / `0008` 相当の変更は、Supabase側のmigration履歴名とリポジトリ内ファイル名が一致していない。
 - 実DBでは `group_site_content.image_slots` が存在し、`jsonb not null default jsonb_build_object()` として適用済み。
   Supabase migration履歴上は、2026-07-06に以下の4件として記録されている。
@@ -87,6 +87,10 @@ Supabase関連のファイルを置くディレクトリです。
   - SECURITY DEFINER のため関数内で `has_group_role(owner)` を明示的に検証する
   - 実行権限は `authenticated` のみ（0002 の方針に合わせる）
   - 適用済み: 2026-07-25（PR #80・オーナー承認後にMCP `apply_migration` で適用）
+- `0011_record_media_exif.sql` — 写真ファイル自体のEXIF（撮影時刻・GPS）保持用カラム追加
+  - `record_media` へ `exif_captured_at` / `exif_latitude` / `exif_longitude`（すべてnullable）を追加
+  - 既存カラムのRLSポリシー（0001）が全カラムを対象にしているため、RLS変更は不要
+  - 適用済み: 2026-07-26（PR #82・オーナー承認後にMCP `apply_migration` で適用。Supabase migration履歴上は`record_media_exif`として記録）
 
 ## 今後migrationを追加するとき
 
