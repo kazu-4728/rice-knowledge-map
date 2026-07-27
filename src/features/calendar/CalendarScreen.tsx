@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useToast } from "../../components/ui/Toast";
 import { CATEGORY_LABELS, type ScheduleCategory, type ScheduleItem } from "../../lib/data/schedule";
+import { CATEGORY_CHIP } from "../../components/ui/categoryStyles";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { getSeasonPhase } from "../../lib/season";
 import { SeasonProgressHero } from "../../components/patterns/SeasonProgressHero";
 import { RevealCard } from "../../components/patterns/RevealCard";
 import { useCalendarMonth } from "./hooks/useCalendarMonth";
-import { IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconTrash } from "../../components/ui/icons";
+import { IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconSprout, IconTrash } from "../../components/ui/icons";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
@@ -25,7 +27,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const { schedules, schedulesByDate, fields, canEdit, createItem, toggleItem, deleteItem, coverImageUrl } = useCalendarMonth(viewYear, viewMonth);
+  const { schedules, schedulesByDate, recordsByDate, fields, canEdit, createItem, toggleItem, deleteItem, coverImageUrl } = useCalendarMonth(viewYear, viewMonth);
   const season = useMemo(() => getSeasonPhase(), []);
 
   // 入力フォーム状態
@@ -85,6 +87,7 @@ export default function CalendarScreen() {
   };
 
   const selectedItems = selectedDate ? (schedulesByDate[selectedDate] ?? []) : [];
+  const selectedRecords = selectedDate ? (recordsByDate[selectedDate] ?? []) : [];
 
   return (
     <div className="space-y-3 px-3 pb-24 pt-3">
@@ -132,6 +135,7 @@ export default function CalendarScreen() {
             if (!day) return <div key={`pad-${i}`} className="h-14 border-b border-gray-50" />;
             const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const items = schedulesByDate[dateStr] ?? [];
+            const dayRecords = recordsByDate[dateStr] ?? [];
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedDate;
             const dow = (startPad + day - 1) % 7;
@@ -146,6 +150,7 @@ export default function CalendarScreen() {
                   ${isToday ? "bg-gradient-to-br from-emerald-500 to-green-700 text-white shadow-[0_4px_12px_-2px_rgba(16,185,129,0.7)]" : dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-gray-700"}`}>
                   {day}
                 </span>
+                {/* 予定＝丸ドット（種別で色分け）、記録＝角の丸いバー（実績あり、1本のみ）で形を変えて区別する */}
                 <div className="mt-0.5 flex flex-wrap justify-center gap-0.5 px-0.5">
                   {items.slice(0, 3).map((item) => (
                     <span key={item.id}
@@ -153,6 +158,9 @@ export default function CalendarScreen() {
                     />
                   ))}
                 </div>
+                {dayRecords.length > 0 && (
+                  <span className="mt-0.5 h-1 w-4 rounded-full bg-gray-600/60" aria-hidden />
+                )}
               </button>
             );
           })}
@@ -219,6 +227,43 @@ export default function CalendarScreen() {
               })}
             </ul>
           )}
+        </RevealCard>
+      )}
+
+      {/* 選択日の記録（予定とは別。実際に行ったこと） */}
+      {selectedDate && selectedRecords.length > 0 && (
+        <RevealCard as="section" delay={0.05} className="rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(16,40,28,0.18)] p-4">
+          <p className="mb-3 text-sm font-bold text-gray-900">
+            {selectedDate.replace(/(\d+)-(\d+)-(\d+)/, "$2/$3")} の記録
+          </p>
+          <ul className="space-y-2">
+            {selectedRecords.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/records/${r.id}`}
+                  className="flex items-center gap-2.5 rounded-xl px-1 py-1.5 transition-colors active:bg-gray-50"
+                >
+                  {r.thumbUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- 署名URLの記録サムネイル
+                    <img src={r.thumbUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                      <IconSprout className="h-4 w-4" />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">{r.title}</p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${CATEGORY_CHIP[r.category]}`}>
+                        {r.category}
+                      </span>
+                      {r.fieldName && <span className="text-xs text-gray-400">{r.fieldName}</span>}
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </RevealCard>
       )}
 

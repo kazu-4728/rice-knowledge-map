@@ -14,6 +14,8 @@ export type RecordsTimeline = {
   loadingOlder: boolean;
   reload: (fieldId: string | null) => Promise<void>;
   loadOlder: () => Promise<void>;
+  /** コメント編集成功時など、全体reload（=読み込み済みの過去ページが消える）を避けたい更新に使う */
+  patchMessageText: (key: string, text: string) => void;
   /**
    * 新着メッセージ到着時に最下部へスクロールすべきかのシグナル。
    * reload時=true（最新を見せる）、loadOlder時=false（見ていた位置を維持）。
@@ -88,5 +90,9 @@ export function useRecordsTimeline(filterId: string | null): RecordsTimeline {
     setLoadingOlder(false);
   }, [loadingOlder, messages, filterId]);
 
-  return { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, stickToBottomRef };
+  const patchMessageText = useCallback((key: string, text: string) => {
+    setMessages((prev) => prev.map((m) => (m.key === key ? { ...m, text } : m)));
+  }, []);
+
+  return { mode, messages, hasMore, fields, loadingOlder, reload, loadOlder, patchMessageText, stickToBottomRef };
 }

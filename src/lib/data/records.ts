@@ -2,6 +2,7 @@ import type { FieldPointType, RecordItem } from "../../types";
 import type { Numeric, RecordRow } from "../supabase/types";
 import { getSupabase } from "../supabase/client";
 import { recentRecords } from "../../data/dummy";
+import { ensureGroupId } from "./farm";
 
 export type RecordsData = {
   /**
@@ -256,4 +257,83 @@ export async function loadRecords(opts?: { limit?: number; fieldId?: string; all
     console.warn("[records] load error", err);
     return authed ? ERROR : ANON;
   }
+}
+
+/** カレンダー表示用の軽量な記録（日付セルへのインジケータ・選択日の一覧に必要な項目のみ） */
+export type CalendarRecordItem = {
+  id: string;
+  /** ローカル日付（"YYYY-MM-DD"）。カレンダーの日付セルはローカル日付で並ぶため、recorded_atをローカル基準で丸める */
+  date: string;
+  title: string;
+  fieldName: string | null;
+  category: RecordItem["category"];
+  /** 先頭写真の署名URL（写真がある記録のみ。無ければ選択日一覧側でアイコンにフォールバック） */
+  thumbUrl?: string;
+};
+
+type CalendarRecordRow = RecordRow & {
+  farm_fields: { name: string } | null;
+  record_media: { media_type: "image" | "audio"; storage_bucket: string; storage_path: string }[];
+};
+
+/**
+ * 指定月（ローカル月境界）の記録を、アクティブグループ（カレンダーが対象とする単一グループ）に
+ * 限定して取得する。予定（farm_schedules）と同じ月表示に載せる軽量版だが、選択日一覧でのサムネ
+ * 表示のため先頭写真の署名URLだけは発行する（loadRecords()のthumbUrlsと同じパターン）。
+ */
+export async function loadRecordsForMonth(year: number, month0: number): Promise<CalendarRecordItem[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const groupId = await ensureGroupId();
+  if (!groupId) return [];
+
+  const from = new Date(year, month0, 1).toISOString();
+  const to = new Date(year, month0 + 1, 1).toISOString();
+
+  const { data, error } = await sb
+    .from("records")
+    .select("id, record_type, title, recorded_at, farm_fields(name), record_media(media_type, storage_bucket, storage_path)")
+    .eq("group_id", groupId)
+    .gte("recorded_at", from)
+    .lt("recorded_at", to)
+    .order("recorded_at", { ascending: true });
+
+  if (error) {
+    console.warn("[records] month fetch failed", error);
+    return [];
+  }
+
+  const rows = (data ?? []) as unknown as CalendarRecordRow[];
+
+  const thumbPaths: { recordId: string; path: string }[] = [];
+  for (const r of rows) {
+    const image = r.record_media?.find((m) => m.media_type === "image" && m.storage_bucket === "images");
+    if (image) thumbPaths.push({ recordId: r.id, path: image.storage_path });
+  }
+  const thumbUrls: Record<string, string> = {};
+  if (thumbPaths.length > 0) {
+    const { data: signed, error: signError } = await sb.storage
+      .from("images")
+      .createSignedUrls(thumbPaths.map((t) => t.path), 3600);
+    if (signError) {
+      console.warn("[records] month thumb sign urls failed", signError);
+    } else {
+      signed?.forEach((s, i) => {
+        if (s.signedUrl && !s.error) thumbUrls[thumbPaths[i].recordId] = s.signedUrl;
+      });
+    }
+  }
+
+  return rows.map((r) => {
+    const d = new Date(r.recorded_at);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return {
+      id: r.id,
+      date,
+      title: r.title || "（無題の記録）",
+      fieldName: r.farm_fields?.name ?? null,
+      category: TYPE_TO_CATEGORY[r.record_type] ?? "作業",
+      thumbUrl: thumbUrls[r.id],
+    };
+  });
 }
