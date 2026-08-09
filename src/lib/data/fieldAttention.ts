@@ -17,8 +17,8 @@ export type FieldAttention = {
 
 export type FieldAttentionSummary = {
   mode: FarmData["mode"];
-  /** 登録済み田んぼの基本一覧（id/nameのみ） */
-  fields: { id: string; name: string }[];
+  /** 登録済み田んぼの基本一覧（表示順=display_order） */
+  fields: { id: string; name: string; photoPath: string | null; areaSqm: number | null }[];
   /** 要注意順（issue+needsCheck降順）にソート済み */
   attentionFields: FieldAttention[];
   totalIssue: number;
@@ -36,6 +36,8 @@ export async function loadFieldAttention(): Promise<FieldAttentionSummary> {
   const items = farm.fieldsGeoJSON.features.map((f) => ({
     id: String(f.id ?? f.properties?.id ?? ""),
     name: String(f.properties?.name ?? ""),
+    photoPath: (f.properties?.photo_path as string | null) ?? null,
+    areaSqm: f.properties?.area_sqm != null ? Number(f.properties.area_sqm) : null,
   }));
 
   const fieldNameMap = new Map(items.map((f) => [f.id, f.name]));

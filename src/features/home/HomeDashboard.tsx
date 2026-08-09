@@ -3,16 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { loadFieldAttention, type FieldAttentionSummary } from "../../lib/data/fieldAttention";
+import { loadFieldLastRecordDates, getSignedPhotoUrls } from "../../lib/data/farm";
 import { loadRecords } from "../../lib/data/records";
-import { loadImageSlots } from "../../lib/data/siteContent";
-import { resolveRecordCoverUrl } from "../../lib/data/media";
-import type { ImageSlots } from "../../lib/supabase/types";
-import { RecordThumb } from "../../components/ui/PaddyPhoto";
+import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { StartChecklist } from "./StartChecklist";
 import { HomeShareSheet } from "./HomeShareSheet";
-import type { RecordItem } from "../../types";
 import {
   IconCamera,
   IconChevronRight,
@@ -22,37 +19,38 @@ import {
 } from "../../components/ui/icons";
 
 /**
- * ログイン後ホーム（/）＝今日のダッシュボード専用（再設計フェーズ5・現場モード）。
- * 構成は 田んぼ状態チップ・記録ボタン・最近の記録 のみに絞り、
- * 課題提起・機能紹介などのLP要素は置かない（未ログインのLandingScreenだけが持つ）。
+ * ログイン後ホーム（/）＝田んぼボード。
+ * 「どの田んぼがどうなっているか」を固定順（display_order）のカードで見せる場所であり、
+ * 時系列の一覧は持たない（タイムラインは記録タブに一本化。2026-08-09オーナー指摘:
+ * ホームがタイムラインと同じで、どこの記録かすぐ分からなくなるため）。
  */
 export default function HomeDashboard() {
   const [attention, setAttention] = useState<FieldAttentionSummary | null>(null);
   const [attentionError, setAttentionError] = useState(false);
-  const [records, setRecords] = useState<RecordItem[]>([]);
-  const [thumbs, setThumbs] = useState<Record<string, string>>({});
-  const [recordsLoaded, setRecordsLoaded] = useState(false);
+  const [lastDates, setLastDates] = useState<Record<string, string>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [recentFieldId, setRecentFieldId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [imageSlots, setImageSlots] = useState<ImageSlots>({});
 
   useEffect(() => {
     let cancelled = false;
-    loadImageSlots().then((slots) => {
-      if (!cancelled) setImageSlots(slots);
-    });
-    loadFieldAttention().then((summary) => {
+    loadFieldAttention().then(async (summary) => {
       if (cancelled || summary.mode === "anon") return;
       // errorのまま何もしないとattentionがnullのまま=スケルトン表示が永久に残るため、
       // エラー状態を明示してスケルトンから抜け出す
       if (summary.mode === "error") { setAttentionError(true); return; }
       setAttention(summary);
+      const paths = summary.fields.flatMap((f) => (f.photoPath ? [f.photoPath] : []));
+      const urls = await getSignedPhotoUrls(paths);
+      if (!cancelled) setPhotoUrls(urls);
     });
-    loadRecords({ limit: 5 }).then((data) => {
-      if (cancelled) return;
-      setRecordsLoaded(true);
-      if (data.mode === "anon" || data.mode === "error") return;
-      setRecords(data.records);
-      setThumbs(data.thumbUrls);
+    loadFieldLastRecordDates().then((dates) => {
+      if (!cancelled) setLastDates(dates);
+    });
+    // 「見くらべる」の遷移先に使う直近記録の田んぼだけ取得する（一覧表示はしない）
+    loadRecords({ limit: 3 }).then((data) => {
+      if (cancelled || data.mode === "anon" || data.mode === "error") return;
+      setRecentFieldId(data.records.find((r) => r.fieldId)?.fieldId ?? null);
     });
     return () => {
       cancelled = true;
@@ -64,23 +62,32 @@ export default function HomeDashboard() {
   const hasField = attention ? attention.fields.length > 0 : null;
 
   /** 「見くらべる」の遷移先。直近に記録した田んぼを優先し、無ければ最初の田んぼ */
-  const compareFieldId = records.find((r) => r.fieldId)?.fieldId ?? attention?.fields[0]?.id ?? null;
+  const compareFieldId = recentFieldId ?? attention?.fields[0]?.id ?? null;
 
-  /** 田んぼ状態チップ（issue > needs_check > normal の優先順で信号色を出す） */
-  const fieldChips =
+  /** 田んぼカード（issue > needs_check > normal の優先順で信号色を出す） */
+  const fieldCards =
     attention?.fields.map((f) => {
       const a = attention.attentionFields.find((af) => af.id === f.id);
+      const count = (a?.issueCount ?? 0) + (a?.needsCheckCount ?? 0);
       const status: "issue" | "needs_check" | "normal" = a?.issueCount
         ? "issue"
         : a?.needsCheckCount
           ? "needs_check"
           : "normal";
-      return { id: f.id, name: f.name, status };
+      return {
+        id: f.id,
+        name: f.name,
+        photoUrl: f.photoPath ? photoUrls[f.photoPath] : undefined,
+        status,
+        statusLabel:
+          status === "normal" ? "順調" : status === "issue" ? `要対応 ${count}件` : `要確認 ${count}件`,
+        lastDate: lastDates[f.id] ?? null,
+      };
     }) ?? [];
 
   return (
     <div className="min-h-full space-y-4 bg-flow-cream px-3 pb-6 pt-3">
-      {/* 田んぼ状態チップ */}
+      {/* 田んぼボード */}
       <section>
         <div className="flex items-center justify-between px-1 pb-2">
           <h1 className="font-heading text-lg font-bold text-gray-900">今日の田んぼ</h1>
@@ -95,24 +102,47 @@ export default function HomeDashboard() {
               田んぼの状態を読み込めませんでした。通信環境を確認してもう一度開いてください
             </p>
           ) : (
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-28 rounded-full" />
-              <Skeleton className="h-10 w-28 rounded-full" />
+            <div className="space-y-2.5">
+              <Skeleton className="h-40 rounded-2xl" />
+              <Skeleton className="h-40 rounded-2xl" />
             </div>
           )
-        ) : fieldChips.length > 0 ? (
-          <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            {fieldChips.map((f) => (
-              <Link
-                key={f.id}
-                href={`/fields/${encodeURIComponent(f.id)}`}
-                className="flex shrink-0 items-center gap-2 rounded-full border border-gray-100 bg-white py-2 pl-2.5 pr-3.5 shadow-sm transition-transform active:scale-95"
-              >
-                <StatusBadge status={f.status} className="border-0 px-1.5" label="" />
-                <span className="text-sm font-bold text-gray-800">{f.name || "名前のない田んぼ"}</span>
-              </Link>
+        ) : fieldCards.length > 0 ? (
+          <ul className="space-y-2.5">
+            {fieldCards.map((f) => (
+              <li key={f.id}>
+                <Link
+                  href={`/fields/${encodeURIComponent(f.id)}`}
+                  className="block overflow-hidden rounded-2xl bg-white shadow-sm transition-transform active:scale-98"
+                >
+                  <div className="relative h-32">
+                    <RemotePhoto
+                      src={f.photoUrl}
+                      alt={f.name || "名前のない田んぼ"}
+                      className="h-full w-full"
+                      fallbackVariant="field"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+                    <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-base font-bold text-white drop-shadow">
+                        {f.name || "名前のない田んぼ"}
+                      </p>
+                      <StatusBadge status={f.status} label={f.statusLabel} className="shrink-0" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-3.5 py-2.5">
+                    <p className="text-xs text-gray-500">
+                      {f.lastDate ? `最終記録 ${f.lastDate}` : "まだ記録がありません"}
+                    </p>
+                    <span className="flex items-center gap-0.5 text-xs font-bold text-flow-green">
+                      この田んぼを見る
+                      <IconChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <Link
             href="/map?register=1"
@@ -175,55 +205,6 @@ export default function HomeDashboard() {
           <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-300" />
         </Link>
       )}
-
-      {/* 最近の記録 */}
-      <section>
-        <div className="flex items-center justify-between px-1 pb-2">
-          <h2 className="font-heading text-sm font-bold text-gray-800">最近の記録</h2>
-          <Link href="/records" className="flex items-center gap-0.5 text-xs font-bold text-flow-green">
-            すべて見る
-            <IconChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        {!recordsLoaded ? (
-          <div className="space-y-2">
-            <Skeleton className="h-16 rounded-2xl" />
-            <Skeleton className="h-16 rounded-2xl" />
-          </div>
-        ) : records.length > 0 ? (
-          <ul className="space-y-2">
-            {records.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/records/${r.id}`}
-                  className="flex items-center gap-3 rounded-2xl bg-white p-2.5 shadow-sm transition-transform active:scale-98"
-                >
-                  <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl">
-                    <RecordThumb
-                      media={r.media}
-                      thumbUrl={thumbs[r.id]}
-                      fallbackUrl={resolveRecordCoverUrl(undefined, r.category, imageSlots)}
-                      className="h-full w-full"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{r.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-gray-400">
-                      {r.fieldName}・{r.date} {r.time}
-                    </p>
-                  </div>
-                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
-            <p className="text-sm font-bold text-gray-900">まだ記録がありません</p>
-            <p className="mt-1 text-xs text-gray-500">上のボタンから今日の様子を残してみましょう</p>
-          </div>
-        )}
-      </section>
 
       {/* 初回利用時のみのチェックリスト（唯一の案内レイヤー） */}
       <StartChecklist onShareClick={hasField ? handleShare : undefined} />
