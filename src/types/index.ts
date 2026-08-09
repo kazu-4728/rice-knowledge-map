@@ -82,6 +82,8 @@ export type RecordComment = {
 export type RecordPhoto = {
   id: string;
   url: string;
+  /** record_media.storage_path。ピンの台帳への登録（コピー）に使う */
+  storagePath: string;
   /** record_media.captured_at（記録した時刻。写真EXIFの撮影時刻ではない） */
   capturedAtLabel: string | null;
   latitude: number | null;

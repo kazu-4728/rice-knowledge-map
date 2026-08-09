@@ -39,7 +39,10 @@ import {
   type RecordStatus,
 } from "../../../lib/data/recordDetail";
 import { deleteComment, updateComment } from "../../../lib/data/talk";
-import type { RecordDetail } from "../../../types";
+import { registerRecordPhotoToPoint } from "../../../lib/data/pointMedia";
+import RegisterToPointSheet from "../../../features/records/RegisterToPointSheet";
+import { useToast } from "../../../components/ui/Toast";
+import type { RecordDetail, RecordPhoto, FieldPoint } from "../../../types";
 import { VoiceInputButton } from "../../../components/ui/VoiceInputButton";
 import { Button } from "../../../components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../components/ui/dropdown-menu";
@@ -56,7 +59,12 @@ import {
 export default function RecordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { showToast } = useToast();
   const [data, setData] = useState<RecordDetailData | null>(null);
+  // ピンの台帳への登録（写真単位）。ボタン連打防止と、登録済み表示のためのローカル状態
+  const [registeringPhotoId, setRegisteringPhotoId] = useState<string | null>(null);
+  const [registeredPhotoIds, setRegisteredPhotoIds] = useState<Set<string>>(new Set());
+  const [pointPickerPhoto, setPointPickerPhoto] = useState<RecordPhoto | null>(null);
   const [commentText, setCommentText] = useState("");
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -306,6 +314,39 @@ export default function RecordDetailPage() {
     }
   };
 
+  /**
+   * 写真をピンの台帳に登録する。記録に point_id があれば直接登録し、
+   * 無ければ同じ田んぼのピンをRegisterToPointSheetで選ばせる。
+   * 田んぼ紐付けも無い記録ではボタン自体を出さない（呼び出し側で制御）。
+   */
+  const handleRegisterToPointClick = async (photo: RecordPhoto) => {
+    if (record.pointId) {
+      await runRegisterToPoint(photo, record.pointId);
+    } else if (record.fieldId) {
+      setPointPickerPhoto(photo);
+    }
+  };
+
+  const runRegisterToPoint = async (photo: RecordPhoto, pointId: string) => {
+    setRegisteringPhotoId(photo.id);
+    const result = await registerRecordPhotoToPoint(photo.storagePath, pointId);
+    setRegisteringPhotoId(null);
+    if (result === "saved") {
+      showToast("ピンの台帳に登録しました");
+      setRegisteredPhotoIds((prev) => new Set(prev).add(photo.id));
+    } else if (result === "denied") {
+      showToast("登録できませんでした（編集権限がありません）", "error");
+    } else if (result === "error") {
+      showToast("登録に失敗しました。通信環境を確認してください", "error");
+    }
+  };
+
+  const handleSelectPointForRegister = async (point: FieldPoint) => {
+    const photo = pointPickerPhoto;
+    setPointPickerPhoto(null);
+    if (photo) await runRegisterToPoint(photo, point.id);
+  };
+
   return (
     <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
       {/* ヘッダー */}
@@ -385,6 +426,23 @@ export default function RecordDetailPage() {
                         </span>
                       )}
                     </figcaption>
+                  )}
+                  {/* 入水口・機械の出入口など「変わらない情報」はピンの台帳へ登録すると、
+                      記録タイムラインとは別にマップのピン詳細から見返せる */}
+                  {record.fieldId && (
+                    <button
+                      type="button"
+                      disabled={registeringPhotoId === photo.id || registeredPhotoIds.has(photo.id)}
+                      onClick={() => handleRegisterToPointClick(photo)}
+                      className="mt-1.5 flex items-center gap-1 rounded-lg border border-green-700/25 bg-white px-2.5 py-1.5 text-xs font-bold text-green-700 transition-colors hover:bg-green-50 disabled:opacity-50"
+                    >
+                      <IconPinFill className="h-3.5 w-3.5" />
+                      {registeredPhotoIds.has(photo.id)
+                        ? "登録済み"
+                        : registeringPhotoId === photo.id
+                          ? "登録中…"
+                          : "ピンの台帳に登録"}
+                    </button>
                   )}
                 </figure>
               ))}
@@ -791,6 +849,15 @@ export default function RecordDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 記録に point_id が無い写真をピンの台帳に登録する際の、同じ田んぼ内のピン選択 */}
+      {pointPickerPhoto && record.fieldId && (
+        <RegisterToPointSheet
+          fieldId={record.fieldId}
+          onSelect={handleSelectPointForRegister}
+          onClose={() => setPointPickerPhoto(null)}
+        />
+      )}
     </div>
   );
 }

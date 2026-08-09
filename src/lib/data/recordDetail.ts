@@ -182,6 +182,7 @@ export async function loadRecordDetail(id: string): Promise<RecordDetailData> {
         photos.push({
           id: media.id,
           url: s.signedUrl,
+          storagePath: media.storage_path,
           capturedAtLabel: media.captured_at ? formatDateTime(media.captured_at) : null,
           latitude: toNullableNumber(media.latitude),
           longitude: toNullableNumber(media.longitude),

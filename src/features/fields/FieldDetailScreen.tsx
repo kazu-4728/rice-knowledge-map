@@ -17,7 +17,6 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyles";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import SectionHeading from "../../components/ui/SectionHeading";
@@ -33,7 +32,6 @@ import {
   IconMic,
   IconPinFill,
   IconShare,
-  IconSprout,
 } from "../../components/ui/icons";
 
 /** ポイント種別の表示（ラベル・アイコンは mapPins.ts / pointTypeMeta.ts が元データ） */
@@ -60,15 +58,8 @@ const STATUS_BADGE: Partial<Record<string, { label: string; cls: string }>> = {
   needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
 };
 
-/** 記録タブで一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
+/** 記録一覧で一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
 const RECORDS_PAGE_SIZE = 20;
-
-type TabKey = "overview" | "records" | "photos";
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "概要" },
-  { key: "records", label: "記録" },
-  { key: "photos", label: "定点観測" },
-];
 
 /**
  * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
@@ -171,24 +162,25 @@ function ObservationGroup({
 
 type Props = { fieldId: string };
 
+/**
+ * 田んぼ詳細（/fields/[id]）。
+ * 2026-08-09オーナー指摘: 他の田んぼへの切替チップ・タブ切替は「この田んぼだけの詳細」を
+ * 分かりにくくするため廃止し、上から
+ * 「カバー写真 → この田んぼの台帳（変わらない情報） → 記録アクション →
+ *    この田んぼの記録（変化する情報） → 定点観測」の縦一列構成にする。
+ */
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
   const { session } = useAuth();
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // ホーム・マップからの「見くらべる」導線は ?tab=photos で定点観測タブを直接開く
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    const requested = searchParams.get("tab");
-    return TABS.some((t) => t.key === requested) ? (requested as TabKey) : "overview";
-  });
   const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
 
   const {
     loading,
     notFound,
     field,
-    allFields,
     points,
     sortedPoints,
     records,
@@ -207,6 +199,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   useEffect(() => {
     if (consumeJustSaved()) showToast("記録を保存しました");
   }, [showToast]);
+
+  // ホーム・マップからの「見くらべる」導線（?tab=photos）は、タブ廃止後は
+  // 定点観測セクションまで自動スクロールする形で互換を保つ
+  useEffect(() => {
+    if (searchParams.get("tab") !== "photos" || loading) return;
+    document.getElementById("photos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [searchParams, loading]);
 
   // ポイントの台帳写真（先頭1枚）をアイコンの代わりに出す
   const [pointThumbs, setPointThumbs] = useState<Record<string, string>>({});
@@ -297,29 +296,6 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   return (
     <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
-      {/* 田んぼ切替チップ: 場所詳細=唯一のハブとして、隣の田んぼへここから並行移動できる
-          （記録詳細→パンくずで戻る→ここで切替、の2タップでマップ・ホームを経由しない） */}
-      {allFields.length > 1 && (
-        <div className="scrollbar-none -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1" style={{ scrollbarWidth: "none" }}>
-          {allFields.map((f) => {
-            const active = f.id === fieldId;
-            return (
-              <Link
-                key={f.id}
-                href={`/fields/${encodeURIComponent(f.id)}`}
-                aria-current={active ? "page" : undefined}
-                className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                  active ? "bg-flow-green text-white" : "border border-black/10 bg-white text-gray-600"
-                }`}
-              >
-                <IconSprout className="h-3.5 w-3.5" />
-                {f.name || "名前のない田んぼ"}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
@@ -373,17 +349,21 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* 小さな地図（場所確認用の脇役。主役は上の実写カバー写真） */}
-      <FieldMiniMap
-        href={`/map?field=${encodeURIComponent(fieldId)}`}
-        boundary={field.boundary}
-        points={points.map((p) => p.lngLat)}
-        label={field.name || "名前のない田んぼ"}
-        className="h-28 w-full rounded-2xl shadow-sm"
-        ariaLabel="マップで見る"
-      />
+      {/* ── この田んぼの台帳（変わらない情報: 状態・統計・場所・設備ポイント） ── */}
+      <SectionHeading
+        trailing={
+          <Link
+            href={`/map?field=${encodeURIComponent(fieldId)}`}
+            className="flex items-center gap-0.5 text-xs font-bold text-flow-green"
+          >
+            マップで開く
+            <IconChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        }
+      >
+        この田んぼの台帳
+      </SectionHeading>
 
-      {/* 主役ヒーロー: 統計+状態サマリー+記録アクションを1枚に統合（色は深緑単色+状態チップのみアクセント） */}
       <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
         <div className="flex items-start gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
@@ -408,7 +388,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             </div>
             <p className="mt-0.5 text-sm text-white/85">
               {hasAttention
-                ? "下の「記録」タブ、または「ポイントの状態」で確認してください"
+                ? "下の「この田んぼの記録」、または「設備ポイント」で確認してください"
                 : points.length > 0
                   ? `登録ポイント${points.length}件はすべて正常です`
                   : "マップで入水口・異常箇所などを登録できます"}
@@ -456,21 +436,87 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             </div>
           </div>
         )}
+      </section>
 
-        <div className="mt-3 flex gap-2.5">
-          <Button asChild variant="primary" className="flex-1">
-            <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
-              <IconCamera className="h-4.5 w-4.5" />
-              写真で記録
-            </Link>
-          </Button>
-          <Button asChild variant="secondary" className="flex-1 border-white/30 bg-white/10 text-white hover:bg-white/15">
-            <Link href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
-              <IconMic className="h-4.5 w-4.5" />
-              音声メモ
-            </Link>
-          </Button>
-        </div>
+      {/* 小さな地図（場所確認用の脇役。台帳セクション内に置きマップとの連携を明示する） */}
+      <FieldMiniMap
+        href={`/map?field=${encodeURIComponent(fieldId)}`}
+        boundary={field.boundary}
+        points={points.map((p) => p.lngLat)}
+        label={field.name || "名前のない田んぼ"}
+        className="h-28 w-full rounded-2xl shadow-sm"
+        ariaLabel="マップで開く"
+      />
+
+      {/* 設備ポイント一覧（入水口・出水口・機械の出入口など。台帳写真があればサムネで表示） */}
+      {points.length > 0 ? (
+        <>
+          <SectionHeading level={3}>設備ポイント</SectionHeading>
+          <ul className="space-y-2">
+            {sortedPoints.map((point) => {
+                const meta = pointTypeView(point.type);
+                const status = POINT_STATUS_META[point.status];
+                const highlighted = point.id === highlightPointId;
+                return (
+                  <li key={point.id}>
+                    <Link
+                      href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
+                      className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
+                        highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                      }`}
+                    >
+                      {pointThumbs[point.id] ? (
+                        <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+                          <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
+                        </span>
+                      ) : (
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+                          {meta.icon}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                        <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+                        {status.label}
+                      </span>
+                      <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    </Link>
+                  </li>
+                );
+              })}
+          </ul>
+        </>
+      ) : (
+        <Link href="/map" className="block active:scale-98 transition-transform">
+          <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+              <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
+              <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
+            </div>
+            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+          </Card>
+        </Link>
+      )}
+
+      {/* ── 記録アクション ── */}
+      <section className="flex gap-2.5">
+        <Button asChild variant="primary" className="flex-1">
+          <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+            <IconCamera className="h-4.5 w-4.5" />
+            写真で記録
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" className="flex-1">
+          <Link href={`/records/new?type=audio&field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`}>
+            <IconMic className="h-4.5 w-4.5" />
+            音声メモ
+          </Link>
+        </Button>
       </section>
 
       {/* アプリ外への手動共有（Issue #70・段階1: リンク+テキストのみ） */}
@@ -484,156 +530,83 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
-        <TabsList aria-label="田んぼ詳細の表示切り替え">
-          {TABS.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {/* 概要タブ: ポイントの状態一覧 */}
-        <TabsContent value="overview" className="mt-3 space-y-2">
-          {points.length > 0 ? (
-            <>
-              <SectionHeading level={3}>ポイントの状態</SectionHeading>
-              <ul className="space-y-2">
-                {sortedPoints.map((point) => {
-                    const meta = pointTypeView(point.type);
-                    const status = POINT_STATUS_META[point.status];
-                    const highlighted = point.id === highlightPointId;
-                    return (
-                      <li key={point.id}>
-                        <Link
-                          href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                          className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
-                            highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
-                          }`}
-                        >
-                          {pointThumbs[point.id] ? (
-                            <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                              <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
-                            </span>
-                          ) : (
-                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
-                              {meta.icon}
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                            <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
-                          </div>
-                          <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
-                            {status.label}
-                          </span>
-                          <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                        </Link>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </>
-          ) : (
-            <Link href="/map" className="block active:scale-98 transition-transform">
-              <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                  <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-                  <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-                </div>
-                <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-              </Card>
-            </Link>
+      {/* ── この田んぼの記録（変化する情報: 写真主体のタイムライン） ── */}
+      <SectionHeading trailing={<span className="text-xs font-semibold text-gray-400">{records.length}件</span>}>
+        この田んぼの記録
+      </SectionHeading>
+      {records.length > 0 ? (
+        <>
+          <div className="space-y-3">
+            {records.slice(0, recordsShown).map((record) => {
+              const statusBadge = STATUS_BADGE[record.status];
+              return (
+                <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
+                  <Card className="overflow-hidden">
+                    <div className="relative h-40">
+                      <RecordThumb
+                        media={record.media}
+                        variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+                        duration={record.audioDuration}
+                        thumbUrl={thumbUrls[record.id]}
+                        fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
+                        className="h-full w-full"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+                      <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+                        {record.category}
+                      </Badge>
+                      {statusBadge && (
+                        <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+                          {statusBadge.label}
+                        </Badge>
+                      )}
+                    </div>
+                    <CardContent className="px-4 py-3">
+                      <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+                      <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+          {recordsShown < records.length && (
+            <Button
+              variant="tertiary"
+              className="w-full"
+              onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
+            >
+              もっと見る（残り{records.length - recordsShown}件）
+            </Button>
           )}
-        </TabsContent>
+        </>
+      ) : (
+        <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-sm text-gray-500">まだ記録がありません</p>
+          <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
+        </div>
+      )}
 
-        {/* 記録タブ: 写真主体のタイムライン（大量記録時に一括描画しないようページング） */}
-        <TabsContent value="records" className="mt-3">
-          {records.length > 0 ? (
-            <>
-              <div className="space-y-3">
-                {records.slice(0, recordsShown).map((record) => {
-                  const statusBadge = STATUS_BADGE[record.status];
-                  return (
-                    <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
-                      <Card className="overflow-hidden">
-                        <div className="relative h-40">
-                          <RecordThumb
-                            media={record.media}
-                            variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                            duration={record.audioDuration}
-                            thumbUrl={thumbUrls[record.id]}
-                            fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
-                            className="h-full w-full"
-                          />
-                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
-                          <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
-                            {record.category}
-                          </Badge>
-                          {statusBadge && (
-                            <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
-                              {statusBadge.label}
-                            </Badge>
-                          )}
-                        </div>
-                        <CardContent className="px-4 py-3">
-                          <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                          <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
-              </div>
-              {recordsShown < records.length && (
-                <Button
-                  variant="tertiary"
-                  className="mt-3 w-full"
-                  onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
-                >
-                  もっと見る（残り{records.length - recordsShown}件）
-                </Button>
-              )}
-            </>
-          ) : (
-            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-              <p className="text-sm text-gray-500">まだ記録がありません</p>
-              <p className="mt-1 text-xs text-gray-400">上のボタンから最初の記録を作りましょう</p>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* 定点観測タイムマシン: 同じ地点の写真を時系列比較（写真を主役に） */}
-        <TabsContent value="photos" className="mt-3">
-          {observationGroups.length > 0 ? (
-            <div className="space-y-3">
-              {observationGroups.map((g) => {
-                const point = g.pointId ? pointById.get(g.pointId) : undefined;
-                const meta = point ? pointTypeView(point.type) : null;
-                const label = point ? point.name || meta!.label : "田んぼ全体";
-                const icon = meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />;
-                return <ObservationGroup key={g.key} label={label} icon={icon} photos={g.photos} />;
-              })}
-            </div>
-          ) : (
-            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-              <p className="text-sm text-gray-500">まだ写真がありません</p>
-              <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加すると、同じ地点の変化を見比べられます</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* 二次導線 */}
-      <Button asChild variant="secondary" className="w-full">
-        <Link href={`/map?field=${encodeURIComponent(fieldId)}`}>
-          <IconPinFill className="h-4 w-4" />
-          マップで見る
-        </Link>
-      </Button>
+      {/* ── 定点観測（変化する情報: 同じ地点の写真を時系列比較） ── */}
+      <section id="photos" className="scroll-mt-3 space-y-2">
+        <SectionHeading>定点観測</SectionHeading>
+        {observationGroups.length > 0 ? (
+          <div className="space-y-3">
+            {observationGroups.map((g) => {
+              const point = g.pointId ? pointById.get(g.pointId) : undefined;
+              const meta = point ? pointTypeView(point.type) : null;
+              const label = point ? point.name || meta!.label : "田んぼ全体";
+              const icon = meta ? meta.icon : <IconFieldGrid className="h-4 w-4 text-green-700" />;
+              return <ObservationGroup key={g.key} label={label} icon={icon} photos={g.photos} />;
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+            <p className="text-sm text-gray-500">まだ写真がありません</p>
+            <p className="mt-1 text-xs text-gray-400">「写真で記録」から追加すると、同じ地点の変化を見比べられます</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

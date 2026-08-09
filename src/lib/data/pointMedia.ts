@@ -108,6 +108,56 @@ export async function addPointPhoto(pointId: string, file: File): Promise<AddPoi
   }
 }
 
+/**
+ * 記録の写真をピンの台帳に登録する（Storage上でコピーしてから field_point_media へ追加）。
+ * record_media と同じパスを共有すると、記録側の削除（deleteRecord）で
+ * Storage実体ごと消え台帳の写真も壊れるため、必ず新しいパスへコピーする。
+ */
+export async function registerRecordPhotoToPoint(
+  sourcePath: string,
+  pointId: string
+): Promise<AddPointPhotoResult> {
+  const sb = getSupabase();
+  if (!sb) return "demo";
+
+  try {
+    const { data: sess } = await sb.auth.getSession();
+    const user = sess.session?.user;
+    if (!user) return "demo";
+
+    const { data: point } = await sb.from("field_points").select("group_id").eq("id", pointId).maybeSingle();
+    const groupId = point?.group_id as string | undefined;
+    if (!groupId) return "error";
+
+    const newPath = `groups/${groupId}/points/${pointId}/${crypto.randomUUID()}.jpg`;
+    const { error: copyError } = await sb.storage.from("images").copy(sourcePath, newPath);
+    if (copyError) {
+      console.warn("[pointMedia] copy failed", copyError);
+      return "error";
+    }
+
+    const { error } = await sb.from("field_point_media").insert({
+      point_id: pointId,
+      media_type: "image",
+      storage_bucket: "images",
+      storage_path: newPath,
+      created_by: user.id,
+    });
+    if (error) {
+      console.warn("[pointMedia] insert failed (register)", error);
+      // 行が作れなかった孤児コピーはベストエフォートで掃除する
+      sb.storage.from("images").remove([newPath]).then(({ error: rmError }) => {
+        if (rmError) console.warn("[pointMedia] orphan cleanup failed (register)", rmError);
+      });
+      return error.code === "42501" ? "denied" : "error";
+    }
+    return "saved";
+  } catch (err) {
+    console.warn("[pointMedia] register error", err);
+    return "error";
+  }
+}
+
 export type DeletePointPhotoResult = "deleted" | "demo" | "denied" | "error";
 
 /** 台帳写真を削除する（RLSで弾かれた場合は "denied"） */

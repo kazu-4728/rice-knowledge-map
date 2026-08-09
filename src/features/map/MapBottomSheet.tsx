@@ -95,7 +95,7 @@ export default function MapBottomSheet({
                     href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
                     className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
                   >
-                    詳細
+                    田んぼの詳細
                   </Link>
                 )}
                 <button
