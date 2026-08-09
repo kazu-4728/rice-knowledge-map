@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { FieldPoint } from "../../types";
 import { PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import {
   IconCalendar,
@@ -30,6 +31,8 @@ type Props = {
   onRenameField: () => void;
   onRedrawField: () => void;
   onDeleteField: () => void;
+  /** ピン編集ダイアログ側の台帳写真変更を反映させるための共有カウンター */
+  pointPhotoVersion?: number;
 };
 
 export default function MapBottomSheet({
@@ -41,6 +44,7 @@ export default function MapBottomSheet({
   onRenameField,
   onRedrawField,
   onDeleteField,
+  pointPhotoVersion,
 }: Props) {
   const [showEdit, setShowEdit] = useState(false);
 
@@ -83,6 +87,10 @@ export default function MapBottomSheet({
                   </p>
                 )}
               </div>
+              {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
+              <div className="mb-3">
+                <PointPhotoSection pointId={selectedPoint.id} refreshKey={pointPhotoVersion} />
+              </div>
               <div className="flex gap-2">
                 {/* 未保存のローカル田んぼ（fieldIdが空）に紐づくピンは場所詳細を持たないため出さない */}
                 {selectedPoint.fieldId && (
@@ -90,7 +98,7 @@ export default function MapBottomSheet({
                     href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
                     className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
                   >
-                    詳細
+                    田んぼの詳細
                   </Link>
                 )}
                 <button

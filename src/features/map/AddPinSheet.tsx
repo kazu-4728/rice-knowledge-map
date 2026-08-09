@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FieldPointType } from "../../types";
 import { TYPE_LABELS } from "./mapPins";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { IconCamera, IconClose } from "../../components/ui/icons";
 
 const ADD_TYPES: FieldPointType[] = [
   "inlet",
@@ -21,7 +22,12 @@ type Props = {
   fields: { id: string; name: string }[];
   /** 田んぼ詳細から開いた場合に初期選択する田んぼ id */
   initialFieldId?: string | null;
-  onConfirm: (params: { name: string; pointType: FieldPointType; fieldId: string | null }) => void;
+  onConfirm: (params: {
+    name: string;
+    pointType: FieldPointType;
+    fieldId: string | null;
+    photoFile: File | null;
+  }) => void;
   onCancel: () => void;
 };
 
@@ -29,6 +35,20 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
   const [pointType, setPointType] = useState<FieldPointType>("inlet");
   const [name, setName] = useState("");
   const [fieldId, setFieldId] = useState<string | null>(initialFieldId ?? null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // プレビュー用のObject URLはファイル差し替え・閉じる時に必ず解放する
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
 
   const defaultName = TYPE_LABELS[pointType];
 
@@ -96,6 +116,45 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
               </div>
             </div>
           )}
+
+          {/* 設備の写真（任意）: 入水口の様子など変わらない情報をピン自体に残す */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600">設備の写真（任意）</label>
+            {photoPreview ? (
+              <div className="relative mt-1 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
+                <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoFile(null)}
+                  aria-label="写真の添付を取り消す"
+                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <IconClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                <IconCamera className="h-4.5 w-4.5 text-green-700" />
+                写真を付ける
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setPhotoFile(f);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -111,6 +170,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
                 name: name.trim() || defaultName,
                 pointType,
                 fieldId,
+                photoFile,
               })
             }
             className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"

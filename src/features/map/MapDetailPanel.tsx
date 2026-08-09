@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { FieldPoint } from "../../types";
 import { PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import {
   IconCalendar,
   IconCamera,
@@ -30,6 +31,8 @@ type Props = {
   onRenameField: () => void;
   onRedrawField: () => void;
   onDeleteField: () => void;
+  /** ピン編集ダイアログ側の台帳写真変更を反映させるための共有カウンター */
+  pointPhotoVersion?: number;
 };
 
 export default function MapDetailPanel({
@@ -41,6 +44,7 @@ export default function MapDetailPanel({
   onRenameField,
   onRedrawField,
   onDeleteField,
+  pointPhotoVersion,
 }: Props) {
   const [showEdit, setShowEdit] = useState(false);
 
@@ -93,6 +97,10 @@ export default function MapDetailPanel({
                 </p>
               )}
             </div>
+            {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
+            <div className="mt-4">
+              <PointPhotoSection pointId={selectedPoint.id} refreshKey={pointPhotoVersion} />
+            </div>
             <div className="mt-5 space-y-2">
               <Link
                 href={`/records/new?field=${encodeURIComponent(selectedPoint.fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}&returnTo=${encodeURIComponent(`/map?field=${selectedPoint.fieldId}&point=${selectedPoint.id}`)}`}
@@ -107,7 +115,7 @@ export default function MapDetailPanel({
                     href={`/fields/${encodeURIComponent(selectedPoint.fieldId)}?point=${encodeURIComponent(selectedPoint.id)}`}
                     className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-center text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    詳細
+                    田んぼの詳細
                   </Link>
                 )}
                 <button

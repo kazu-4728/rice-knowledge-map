@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FieldPoint, FieldPointType } from "../../types";
 import { TYPE_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const ALL_TYPES: FieldPointType[] = [
@@ -21,9 +22,11 @@ type Props = {
   onSave: (patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"] }) => void;
   onDelete: () => void;
   onCancel: () => void;
+  /** 台帳写真の追加・削除が成功した直後に呼ばれる（マップ側の他の表示を更新させる用途） */
+  onPhotoChange?: () => void;
 };
 
-export default function PointEditDialog({ point, onSave, onDelete, onCancel }: Props) {
+export default function PointEditDialog({ point, onSave, onDelete, onCancel, onPhotoChange }: Props) {
   const [name, setName] = useState(point.name);
   const [pointType, setPointType] = useState<FieldPointType>(point.type);
   const [status, setStatus] = useState<FieldPoint["status"]>(point.status);
@@ -96,6 +99,9 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel }: P
               ))}
             </div>
           </div>
+
+          {/* 台帳写真（変わらない情報）。追加・削除は即時反映のため保存ボタンとは独立 */}
+          <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
         </div>
 
         {confirmDelete ? (

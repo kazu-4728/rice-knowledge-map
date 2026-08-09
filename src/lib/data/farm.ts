@@ -451,6 +451,10 @@ export async function updateFieldPoint(
 /**
  * ピンを削除する。
  * RLSで弾かれた場合は "denied" を返す。
+ *
+ * field_point_media（台帳写真）はDBのcascadeで一緒に消えるが、Storage実体は
+ * 別で消さないと永久に孤児ファイルとして残るため、削除前にパスを控えておき
+ * 削除成功後にStorageからも取り除く（deleteRecordと同じ手順。レビュー指摘）。
  */
 export async function deleteFieldPoint(id: string): Promise<DeleteFieldPointResult> {
   const sb = getSupabase();
@@ -460,12 +464,23 @@ export async function deleteFieldPoint(id: string): Promise<DeleteFieldPointResu
     const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) return "demo";
 
+    const { data: mediaRows } = await sb
+      .from("field_point_media")
+      .select("storage_path")
+      .eq("point_id", id);
+
     const { data, error } = await sb.from("field_points").delete().eq("id", id).select("id");
     if (error) {
       console.warn("[farm] delete point failed", error);
       return "error";
     }
     if (!data || data.length === 0) return "denied";
+
+    const paths = (mediaRows ?? []).map((m) => m.storage_path).filter((p): p is string => !!p);
+    if (paths.length > 0) {
+      const { error: removeError } = await sb.storage.from("images").remove(paths);
+      if (removeError) console.warn("[farm] delete point media cleanup failed", removeError);
+    }
     return "deleted";
   } catch (err) {
     console.warn("[farm] delete point error", err);

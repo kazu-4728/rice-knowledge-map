@@ -49,15 +49,15 @@ test.describe("authenticated nav", () => {
     await expect(page).toHaveURL("/map");
   });
 
-  test("場所詳細の田んぼ切替チップで隣の田んぼへ並行移動できる", async ({ page }) => {
-    // Phase 1で作成したE2E検証専用グループの田んぼ（複数登録済み）
+  test("場所詳細はこの田んぼだけの詳細になり、台帳セクションからマップへ移動できる", async ({ page }) => {
+    // Phase 1で作成したE2E検証専用グループの田んぼ。
+    // 2026-08-09オーナー指摘: 場所詳細に他の田んぼへの切替チップがあると
+    // 「この田んぼだけの詳細」になっておらず分かりにくいため廃止した。
     await page.goto("/fields/264a9c76-5908-4001-a313-5d20447354d6");
-    const activeChip = page.locator('a[aria-current="page"][href^="/fields/"]');
-    await expect(activeChip).toBeVisible({ timeout: 15_000 });
-    const otherChip = page.locator('a[href^="/fields/"]:not([aria-current="page"])').first();
-    await otherChip.click();
-    await expect(page).not.toHaveURL("/fields/264a9c76-5908-4001-a313-5d20447354d6");
-    await expect(page).toHaveURL(/\/fields\/.+/);
+    await expect(page.getByRole("heading", { name: "この田んぼの台帳" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('a[aria-current="page"][href^="/fields/"]')).toHaveCount(0);
+    await page.getByRole("link", { name: "マップで開く" }).first().click();
+    await expect(page).toHaveURL(/\/map/);
   });
 
   test("記録詳細から親（場所詳細 or タイムライン）へ戻れる", async ({ page }) => {

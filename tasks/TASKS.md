@@ -12,8 +12,57 @@
 
 ## 現在の実行タスク
 
-（未定。次のタスクはオーナーに確認してから設定する。候補は「次の実行候補」を参照）
+### 台帳/日誌再構成・第2弾（2026-08-09オーナー指示。ブランチ `claude/app-ui-record-management-4sdl2q`・Draft PR #86 で継続）
 
+背景（オーナー実機指摘）:
+- 田んぼ詳細に入ったら「その田んぼだけ」の詳細になるべき。他の田んぼへの切替チップは不要
+- ページ構成は「比較的変わらない情報（台帳）が先、変化する情報（記録）が後」の縦一列
+- マップとの連携が分かりにくい
+- 記録の写真をピンの台帳へ登録する機能を最優先で付ける
+
+実装順（この順で進める）:
+
+**1. 記録写真の「ピンの台帳に登録」（最優先）**
+- `src/lib/data/pointMedia.ts` に `registerRecordPhotoToPoint(storagePath: string, pointId: string)` を追加する。
+  - **必ずStorage上でファイルをコピーする**: `sb.storage.from("images").copy(元パス, 新パス)` → 成功後に `field_point_media` へ行を挿入。`record_media` と同じパスを共有すると片方の削除でもう片方の画像が壊れるため共有は禁止。
+  - 新パスは `groups/{group_id}/points/{point_id}/{crypto.randomUUID()}.jpg`。group_id はピンから解決（既存 `addPointPhoto` の実装を踏襲）。
+  - 戻り値は `"saved" | "demo" | "denied" | "error"`（既存関数と同形式。deniedはRLSエラーcode 42501）。
+- 記録詳細 `src/app/records/[id]/page.tsx` の写真表示部に「ピンの台帳に登録」ボタンを追加する。
+  - 記録に `point_id` があればそのピンへ1タップ登録。
+  - 無ければ同じ田んぼ（`field_id`）のピン一覧をボトムシートで選ばせる（`loadFarmData()` の points を fieldId で絞る）。田んぼ紐付けも無い記録では非表示。
+  - imageメディアがある記録のみ表示（音声のみでは出さない）。
+  - トースト: 成功「ピンの台帳に登録しました」/ denied「登録できませんでした（編集権限がありません）」/ error「登録に失敗しました。通信環境を確認してください」。
+
+**2. 田んぼ詳細（`src/features/fields/FieldDetailScreen.tsx`）の一本化**
+- 上部の「田んぼ切替チップ」（allFields の横スクロール）を削除する。
+  - 併せて `e2e/auth-nav.spec.ts` のチップ切替テスト（`aria-current="page"` の `/fields/` リンクを使う箇所）を削除または新構成に合わせて書き換える。
+- タブ（概要/記録/定点観測）を廃止し、縦一列のセクション構成へ:
+  1. カバー写真（現状のまま）
+  2. 「この田んぼの台帳」セクション（変わらない情報）: 状態バッジと統計（面積/ポイント/記録/未対応）、ミニマップ（`FieldMiniMap`。ポイント一覧と同じセクションに置いてマップ連携を分かりやすくする）、設備ポイント一覧（台帳写真サムネ付き。現状の「ポイントの状態」を移設。タップで `/map?field=X&point=Y`）
+  3. 記録アクション（写真で記録/音声メモ）
+  4. 「この田んぼの記録」セクション（変化する情報）: 現状の記録タブの内容をページング込みでそのまま縦に展開
+  5. 「定点観測」セクション: 現状の定点観測タブの内容。セクション要素に `id="photos"` を付ける
+- `?tab=photos` ディープリンク互換: リンク元（HomeDashboard・MapBottomSheet・MapDetailPanel の「見くらべる」）は変更せず、tabクエリを受けたら定点観測セクションへ `scrollIntoView` で自動スクロールする。
+
+**3. マップ連携の明確化**
+- 台帳セクションのミニマップに「マップで開く」の文言を明示（既存hrefは維持）。
+- マップのピン詳細（`MapBottomSheet` / `MapDetailPanel`）の「詳細」ボタンの文言を「田んぼの詳細」へ変更。
+
+受入条件:
+- 記録詳細から写真をピンの台帳に登録でき、マップのピン詳細・田んぼ詳細のポイント一覧に反映される
+- 田んぼ詳細に他の田んぼへの切替UIが無く、上から「固定情報→記録→定点観測」の順で1画面で読める
+- `?tab=photos` 付きの既存リンクで定点観測セクションまでスクロールする
+- `npx tsc --noEmit` / `npm run lint` / `npm run build` が通る（`e2e/auth-nav.spec.ts` の修正を含める）
+
+非対象:
+- Supabaseスキーマ変更（不要。`field_point_media` は 0013 で適用済み）
+- ホーム・記録タイムライン・マップ本体の変更（文言変更を除く）
+- caption編集UI・写真の並び替え
+
+参考:
+- 台帳写真のデータ層: `src/lib/data/pointMedia.ts`（load/add/delete 実装済み）
+- 共通表示コンポーネント: `src/features/map/PointPhotoSection.tsx`
+- Storageは既存 `images` バケット。パスが `groups/{group_id}/...` ならRLS変更不要
 - 参考（検証環境）: E2E専用アカウント `e2e-verifier@rice-knowledge-map.test`（専用グループ、RLSで実データと分離）。実行手順は`e2e/global-setup.ts`を参照。
 
 ## 次の実行候補

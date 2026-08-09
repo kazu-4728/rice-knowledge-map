@@ -109,6 +109,32 @@ export async function loadOpenIssueRecords(): Promise<OpenIssueRecords> {
 }
 
 /**
+ * 田んぼに紐づく直近の記録の田んぼidを1件だけ返す（ホームの「見くらべる」導線用）。
+ * 田んぼ未選択の記録（field_id: null）が直近に連続していても、それに埋もれず
+ * 実際に最後に記録した田んぼを取れるよう、field_id IS NOT NULL をサーバ側で絞り込む
+ * （レビュー指摘: クライアント側で直近数件だけをlimitして絞ると取りこぼす）。
+ */
+export async function loadMostRecentFieldId(): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) return null;
+
+  const { data, error } = await sb
+    .from("records")
+    .select("field_id")
+    .not("field_id", "is", null)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn("[records] loadMostRecentFieldId failed", error);
+    return null;
+  }
+  return (data?.field_id as string | null) ?? null;
+}
+
+/**
  * ピン状態（issue/needs_check）で既に把握できている異常記録を除き、
  * 「記録のみ」の異常を返す。ピンと記録の両方を合算する集計で、
  * ピンに紐付いた異常記録を二重に数えないための共通ヘルパー。

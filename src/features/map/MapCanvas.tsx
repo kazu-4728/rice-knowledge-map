@@ -22,6 +22,7 @@ import {
   updateFieldPoint,
   deleteFieldPoint,
 } from "../../lib/data/farm";
+import { addPointPhoto } from "../../lib/data/pointMedia";
 import MapHelpSheet from "./MapHelpSheet";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import MapDetailPanel from "./MapDetailPanel";
@@ -172,6 +173,10 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
   const [pendingPinLngLat, setPendingPinLngLat] = useState<[number, number] | null>(null);
   /** 編集対象のピン */
   const [editingPoint, setEditingPoint] = useState<FieldPoint | null>(null);
+  // ピン編集ダイアログとピン詳細（MapBottomSheet/MapDetailPanel）は同じピンの
+  // PointPhotoSectionを同時に別インスタンスとして描画しうる。編集側で台帳写真が
+  // 変わるたびに増やし、詳細側のrefreshKeyに渡して再取得させる（レビュー指摘）
+  const [pointPhotoVersion, setPointPhotoVersion] = useState(0);
   /** マップ上のピンMarker登録簿 id → Marker */
   const pinMarkersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   /** サーバーから読み込んだ field 一覧（ボトムシート・AddPinSheet 用） */
@@ -503,6 +508,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
     name: string;
     pointType: FieldPointType;
     fieldId: string | null;
+    photoFile: File | null;
   }) => {
     const lngLat = pendingPinLngLat;
     if (!lngLat) return;
@@ -572,9 +578,23 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
         });
         pinMarkersRef.current.set(id, marker);
       });
-      setToast("ピンを保存しました");
+      // 添付写真はピン保存後に台帳（field_point_media）へアップロードする
+      if (params.photoFile) {
+        const photoResult = await addPointPhoto(id, params.photoFile);
+        setToast(
+          photoResult === "saved"
+            ? "ピンと写真を保存しました"
+            : "ピンを保存しました（写真の追加に失敗したため、編集からやり直せます）"
+        );
+      } else {
+        setToast("ピンを保存しました");
+      }
     } else if (status === "demo") {
-      setToast("ローカルに追加しました（ログインすると共有されます）");
+      setToast(
+        params.photoFile
+          ? "ローカルに追加しました（写真はログイン後に追加できます）"
+          : "ローカルに追加しました（ログインすると共有されます）"
+      );
     } else {
       // 保存失敗時は楽観追加分をロールバック
       const old = pinMarkersRef.current.get(newPoint.id);
@@ -1606,6 +1626,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
               }}
               onRedrawField={startRedraw}
               onDeleteField={() => setConfirmingDelete(true)}
+              pointPhotoVersion={pointPhotoVersion}
             />
           </div>
           <MapDetailPanel
@@ -1622,6 +1643,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
             }}
             onRedrawField={startRedraw}
             onDeleteField={() => setConfirmingDelete(true)}
+            pointPhotoVersion={pointPhotoVersion}
           />
         </>
       )}
@@ -1722,6 +1744,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           onSave={(patch) => handleEditPinSave(editingPoint, patch)}
           onDelete={() => handleEditPinDelete(editingPoint)}
           onCancel={() => setEditingPoint(null)}
+          onPhotoChange={() => setPointPhotoVersion((v) => v + 1)}
         />
       )}
 
