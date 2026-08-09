@@ -61,8 +61,11 @@ export default function RecordDetailPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [data, setData] = useState<RecordDetailData | null>(null);
-  // ピンの台帳への登録（写真単位）。ボタン連打防止と、登録済み表示のためのローカル状態
-  const [registeringPhotoId, setRegisteringPhotoId] = useState<string | null>(null);
+  // ピンの台帳への登録（写真単位）。ボタン連打防止と、登録済み表示のためのローカル状態。
+  // 単一値ではなくSetにしているのは、複数写真を続けて登録するとき単一値では
+  // 後から押した写真のidで上書きされ、先に押した写真のボタンが登録中でも
+  // 押せる状態に戻ってしまうため（レビュー指摘）
+  const [registeringPhotoIds, setRegisteringPhotoIds] = useState<Set<string>>(new Set());
   const [registeredPhotoIds, setRegisteredPhotoIds] = useState<Set<string>>(new Set());
   const [pointPickerPhoto, setPointPickerPhoto] = useState<RecordPhoto | null>(null);
   const [commentText, setCommentText] = useState("");
@@ -320,6 +323,7 @@ export default function RecordDetailPage() {
    * 田んぼ紐付けも無い記録ではボタン自体を出さない（呼び出し側で制御）。
    */
   const handleRegisterToPointClick = async (photo: RecordPhoto) => {
+    if (registeringPhotoIds.has(photo.id) || registeredPhotoIds.has(photo.id)) return;
     if (record.pointId) {
       await runRegisterToPoint(photo, record.pointId);
     } else if (record.fieldId) {
@@ -328,9 +332,13 @@ export default function RecordDetailPage() {
   };
 
   const runRegisterToPoint = async (photo: RecordPhoto, pointId: string) => {
-    setRegisteringPhotoId(photo.id);
+    setRegisteringPhotoIds((prev) => new Set(prev).add(photo.id));
     const result = await registerRecordPhotoToPoint(photo.storagePath, pointId);
-    setRegisteringPhotoId(null);
+    setRegisteringPhotoIds((prev) => {
+      const next = new Set(prev);
+      next.delete(photo.id);
+      return next;
+    });
     if (result === "saved") {
       showToast("ピンの台帳に登録しました");
       setRegisteredPhotoIds((prev) => new Set(prev).add(photo.id));
@@ -434,14 +442,14 @@ export default function RecordDetailPage() {
                   {record.fieldId && (
                     <button
                       type="button"
-                      disabled={registeringPhotoId === photo.id || registeredPhotoIds.has(photo.id)}
+                      disabled={registeringPhotoIds.has(photo.id) || registeredPhotoIds.has(photo.id)}
                       onClick={() => handleRegisterToPointClick(photo)}
                       className="mt-1.5 flex items-center gap-1 rounded-lg border border-green-700/25 bg-white px-2.5 py-1.5 text-xs font-bold text-green-700 transition-colors hover:bg-green-50 disabled:opacity-50"
                     >
                       <IconPinFill className="h-3.5 w-3.5" />
                       {registeredPhotoIds.has(photo.id)
                         ? "登録済み"
-                        : registeringPhotoId === photo.id
+                        : registeringPhotoIds.has(photo.id)
                           ? "登録中…"
                           : "ピンの台帳に登録"}
                     </button>

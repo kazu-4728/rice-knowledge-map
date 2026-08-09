@@ -142,13 +142,15 @@ export async function registerRecordPhotoToPoint(
     if (!user) return "demo";
 
     const marker = `${REGISTERED_FROM_PREFIX}${sourcePath}`;
+    // maybeSingle()は複数行に一致すると失敗して data が取れず、既存重複を見逃して
+    // さらに増やしてしまうため、配列取得で「1件以上あるか」だけを見る（レビュー指摘）
     const { data: existing } = await sb
       .from("field_point_media")
       .select("id")
       .eq("point_id", pointId)
       .eq("caption", marker)
-      .maybeSingle();
-    if (existing) return "saved";
+      .limit(1);
+    if (existing && existing.length > 0) return "saved";
 
     const { data: point } = await sb.from("field_points").select("group_id").eq("id", pointId).maybeSingle();
     const groupId = point?.group_id as string | undefined;
@@ -170,11 +172,15 @@ export async function registerRecordPhotoToPoint(
       created_by: user.id,
     });
     if (error) {
-      console.warn("[pointMedia] insert failed (register)", error);
       // 行が作れなかった孤児コピーはベストエフォートで掃除する
       sb.storage.from("images").remove([newPath]).then(({ error: rmError }) => {
         if (rmError) console.warn("[pointMedia] orphan cleanup failed (register)", rmError);
       });
+      // 23505 = unique_violation。事前チェックとinsertの間に別リクエストが先に
+      // 登録した競合状態で、DB側の部分ユニークインデックス（0014）が弾いたケース。
+      // 結果としては「登録済み」なので成功扱いにする
+      if (error.code === "23505") return "saved";
+      console.warn("[pointMedia] insert failed (register)", error);
       return error.code === "42501" ? "denied" : "error";
     }
     return "saved";
