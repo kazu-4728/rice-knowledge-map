@@ -6,6 +6,14 @@ import path from "node:path";
  * 認証済みプロジェクトは e2e/global-setup.ts が生成する .auth/user.json を使う。
  * executablePathは既定でPlaywrightの標準解決に任せる。特定のサンドボックス等、
  * ブラウザのキャッシュ先を明示したい環境だけ環境変数 PW_CHROMIUM_PATH で上書きする。
+ *
+ * 既知の制限（2026-08-09確認）: Claude Codeのリモート/クラウド実行環境では、
+ * ヘッドレスChromiumが起動するブラウザプロセス自体が外部HTTPS（Supabase等）へ
+ * 到達できず、資格情報を用意しても net::ERR_CONNECTION_RESET で失敗する
+ * （宛先を問わず再現。Node.js/curlの直接通信は同環境でも正常）。
+ * ブラウザ側の非同期取得完了を待つテストのみ影響する（静的なUI確認は通る）。
+ * この構成をクラウド実行環境で動かす前に、まずこの制限を疑うこと。
+ * オーナーのローカル環境では問題なく動作する。
  */
 export default defineConfig({
   testDir: "./e2e",
