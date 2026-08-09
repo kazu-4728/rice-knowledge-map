@@ -25,6 +25,15 @@ function publicCaption(raw: string | null): string | null {
   return raw && raw.startsWith(REGISTERED_FROM_PREFIX) ? null : raw;
 }
 
+/**
+ * StorageのRLS拒否か（403）を判定する。storage.objectsへの書き込みは
+ * owner/editor限定のため、viewerがピン写真の追加・登録を行うとここで拒否される
+ * （レビュー指摘: 以前は全て"error"扱いで「権限がありません」と案内できていなかった）。
+ */
+function isStorageDenied(error: { status?: number } | null): boolean {
+  return error?.status === 403;
+}
+
 /** ピンの台帳写真を一括取得し、署名URL（storagePath→URL）も解決する */
 export async function loadPointMedia(pointIds: string[]): Promise<{
   byPoint: Record<string, PointMediaItem[]>;
@@ -93,6 +102,7 @@ export async function addPointPhoto(pointId: string, file: File): Promise<AddPoi
       .from("images")
       .upload(path, blob, { contentType: "image/jpeg" });
     if (uploadError) {
+      if (isStorageDenied(uploadError)) return "denied";
       console.warn("[pointMedia] upload failed", uploadError);
       return "error";
     }
@@ -159,6 +169,7 @@ export async function registerRecordPhotoToPoint(
     const newPath = `groups/${groupId}/points/${pointId}/${crypto.randomUUID()}.jpg`;
     const { error: copyError } = await sb.storage.from("images").copy(sourcePath, newPath);
     if (copyError) {
+      if (isStorageDenied(copyError)) return "denied";
       console.warn("[pointMedia] copy failed", copyError);
       return "error";
     }

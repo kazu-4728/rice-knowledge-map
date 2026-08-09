@@ -31,6 +31,8 @@ type Props = {
   onRenameField: () => void;
   onRedrawField: () => void;
   onDeleteField: () => void;
+  /** ピン編集ダイアログ側の台帳写真変更を反映させるための共有カウンター */
+  pointPhotoVersion?: number;
 };
 
 export default function MapBottomSheet({
@@ -42,6 +44,7 @@ export default function MapBottomSheet({
   onRenameField,
   onRedrawField,
   onDeleteField,
+  pointPhotoVersion,
 }: Props) {
   const [showEdit, setShowEdit] = useState(false);
 
@@ -86,7 +89,7 @@ export default function MapBottomSheet({
               </div>
               {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
               <div className="mb-3">
-                <PointPhotoSection pointId={selectedPoint.id} />
+                <PointPhotoSection pointId={selectedPoint.id} refreshKey={pointPhotoVersion} />
               </div>
               <div className="flex gap-2">
                 {/* 未保存のローカル田んぼ（fieldIdが空）に紐づくピンは場所詳細を持たないため出さない */}

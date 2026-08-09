@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { loadFieldAttention, type FieldAttentionSummary } from "../../lib/data/fieldAttention";
 import { loadFieldLastRecordDates, getSignedPhotoUrls } from "../../lib/data/farm";
-import { loadRecords } from "../../lib/data/records";
+import { loadMostRecentFieldId } from "../../lib/data/records";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -47,10 +47,11 @@ export default function HomeDashboard() {
     loadFieldLastRecordDates().then((dates) => {
       if (!cancelled) setLastDates(dates);
     });
-    // 「見くらべる」の遷移先に使う直近記録の田んぼだけ取得する（一覧表示はしない）
-    loadRecords({ limit: 3 }).then((data) => {
-      if (cancelled || data.mode === "anon" || data.mode === "error") return;
-      setRecentFieldId(data.records.find((r) => r.fieldId)?.fieldId ?? null);
+    // 「見くらべる」の遷移先に使う直近記録の田んぼだけ取得する（一覧表示はしない）。
+    // field_id IS NOT NULL をサーバ側で絞り込むため、田んぼ未選択の記録が
+    // 直近に連続していても実際に最後に記録した田んぼを取りこぼさない
+    loadMostRecentFieldId().then((fieldId) => {
+      if (!cancelled) setRecentFieldId(fieldId);
     });
     return () => {
       cancelled = true;

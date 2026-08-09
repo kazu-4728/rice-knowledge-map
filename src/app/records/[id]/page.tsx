@@ -438,8 +438,10 @@ export default function RecordDetailPage() {
                     </figcaption>
                   )}
                   {/* 入水口・機械の出入口など「変わらない情報」はピンの台帳へ登録すると、
-                      記録タイムラインとは別にマップのピン詳細から見返せる */}
-                  {record.fieldId && (
+                      記録タイムラインとは別にマップのピン詳細から見返せる。
+                      田んぼに属さない単独ピン（field_id: null, point_id: あり）の記録も
+                      point_idへ直接登録できるため、表示条件はfieldIdだけに絞らない */}
+                  {(record.fieldId || record.pointId) && (
                     <button
                       type="button"
                       disabled={registeringPhotoIds.has(photo.id) || registeredPhotoIds.has(photo.id)}

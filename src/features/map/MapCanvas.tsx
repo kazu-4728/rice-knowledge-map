@@ -173,6 +173,10 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
   const [pendingPinLngLat, setPendingPinLngLat] = useState<[number, number] | null>(null);
   /** 編集対象のピン */
   const [editingPoint, setEditingPoint] = useState<FieldPoint | null>(null);
+  // ピン編集ダイアログとピン詳細（MapBottomSheet/MapDetailPanel）は同じピンの
+  // PointPhotoSectionを同時に別インスタンスとして描画しうる。編集側で台帳写真が
+  // 変わるたびに増やし、詳細側のrefreshKeyに渡して再取得させる（レビュー指摘）
+  const [pointPhotoVersion, setPointPhotoVersion] = useState(0);
   /** マップ上のピンMarker登録簿 id → Marker */
   const pinMarkersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   /** サーバーから読み込んだ field 一覧（ボトムシート・AddPinSheet 用） */
@@ -1622,6 +1626,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
               }}
               onRedrawField={startRedraw}
               onDeleteField={() => setConfirmingDelete(true)}
+              pointPhotoVersion={pointPhotoVersion}
             />
           </div>
           <MapDetailPanel
@@ -1638,6 +1643,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
             }}
             onRedrawField={startRedraw}
             onDeleteField={() => setConfirmingDelete(true)}
+            pointPhotoVersion={pointPhotoVersion}
           />
         </>
       )}
@@ -1738,6 +1744,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
           onSave={(patch) => handleEditPinSave(editingPoint, patch)}
           onDelete={() => handleEditPinDelete(editingPoint)}
           onCancel={() => setEditingPoint(null)}
+          onPhotoChange={() => setPointPhotoVersion((v) => v + 1)}
         />
       )}
 

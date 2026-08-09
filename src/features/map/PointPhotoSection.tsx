@@ -15,6 +15,15 @@ type Props = {
   pointId: string;
   /** 追加・削除ボタンを出す（ピン編集ダイアログ用） */
   editable?: boolean;
+  /**
+   * 同じピンを表示する別インスタンス（ピン編集ダイアログとマップのピン詳細パネルは
+   * 同時にマウントされうる）で写真が追加・削除されたときに再取得させるための値。
+   * 値が変わるたびに再読み込みする（レビュー指摘: 編集ダイアログで追加しても
+   * 背後のピン詳細パネルが古いままだった）。呼び出し側が持つ共有カウンター等を渡す。
+   */
+  refreshKey?: number;
+  /** editableな側で追加・削除が成功した直後に呼ばれる（呼び出し側でrefreshKeyを更新する用途） */
+  onChange?: () => void;
 };
 
 /**
@@ -22,7 +31,7 @@ type Props = {
  * 記録タイムラインとは別系統の「変わらない情報」を横スクロールのサムネイルで見せる。
  * データ取得を自前で行う自己完結コンポーネントのため、置き場所ごとの配線は不要。
  */
-export default function PointPhotoSection({ pointId, editable = false }: Props) {
+export default function PointPhotoSection({ pointId, editable = false, refreshKey, onChange }: Props) {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<PointMediaItem[]>([]);
@@ -58,7 +67,7 @@ export default function PointPhotoSection({ pointId, editable = false }: Props) 
     return () => {
       cancelled = true;
     };
-  }, [pointId, isLocalPin]);
+  }, [pointId, isLocalPin, refreshKey]);
 
   const handleAdd = async (file: File) => {
     setBusy(true);
@@ -67,6 +76,7 @@ export default function PointPhotoSection({ pointId, editable = false }: Props) 
     if (result === "saved") {
       showToast("設備の写真を追加しました");
       reload();
+      onChange?.();
     } else if (result === "demo") {
       showToast("ログインすると写真を追加できます");
     } else if (result === "denied") {
@@ -83,6 +93,7 @@ export default function PointPhotoSection({ pointId, editable = false }: Props) 
     if (result === "deleted") {
       showToast("写真を削除しました");
       setItems((prev) => prev.filter((i) => i.id !== item.id));
+      onChange?.();
     } else if (result === "denied") {
       showToast("削除できませんでした（編集権限がありません）", "error");
     } else if (result !== "demo") {
