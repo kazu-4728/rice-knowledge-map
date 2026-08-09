@@ -12,67 +12,43 @@
 
 ## 現在の実行タスク
 
-### 台帳/日誌再構成・第2弾（2026-08-09オーナー指示。ブランチ `claude/app-ui-record-management-4sdl2q`・Draft PR #86 で継続）
+### Issue #87 P1: CI品質ゲート追加（2026-08-09オーナー承認。Issue #87の推奨順序どおりP1から着手）
 
-背景（オーナー実機指摘）:
-- 田んぼ詳細に入ったら「その田んぼだけ」の詳細になるべき。他の田んぼへの切替チップは不要
-- ページ構成は「比較的変わらない情報（台帳）が先、変化する情報（記録）が後」の縦一列
-- マップとの連携が分かりにくい
-- 記録の写真をピンの台帳へ登録する機能を最優先で付ける
+背景:
+- `.github/workflows/` が存在せず、READMEの「型チェック（CI・セルフレビュー必須）」という記述と実態が一致していない
+- Issue #87（公開前品質ゲート整備）の推奨順序で最初に着手すると決めた項目。Supabase変更を伴わないためこの1件は承認不要で進めてよい
 
-実装順（この順で進める）:
-
-**1. 記録写真の「ピンの台帳に登録」（最優先）**
-- `src/lib/data/pointMedia.ts` に `registerRecordPhotoToPoint(storagePath: string, pointId: string)` を追加する。
-  - **必ずStorage上でファイルをコピーする**: `sb.storage.from("images").copy(元パス, 新パス)` → 成功後に `field_point_media` へ行を挿入。`record_media` と同じパスを共有すると片方の削除でもう片方の画像が壊れるため共有は禁止。
-  - 新パスは `groups/{group_id}/points/{point_id}/{crypto.randomUUID()}.jpg`。group_id はピンから解決（既存 `addPointPhoto` の実装を踏襲）。
-  - 戻り値は `"saved" | "demo" | "denied" | "error"`（既存関数と同形式。deniedはRLSエラーcode 42501）。
-- 記録詳細 `src/app/records/[id]/page.tsx` の写真表示部に「ピンの台帳に登録」ボタンを追加する。
-  - 記録に `point_id` があればそのピンへ1タップ登録。
-  - 無ければ同じ田んぼ（`field_id`）のピン一覧をボトムシートで選ばせる（`loadFarmData()` の points を fieldId で絞る）。田んぼ紐付けも無い記録では非表示。
-  - imageメディアがある記録のみ表示（音声のみでは出さない）。
-  - トースト: 成功「ピンの台帳に登録しました」/ denied「登録できませんでした（編集権限がありません）」/ error「登録に失敗しました。通信環境を確認してください」。
-
-**2. 田んぼ詳細（`src/features/fields/FieldDetailScreen.tsx`）の一本化**
-- 上部の「田んぼ切替チップ」（allFields の横スクロール）を削除する。
-  - 併せて `e2e/auth-nav.spec.ts` のチップ切替テスト（`aria-current="page"` の `/fields/` リンクを使う箇所）を削除または新構成に合わせて書き換える。
-- タブ（概要/記録/定点観測）を廃止し、縦一列のセクション構成へ:
-  1. カバー写真（現状のまま）
-  2. 「この田んぼの台帳」セクション（変わらない情報）: 状態バッジと統計（面積/ポイント/記録/未対応）、ミニマップ（`FieldMiniMap`。ポイント一覧と同じセクションに置いてマップ連携を分かりやすくする）、設備ポイント一覧（台帳写真サムネ付き。現状の「ポイントの状態」を移設。タップで `/map?field=X&point=Y`）
-  3. 記録アクション（写真で記録/音声メモ）
-  4. 「この田んぼの記録」セクション（変化する情報）: 現状の記録タブの内容をページング込みでそのまま縦に展開
-  5. 「定点観測」セクション: 現状の定点観測タブの内容。セクション要素に `id="photos"` を付ける
-- `?tab=photos` ディープリンク互換: リンク元（HomeDashboard・MapBottomSheet・MapDetailPanel の「見くらべる」）は変更せず、tabクエリを受けたら定点観測セクションへ `scrollIntoView` で自動スクロールする。
-
-**3. マップ連携の明確化**
-- 台帳セクションのミニマップに「マップで開く」の文言を明示（既存hrefは維持）。
-- マップのピン詳細（`MapBottomSheet` / `MapDetailPanel`）の「詳細」ボタンの文言を「田んぼの詳細」へ変更。
+やること:
+- `.github/workflows/quality-gate.yml` を追加し、PRごとに以下を実行する
+  - `npm run lint`
+  - `npx tsc --noEmit`
+  - `npm run build`
+- E2Eは今回のworkflowには含めない。理由はクラウド実行環境の制限（`playwright.config.ts`参照）ではなく、GitHub Actions側にE2E用の実Supabase資格情報（`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`E2E_TEST_EMAIL`/`E2E_TEST_PASSWORD`）がSecretsとして未整備なため。workflowのコメントにもこの理由を明記する（GitHub Actionsランナー自体は通常の外部通信が可能なため、Secrets整備後にE2Eジョブを追加できる）。オーナーのローカル環境では別途 `npx playwright test` を実行できる
+- READMEの「型チェック（CI・セルフレビュー必須）」の記述が指すCIが実在するようにする
 
 受入条件:
-- 記録詳細から写真をピンの台帳に登録でき、マップのピン詳細・田んぼ詳細のポイント一覧に反映される
-- 田んぼ詳細に他の田んぼへの切替UIが無く、上から「固定情報→記録→定点観測」の順で1画面で読める
-- `?tab=photos` 付きの既存リンクで定点観測セクションまでスクロールする
-- `npx tsc --noEmit` / `npm run lint` / `npm run build` が通る（`e2e/auth-nav.spec.ts` の修正を含める）
+- 上記3ステップを実行するworkflowが追加され、PRで自動実行される
+- `npx tsc --noEmit` / `npm run lint` / `npm run build` が通る
 
 非対象:
-- Supabaseスキーマ変更（不要。`field_point_media` は 0013 で適用済み）
-- ホーム・記録タイムライン・マップ本体の変更（文言変更を除く）
-- caption編集UI・写真の並び替え
+- Supabase監査スクリプト・RLS負例テスト・Storage越境テスト・soft-delete実装（Issue #87 P2以降。下記「次の実行候補」を参照）
 
 参考:
-- 台帳写真のデータ層: `src/lib/data/pointMedia.ts`（load/add/delete 実装済み）
-- 共通表示コンポーネント: `src/features/map/PointPhotoSection.tsx`
-- Storageは既存 `images` バケット。パスが `groups/{group_id}/...` ならRLS変更不要
-- 参考（検証環境）: E2E専用アカウント `e2e-verifier@rice-knowledge-map.test`（専用グループ、RLSで実データと分離）。実行手順は`e2e/global-setup.ts`を参照。
+- Issue #87: https://github.com/kazu-4728/rice-knowledge-map/issues/87
+- 2026-08-09時点の棚卸し・PR分割案は Issue #87 のコメントを参照（Performance Advisor警告・旧テーブル削除・SECURITY DEFINER関数のsearch_path固定はPR #86で対応済み）
 
 ## 次の実行候補
 
+- Issue #87 P2: Supabase監査スクリプト（Advisor/RLS/migration適用状態をJSON出力。読み取りのみのため承認不要）
+- Issue #87 P3: RLS負例テスト + SECURITY DEFINER関数の受容記録（要承認）
+- Issue #87 P4: Storage越境テスト（要承認）
+- Issue #87 P5: soft-delete実装（`deleted_at` + RLS更新 + 削除UIの導線調整。2026-08-09オーナー承認: 実装する方針で確定。要承認、旧T-054はこれに統合）
+- Auth leaked password protectionの有効化（ダッシュボード側の手動設定。PR #86でも指摘済み・オーナー作業）
 - 共有リンクのトークン方式アクセス制御（記録単位）: 2026-07-24の検討で今回は着手しないと判断したが、案自体は有効。チーム外（非メンバー）へ記録を見せる必要、または外部AI・外部ツールへURLで記録を渡す用途が生じた時点で再設計する。参考実装方針: `share_links`テーブル（token・group_id・対象`record_id`・revoked_at等）+ `SECURITY DEFINER`のRPC + 公開ルート`/s/[token]` + 失効UI。`auth.users`に行を作らない（Auth MAU課金なし）。写真の配信にはservice role経由の署名URL発行が別途必要。Supabase変更のため着手時に承認必須。
 - フェーズ6: 記録のAI整形（旧T-048を具体化）: サーバー側エンドポイント1本（Next.js APIルート or Supabase Edge Function）で「テキスト→圃場/場所/カテゴリ/状況/メモ/次のアクションのJSON」を返し、確認画面の初期値を埋める。保存先は既存`records.ai_summary`/`next_action`のみ。**`ai_category`はポイント種別（inlet/outlet等）の保持に流用済み（`src/lib/data/recordSave.ts`が書き込み、`records.ts`の`toPointType`/`isUnresolvedIssue`が読む）のため書き込まない**。AIカテゴリの表現は既存のポイント種別・`record_type`への対応付けを第一候補とし、不足するなら専用カラム追加（migration・要承認）を着手時に判断。AI失敗時も保存を妨げないフェイルソフト。プロバイダ選定・課金はオーナー承認後。
 - フェーズ7以降（将来・北極星）: LINE取り込み（Bot/Webhook→フェーズ6と同じ構造化関数へ合流）、ハンズフリー音声AI対話（蓄積した構造化記録をAIが参照して会話で応答）。
 - アプリ内簡易bot（蓄積した記録を横断して質問に答える）: フェーズ6と同じ外部AI連携基盤（窓口＋プロバイダ選定＋無料枠運用）を必要とするが、日常的な実用性はより高いという見立て。PR2のエクスポートを実際に外部AIで使ってみて、頻出する質問パターンが見えた段階で着手を判断する。
 - T-053: 複数グループの本格対応（1ユーザーが複数グループに所属するケース。テナント分離自体は別問題として2026-07-27に確認済み）
-- T-054: 記録のsoft-delete（`deleted_at` + RLS）
 - U-004: Supabaseレガシーanonキーの無効化（任意・ユーザー作業）
 
 ## ユーザー確認待ち
@@ -94,3 +70,4 @@
 - PR #80: 記録運用の改善（分類8種類化・状態の任意変更＋履歴表示・定点観測導線・家族権限管理画面・写真メタ表示）
 - PR #82: エクスポート機能拡充（画像埋め込みPDF/CSV/ZIP出力・写真EXIF書き戻し）
 - PR #84: カレンダーへの記録連携とコメント編集・削除機能
+- PR #86: 台帳/日誌の2層再構成（ホーム田んぼボード・田んぼ詳細の縦一列化・ピン写真台帳・記録写真のピン台帳登録・Supabaseアドバイザー指摘解消）
