@@ -14,6 +14,17 @@ export type PointMediaItem = {
   caption: string | null;
 };
 
+/**
+ * 登録済み判定に使うcaptionマーカーの接頭辞（registerRecordPhotoToPoint専用の内部値）。
+ * ユーザーが入力するcaptionではないため、読み出し側には常に隠す。
+ */
+const REGISTERED_FROM_PREFIX = "record:";
+
+/** ユーザー向けに見せてよいcaptionだけを返す（内部マーカーはUIに漏らさない） */
+function publicCaption(raw: string | null): string | null {
+  return raw && raw.startsWith(REGISTERED_FROM_PREFIX) ? null : raw;
+}
+
 /** ピンの台帳写真を一括取得し、署名URL（storagePath→URL）も解決する */
 export async function loadPointMedia(pointIds: string[]): Promise<{
   byPoint: Record<string, PointMediaItem[]>;
@@ -46,7 +57,7 @@ export async function loadPointMedia(pointIds: string[]): Promise<{
         id: row.id,
         pointId: row.point_id,
         storagePath: row.storage_path,
-        caption: row.caption,
+        caption: publicCaption(row.caption),
       });
       paths.push(row.storage_path);
     }
@@ -112,6 +123,11 @@ export async function addPointPhoto(pointId: string, file: File): Promise<AddPoi
  * 記録の写真をピンの台帳に登録する（Storage上でコピーしてから field_point_media へ追加）。
  * record_media と同じパスを共有すると、記録側の削除（deleteRecord）で
  * Storage実体ごと消え台帳の写真も壊れるため、必ず新しいパスへコピーする。
+ *
+ * 記録詳細を再読み込みすると「登録済み」のローカル表示はリセットされるため、
+ * 同じ写真を2回登録すると台帳に複製が増えてしまう。それを防ぐため、
+ * caption に元パスをマーカーとして残し、登録前に同じピン×同じ元パスの
+ * 行が無いか確認する（既にあれば新規コピーせず "saved" を返す）。
  */
 export async function registerRecordPhotoToPoint(
   sourcePath: string,
@@ -124,6 +140,15 @@ export async function registerRecordPhotoToPoint(
     const { data: sess } = await sb.auth.getSession();
     const user = sess.session?.user;
     if (!user) return "demo";
+
+    const marker = `${REGISTERED_FROM_PREFIX}${sourcePath}`;
+    const { data: existing } = await sb
+      .from("field_point_media")
+      .select("id")
+      .eq("point_id", pointId)
+      .eq("caption", marker)
+      .maybeSingle();
+    if (existing) return "saved";
 
     const { data: point } = await sb.from("field_points").select("group_id").eq("id", pointId).maybeSingle();
     const groupId = point?.group_id as string | undefined;
@@ -141,6 +166,7 @@ export async function registerRecordPhotoToPoint(
       media_type: "image",
       storage_bucket: "images",
       storage_path: newPath,
+      caption: marker,
       created_by: user.id,
     });
     if (error) {

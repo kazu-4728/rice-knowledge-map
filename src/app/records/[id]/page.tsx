@@ -336,6 +336,8 @@ export default function RecordDetailPage() {
       setRegisteredPhotoIds((prev) => new Set(prev).add(photo.id));
     } else if (result === "denied") {
       showToast("登録できませんでした（編集権限がありません）", "error");
+    } else if (result === "demo") {
+      showToast("ログインが必要です", "error");
     } else if (result === "error") {
       showToast("登録に失敗しました。通信環境を確認してください", "error");
     }
