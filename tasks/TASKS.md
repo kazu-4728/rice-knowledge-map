@@ -23,7 +23,7 @@
   - `npm run lint`
   - `npx tsc --noEmit`
   - `npm run build`
-- E2Eはこのリポジトリのクラウド実行環境ではヘッドレスChromiumが外部通信できない既知の制限があるため対象外とし、workflowのコメントで理由を明記する（詳細は `playwright.config.ts` 冒頭のコメントを参照。オーナーのローカル環境では別途 `npx playwright test` を実行できる）
+- E2Eは今回のworkflowには含めない。理由はクラウド実行環境の制限（`playwright.config.ts`参照）ではなく、GitHub Actions側にE2E用の実Supabase資格情報（`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`E2E_TEST_EMAIL`/`E2E_TEST_PASSWORD`）がSecretsとして未整備なため。workflowのコメントにもこの理由を明記する（GitHub Actionsランナー自体は通常の外部通信が可能なため、Secrets整備後にE2Eジョブを追加できる）。オーナーのローカル環境では別途 `npx playwright test` を実行できる
 - READMEの「型チェック（CI・セルフレビュー必須）」の記述が指すCIが実在するようにする
 
 受入条件:
