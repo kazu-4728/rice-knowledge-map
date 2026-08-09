@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { FieldPoint } from "../../types";
 import { PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import {
   IconCalendar,
   IconCamera,
@@ -92,6 +93,10 @@ export default function MapDetailPanel({
                   水位: {selectedPoint.waterLevel}
                 </p>
               )}
+            </div>
+            {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
+            <div className="mt-4">
+              <PointPhotoSection pointId={selectedPoint.id} />
             </div>
             <div className="mt-5 space-y-2">
               <Link

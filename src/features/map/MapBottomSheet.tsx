@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { FieldPoint } from "../../types";
 import { PIN_COLORS, STATUS_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import {
   IconCalendar,
@@ -82,6 +83,10 @@ export default function MapBottomSheet({
                     水位: {selectedPoint.waterLevel}
                   </p>
                 )}
+              </div>
+              {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
+              <div className="mb-3">
+                <PointPhotoSection pointId={selectedPoint.id} />
               </div>
               <div className="flex gap-2">
                 {/* 未保存のローカル田んぼ（fieldIdが空）に紐づくピンは場所詳細を持たないため出さない */}

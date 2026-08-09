@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FieldPoint, FieldPointType } from "../../types";
 import { TYPE_LABELS } from "./mapPins";
+import PointPhotoSection from "./PointPhotoSection";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const ALL_TYPES: FieldPointType[] = [
@@ -96,6 +97,9 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel }: P
               ))}
             </div>
           </div>
+
+          {/* 台帳写真（変わらない情報）。追加・削除は即時反映のため保存ボタンとは独立 */}
+          <PointPhotoSection pointId={point.id} editable />
         </div>
 
         {confirmDelete ? (

@@ -22,6 +22,7 @@ import {
   updateFieldPoint,
   deleteFieldPoint,
 } from "../../lib/data/farm";
+import { addPointPhoto } from "../../lib/data/pointMedia";
 import MapHelpSheet from "./MapHelpSheet";
 import MapBottomSheet, { type FieldListItem } from "./MapBottomSheet";
 import MapDetailPanel from "./MapDetailPanel";
@@ -503,6 +504,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
     name: string;
     pointType: FieldPointType;
     fieldId: string | null;
+    photoFile: File | null;
   }) => {
     const lngLat = pendingPinLngLat;
     if (!lngLat) return;
@@ -572,9 +574,23 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
         });
         pinMarkersRef.current.set(id, marker);
       });
-      setToast("ピンを保存しました");
+      // 添付写真はピン保存後に台帳（field_point_media）へアップロードする
+      if (params.photoFile) {
+        const photoResult = await addPointPhoto(id, params.photoFile);
+        setToast(
+          photoResult === "saved"
+            ? "ピンと写真を保存しました"
+            : "ピンを保存しました（写真の追加に失敗したため、編集からやり直せます）"
+        );
+      } else {
+        setToast("ピンを保存しました");
+      }
     } else if (status === "demo") {
-      setToast("ローカルに追加しました（ログインすると共有されます）");
+      setToast(
+        params.photoFile
+          ? "ローカルに追加しました（写真はログイン後に追加できます）"
+          : "ローカルに追加しました（ログインすると共有されます）"
+      );
     } else {
       // 保存失敗時は楽観追加分をロールバック
       const old = pinMarkersRef.current.get(newPoint.id);

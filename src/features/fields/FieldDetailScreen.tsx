@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import { loadPointMedia } from "../../lib/data/pointMedia";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FieldMiniMap } from "../../components/map/FieldMiniMap";
@@ -206,6 +207,25 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   useEffect(() => {
     if (consumeJustSaved()) showToast("記録を保存しました");
   }, [showToast]);
+
+  // ポイントの台帳写真（先頭1枚）をアイコンの代わりに出す
+  const [pointThumbs, setPointThumbs] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (points.length === 0) return;
+    let cancelled = false;
+    loadPointMedia(points.map((p) => p.id)).then(({ byPoint, urls }) => {
+      if (cancelled) return;
+      const thumbs: Record<string, string> = {};
+      for (const [pid, items] of Object.entries(byPoint)) {
+        const first = items[0];
+        if (first && urls[first.storagePath]) thumbs[pid] = urls[first.storagePath];
+      }
+      setPointThumbs(thumbs);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [points]);
 
   const [areaUnit, cycleAreaUnit] = useAreaUnit();
   const formatArea = (sqm: number | null) => {
@@ -491,9 +511,15 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                             highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
                           }`}
                         >
-                          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
-                            {meta.icon}
-                          </span>
+                          {pointThumbs[point.id] ? (
+                            <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+                              <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
+                            </span>
+                          ) : (
+                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+                              {meta.icon}
+                            </span>
+                          )}
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
                             <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
