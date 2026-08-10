@@ -7,7 +7,7 @@
  * 出力の最上位に status（pass|warn|fail）/blocking/warningsを含める
  * （Issue #87本文で明示されている最小スキーマ）。
  *
- * 使い方（詳細は docs/SUPABASE_AUDIT.md 参照）:
+ * 使い方（詳細はREADME.mdの「Supabase監査」セクション参照）:
  *   cat audit-input.json | node scripts/supabase-audit-write.mjs
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
