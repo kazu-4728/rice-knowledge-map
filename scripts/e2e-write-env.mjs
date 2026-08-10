@@ -16,10 +16,18 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, E2E_EMAIL, E2E_PASSWORD } = process.env;
 
-const missing = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "E2E_EMAIL", "E2E_PASSWORD"]
-  .filter((k) => !process.env[k]);
+const REQUIRED_KEYS = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "E2E_EMAIL", "E2E_PASSWORD"];
+
+const missing = REQUIRED_KEYS.filter((k) => !process.env[k]);
 if (missing.length > 0) {
   console.error(`MISSING ENV: ${missing.join(", ")}`);
+  process.exit(1);
+}
+
+// 値に改行が含まれると.envファイルへの行注入（別キーの意図しない追加・上書き）になるため拒否する
+const invalid = REQUIRED_KEYS.filter((k) => /[\r\n]/.test(process.env[k]));
+if (invalid.length > 0) {
+  console.error(`INVALID ENV (改行を含む): ${invalid.join(", ")}`);
   process.exit(1);
 }
 
