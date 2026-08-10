@@ -45,6 +45,12 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+const invalidMigrations = input.migrations.filter((m) => typeof m?.name !== "string");
+if (invalidMigrations.length > 0) {
+  console.error("migrationsの各要素にはstring型のnameが必要です（list_migrationsの結果をそのまま渡してください）");
+  process.exit(1);
+}
+
 // ローカルのmigrationファイルと、Supabase側に適用済みのmigration名を突き合わせる。
 // 初期のmigrationは統合・改名されており（例: 4つのremote migrationが
 // ローカルでは1ファイルに集約されている等）、全件の名前突き合わせは
@@ -60,10 +66,16 @@ if (missing.length > 0) {
 // 緩やかに一致判定する。
 const stripSeqPrefix = (name) => name.replace(/^\d+[a-z]?_/, "");
 const migrationsDir = path.join(root, "supabase", "migrations");
-const localStems = readdirSync(migrationsDir)
-  .filter((f) => f.endsWith(".sql"))
-  .map((f) => f.slice(0, -4))
-  .sort();
+let localStems;
+try {
+  localStems = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .map((f) => f.slice(0, -4))
+    .sort();
+} catch (e) {
+  console.error(`${migrationsDir} を読み取れません: ${e.message}`);
+  process.exit(1);
+}
 const remoteNames = input.migrations.map((m) => m.name).sort();
 const newestLocalMigration = localStems.at(-1) ?? null;
 const newestLocalAppliedRemotely = newestLocalMigration
@@ -109,7 +121,13 @@ console.log(`WROTE supabase-audit/${stamp}.json (supabase-audit/latest.jsonも�
 console.log(`security advisors: ${JSON.stringify(report.security_advisors.count_by_level)}`);
 console.log(`performance advisors: ${JSON.stringify(report.performance_advisors.count_by_level)}`);
 console.log(`rls policies: ${report.rls_policies.length}件`);
+const appliedLabel =
+  newestLocalAppliedRemotely === null
+    ? "N/A（ローカルにmigrationファイルなし）"
+    : newestLocalAppliedRemotely
+      ? "OK"
+      : "未適用の可能性あり・要確認";
 console.log(
   `migrations: remote=${report.migrations.remote_count} local=${report.migrations.local_count} ` +
-    `最新ローカル(${newestLocalMigration})の適用=${newestLocalAppliedRemotely ? "OK" : "未適用の可能性あり・要確認"}`
+    `最新ローカル(${newestLocalMigration})の適用=${appliedLabel}`
 );
