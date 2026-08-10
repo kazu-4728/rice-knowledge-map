@@ -1,13 +1,16 @@
 /**
- * Supabase監査結果（Issue #87 P2）を1つのJSONにまとめて書き出す。
- * データ取得自体はこのスクリプトでは行わない（実行にはSupabase管理者権限が必要なため）。
- * Claude CodeセッションがSupabase MCP（get_advisors/list_migrations/execute_sql、
- * いずれも読み取り専用）で取得した結果をこのスクリプトに標準入力で渡す想定。
+ * このスクリプトは、Supabase状態を直接取得するスクリプトではない。
+ * Supabase MCPで取得した監査入力を、標準化された監査レポートJSON
+ * （status: pass|warn|fail / blocking / warningsを含む。Issue #87本文で
+ * 明示されている最小スキーマ）へ変換・保存するだけである。
+ * 取得処理はClaude CodeセッションのSupabase MCP手順（get_advisors/
+ * list_migrations/execute_sql、いずれも読み取り専用）で行う。
+ * 古い入力JSONの再利用を避けるため、監査実行時は必ずMCP取得から
+ * この書き出しまで連続して行うこと（詳細はREADME.mdの「Supabase監査」
+ * セクション参照）。
  * 出力先の supabase-audit/ は.gitignore対象（運用中に増減するためリポジトリに置かない）。
- * 出力の最上位に status（pass|warn|fail）/blocking/warningsを含める
- * （Issue #87本文で明示されている最小スキーマ）。
  *
- * 使い方（詳細はREADME.mdの「Supabase監査」セクション参照）:
+ * 使い方:
  *   cat audit-input.json | node scripts/supabase-audit-write.mjs
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
@@ -27,7 +30,7 @@ function readStdin() {
 const raw = readStdin().trim();
 if (!raw) {
   console.error(
-    "標準入力が空です。docs/SUPABASE_AUDIT.mdの手順でSupabase MCPの結果をJSONとして渡してください。"
+    "標準入力が空です。README.mdの「Supabase監査」セクションの手順でSupabase MCPの結果をJSONとして渡してください。"
   );
   process.exit(1);
 }

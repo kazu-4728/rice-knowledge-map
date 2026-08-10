@@ -142,6 +142,13 @@ Supabase実環境の状態（Security/Performance Advisor・RLS有効状態・mi
 `fields`/`field_logs`の残存確認）を読み取り専用でJSON出力する。Supabase側の
 設定・スキーマは一切変更しない。
 
+`scripts/supabase-audit-write.mjs`は、Supabase状態を直接取得するスクリプトでは
+ない。Supabase MCPで取得した監査入力を、標準化された監査レポートJSON
+（`status`/`blocking`/`warnings`を含む）へ変換・保存するだけである。取得処理は
+Claude CodeセッションのSupabase MCP手順（下記手順1）で行う。古い入力JSONの
+再利用を避けるため、監査実行時は必ず手順1（MCP取得）から手順3（書き出し）まで
+連続して行う。
+
 対象プロジェクトのproject_idは本ファイルに書かない（IDもキー・パスワードと
 同様に扱い、リポジトリへ書かない方針。AGENTS.md参照）。実行時に以下いずれかで
 都度確認する。
