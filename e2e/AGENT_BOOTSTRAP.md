@@ -10,8 +10,25 @@ E2E（`npx playwright test`）は実Supabaseに接続するため、`.env.local`
 アカウント単位で維持されるため、ここに書いた手順さえ分かれば
 毎回Secretsを新規登録しなくても再現できる。
 
-対象プロジェクト: `rice-farm-app`（project_id: `uakcrkylonvgcmwuyyyk`。
-本番URLのホスト名の一部であり非公開情報ではない）。
+対象プロジェクト: `rice-farm-app`。project_idはキー・パスワードと同様の
+秘密情報として扱い本ファイルには書かない（AGENTS.md参照）。
+
+#### project_idの確認順序
+
+1. まずローカルの`.env.local`を確認する
+2. `NEXT_PUBLIC_SUPABASE_URL`があれば、`https://<project_id>.supabase.co`の
+   `<project_id>`部分を使う
+3. `.env.local`が無い、またはURLが確認できない場合は、Supabase MCPの
+   `list_projects`を使う
+4. `name`が`rice-farm-app`のプロジェクトを選ぶ
+5. 複数候補が出た場合は、`region`が`ap-southeast-1`のものを優先する
+6. それでも一意に判断できない場合だけ、作業を止めて確認する
+
+- project_idが分からない場合でも、推測で作業を止めない
+- 必ず`.env.local` → Supabase MCP `list_projects`の順で確認する
+- project_idをREADME、Issue、PR本文、コード、本ファイルに固定値として書かない
+- 取得したproject_idはその場の実行にだけ使い、コミットしない
+
 E2E専用アカウント: `e2e-verifier@rice-knowledge-map.test`
 （専用グループ、RLSで実データと分離。パスワードのみ管理者権限で都度発行する）。
 
@@ -28,21 +45,29 @@ node scripts/e2e-check-auth.mjs
 
 ### 2. Supabase MCPで公開情報を取得する
 
-- `get_project_url`（project_id: `uakcrkylonvgcmwuyyyk`）→ Supabase URL
+- 上記「project_idの確認順序」でproject_idを確認する
+- `get_project_url`（project_id: 確認した値）→ Supabase URL
 - `get_publishable_keys`（同project_id）→ `disabled`でない鍵のうち、
   `sb_publishable_...`形式（modern publishable key）を優先して使う。
   `anon`（legacy JWT）は将来無効化される可能性があるため新規手順では使わない
   （`tasks/TASKS.md`「次の実行候補」のlegacy anonキー無効化を参照）。
 
-どちらも公開情報（本番アプリのクライアントバンドルに含まれる値。
-`.env.local`が.gitignore対象なのは運用上の慣例であり、値そのものは非公開情報ではない）。
+Supabase URL・anon/publishable keyは公開情報（本番アプリのクライアント
+バンドルに含まれる値。`.env.local`が.gitignore対象なのは運用上の慣例で
+あり、値そのものは非公開情報ではない）。project_id自体は上記の通り
+本ファイルに書かない方針とする。
 
 ### 3. Supabase MCPでE2Eアカウントのパスワードを再発行する
 
-`execute_sql`（project_id: `uakcrkylonvgcmwuyyyk`）で、ランダムな新パスワードを
-生成してから以下を実行する（`<新パスワード>`は都度生成した値に置き換える。
-実行結果やパスワードそのものをコミットメッセージ・PR本文・チャット外の
-場所に書き残さない）。
+`auth.users`を更新する操作のため、実行前に対象が`rice-farm-app`であることを
+`list_projects`の結果（project_idとプロジェクト名の対応）で確認する
+（`.env.local`のURLから読み取ったproject_idが、意図せず別環境を指している
+場合に誤って別プロジェクトのパスワードを書き換えないため）。
+
+確認できたら、`execute_sql`（project_id: 手順2で確認した値）で、ランダムな
+新パスワードを生成してから以下を実行する（`<新パスワード>`は都度生成した値に
+置き換える。実行結果やパスワードそのものをコミットメッセージ・PR本文・
+チャット外の場所に書き残さない）。
 
 新パスワードは**英数字のみ**で生成する（`'`はSQL文字列を破壊し、
 `$`・空白・バッククォート等は手順4の未クォートなシェル代入で
