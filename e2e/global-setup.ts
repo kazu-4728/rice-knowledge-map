@@ -7,6 +7,8 @@ import { loadE2EEnv } from "./env";
  * E2Eテスト用の認証済みstorageStateを生成する（Playwright globalSetup）。
  * テストアカウントは既存のE2E検証用グループ（本番オーナーの実データとはRLSで分離）を再利用する。
  * 資格情報は .env.e2e.local（gitignore対象・リポジトリに含めない）から読む。
+ * これらのファイルが無い/失効している場合の再発行手順は e2e/AGENT_BOOTSTRAP.md を参照
+ * （Claude Codeセッションをまたいでも実値をリポジトリに書かずに引き継げる手順）。
  */
 export default async function globalSetup() {
   loadE2EEnv();

@@ -14,6 +14,9 @@ import path from "node:path";
  * ブラウザ側の非同期取得完了を待つテストのみ影響する（静的なUI確認は通る）。
  * この構成をクラウド実行環境で動かす前に、まずこの制限を疑うこと。
  * オーナーのローカル環境では問題なく動作する。
+ *
+ * 資格情報（.env.local / .env.e2e.local）が無い/失効している場合の再発行手順は
+ * e2e/AGENT_BOOTSTRAP.md を参照。
  */
 export default defineConfig({
   testDir: "./e2e",
