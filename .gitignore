@@ -40,3 +40,7 @@ coverage/
 /.auth/
 /playwright-report/
 /test-results/
+
+# Supabase監査結果（都度取得する運用データのためリポジトリに含めない）
+/supabase-audit/
+audit-input*.json
