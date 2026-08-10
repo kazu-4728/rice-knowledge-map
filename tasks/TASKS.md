@@ -12,34 +12,33 @@
 
 ## 現在の実行タスク
 
-### Issue #87 P1: CI品質ゲート追加（2026-08-09オーナー承認。Issue #87の推奨順序どおりP1から着手）
+### Issue #87 P2: Supabase監査スクリプト追加（読み取りのみのため承認不要。Issue #87の推奨順序どおりP1完了後にP2へ）
 
 背景:
-- `.github/workflows/` が存在せず、READMEの「型チェック（CI・セルフレビュー必須）」という記述と実態が一致していない
-- Issue #87（公開前品質ゲート整備）の推奨順序で最初に着手すると決めた項目。Supabase変更を伴わないためこの1件は承認不要で進めてよい
+- Issue #87（公開前品質ゲート整備）P1（CI品質ゲート）はPR #89で完了・マージ済み
+- P2はSupabaseの状態（Advisor警告・RLSポリシー・migration適用状態）を読み取り専用で確認できるスクリプトの整備。書き込み・スキーマ変更を一切行わないため承認不要で進めてよい
 
 やること:
-- `.github/workflows/quality-gate.yml` を追加し、PRごとに以下を実行する
-  - `npm run lint`
-  - `npx tsc --noEmit`
-  - `npm run build`
-- E2Eは今回のworkflowには含めない。理由はクラウド実行環境の制限（`playwright.config.ts`参照）ではなく、GitHub Actions側にE2E用の実Supabase資格情報（`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`E2E_TEST_EMAIL`/`E2E_TEST_PASSWORD`）がSecretsとして未整備なため。workflowのコメントにもこの理由を明記する（GitHub Actionsランナー自体は通常の外部通信が可能なため、Secrets整備後にE2Eジョブを追加できる）。オーナーのローカル環境では別途 `npx playwright test` を実行できる
-- READMEの「型チェック（CI・セルフレビュー必須）」の記述が指すCIが実在するようにする
+- 読み取り専用スクリプト（例: `scripts/supabase-audit.mjs`）を追加し、以下をJSON出力する
+  - Supabase Advisor警告（セキュリティ/パフォーマンス）
+  - 主要テーブルのRLSポリシー一覧
+  - 適用済みmigration一覧
+- 実行方法をREADMEまたはスクリプト冒頭のコメントに明記する
+- Supabase側の設定・スキーマ変更は一切行わない（読み取りのみ）
 
 受入条件:
-- 上記3ステップを実行するworkflowが追加され、PRで自動実行される
+- スクリプト実行でAdvisor警告・RLSポリシー状態・migration適用状態がJSON形式で出力される
 - `npx tsc --noEmit` / `npm run lint` / `npm run build` が通る
 
 非対象:
-- Supabase監査スクリプト・RLS負例テスト・Storage越境テスト・soft-delete実装（Issue #87 P2以降。下記「次の実行候補」を参照）
+- RLS負例テスト・Storage越境テスト・soft-delete実装（Issue #87 P3以降。下記「次の実行候補」を参照）
 
 参考:
 - Issue #87: https://github.com/kazu-4728/rice-knowledge-map/issues/87
-- 2026-08-09時点の棚卸し・PR分割案は Issue #87 のコメントを参照（Performance Advisor警告・旧テーブル削除・SECURITY DEFINER関数のsearch_path固定はPR #86で対応済み）
+- 2026-08-09時点の棚卸し・PR分割案は Issue #87 のコメントを参照（Performance Advisor警告・旧テーブル削除・SECURITY DEFINER関数のsearch_path固定はPR #86で対応済み。CI品質ゲートはPR #89で対応済み）
 
 ## 次の実行候補
 
-- Issue #87 P2: Supabase監査スクリプト（Advisor/RLS/migration適用状態をJSON出力。読み取りのみのため承認不要）
 - Issue #87 P3: RLS負例テスト + SECURITY DEFINER関数の受容記録（要承認）
 - Issue #87 P4: Storage越境テスト（要承認）
 - Issue #87 P5: soft-delete実装（`deleted_at` + RLS更新 + 削除UIの導線調整。2026-08-09オーナー承認: 実装する方針で確定。要承認、旧T-054はこれに統合）
@@ -71,3 +70,5 @@
 - PR #82: エクスポート機能拡充（画像埋め込みPDF/CSV/ZIP出力・写真EXIF書き戻し）
 - PR #84: カレンダーへの記録連携とコメント編集・削除機能
 - PR #86: 台帳/日誌の2層再構成（ホーム田んぼボード・田んぼ詳細の縦一列化・ピン写真台帳・記録写真のピン台帳登録・Supabaseアドバイザー指摘解消）
+- Issue #87 → PR #89: CI品質ゲート追加（lint/型チェック/buildをPRごとに自動実行）
+- PR #90: E2E資格情報のセッション間引き継ぎ手順追加（実値をリポジトリに書かずSupabase MCP経由で再発行）
