@@ -50,8 +50,15 @@ if (missing.length > 0) {
 // ローカルでは1ファイルに集約されている等）、全件の名前突き合わせは
 // 過去の履歴差分をノイズとして大量に検出してしまい実用にならない。
 // そのため「直近でコミットされたローカルmigrationファイルが、
-// Supabase側の適用済み一覧に同名で存在するか」という、実際に事故につながりうる
+// Supabase側の適用済み一覧に存在するか」という、実際に事故につながりうる
 // （＝ローカルに追加したmigrationの適用忘れ）ケースだけを機械的にチェックする。
+//
+// ただし`apply_migration`に渡すname引数はファイル名の連番接頭辞（例: "0011_"）を
+// 省く運用が実際にあり（supabase/README.md参照。0011は remote側で
+// "record_media_exif" として記録されている）、完全一致で比較すると
+// 適用済みでも誤って「未適用」と判定してしまう。接頭辞を除いた名前どうしで
+// 緩やかに一致判定する。
+const stripSeqPrefix = (name) => name.replace(/^\d+[a-z]?_/, "");
 const migrationsDir = path.join(root, "supabase", "migrations");
 const localStems = readdirSync(migrationsDir)
   .filter((f) => f.endsWith(".sql"))
@@ -60,7 +67,7 @@ const localStems = readdirSync(migrationsDir)
 const remoteNames = input.migrations.map((m) => m.name).sort();
 const newestLocalMigration = localStems.at(-1) ?? null;
 const newestLocalAppliedRemotely = newestLocalMigration
-  ? remoteNames.includes(newestLocalMigration)
+  ? remoteNames.some((n) => stripSeqPrefix(n) === stripSeqPrefix(newestLocalMigration))
   : null;
 
 function countByLevel(lints) {

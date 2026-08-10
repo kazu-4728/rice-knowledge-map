@@ -49,10 +49,13 @@ Supabase側の設定・スキーマは一切変更しない。
 - `migrations.newest_local_applied_remotely`:
   `false`の場合、直近でコミットしたローカルのmigrationファイルがSupabase側に
   未適用の可能性がある（`apply_migration`の適用忘れ）ので確認する。
+  ファイル名の連番接頭辞（`0011_`等）を除いた名前で緩やかに一致判定している
+  （`apply_migration`のname引数は接頭辞を省く運用が過去にあったため。
+  `supabase/README.md`の0011の記録を参照）。
   それより古いmigrationの名前突き合わせは行わない
-  （初期のmigrationは統合・改名されており、単純な名前一致では
-  ノイズだらけになり実用にならないため。`migrations.remote_names` /
-  `migrations.local_files`に生データを残しているので、必要なら目視で確認する）
+  （初期のmigrationは統合・改名されており、緩やかな一致でもノイズだらけになり
+  実用にならないため。`migrations.remote_names` / `migrations.local_files`に
+  生データを残しているので、必要なら目視で確認する）
 
 ## 実行タイミング
 
