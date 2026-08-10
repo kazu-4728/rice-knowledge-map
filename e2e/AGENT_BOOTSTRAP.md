@@ -10,8 +10,13 @@ E2E（`npx playwright test`）は実Supabaseに接続するため、`.env.local`
 アカウント単位で維持されるため、ここに書いた手順さえ分かれば
 毎回Secretsを新規登録しなくても再現できる。
 
-対象プロジェクト: `rice-farm-app`（project_id: `uakcrkylonvgcmwuyyyk`。
-本番URLのホスト名の一部であり非公開情報ではない）。
+対象プロジェクト: `rice-farm-app`。project_idはキー・パスワードと同様の
+秘密情報として扱い本ファイルには書かない（AGENTS.md参照）。実行時に
+以下いずれかで都度確認する。
+- ローカルの`.env.local`にある`NEXT_PUBLIC_SUPABASE_URL`のホスト名部分
+  （`https://<project_id>.supabase.co`）
+- Supabase MCPの`list_projects`でプロジェクト名`rice-farm-app`を検索する
+
 E2E専用アカウント: `e2e-verifier@rice-knowledge-map.test`
 （専用グループ、RLSで実データと分離。パスワードのみ管理者権限で都度発行する）。
 
@@ -28,18 +33,21 @@ node scripts/e2e-check-auth.mjs
 
 ### 2. Supabase MCPで公開情報を取得する
 
-- `get_project_url`（project_id: `uakcrkylonvgcmwuyyyk`）→ Supabase URL
+- 上記「対象プロジェクト」の方法でproject_idを確認する
+- `get_project_url`（project_id: 確認した値）→ Supabase URL
 - `get_publishable_keys`（同project_id）→ `disabled`でない鍵のうち、
   `sb_publishable_...`形式（modern publishable key）を優先して使う。
   `anon`（legacy JWT）は将来無効化される可能性があるため新規手順では使わない
   （`tasks/TASKS.md`「次の実行候補」のlegacy anonキー無効化を参照）。
 
-どちらも公開情報（本番アプリのクライアントバンドルに含まれる値。
-`.env.local`が.gitignore対象なのは運用上の慣例であり、値そのものは非公開情報ではない）。
+Supabase URL・anon/publishable keyは公開情報（本番アプリのクライアント
+バンドルに含まれる値。`.env.local`が.gitignore対象なのは運用上の慣例で
+あり、値そのものは非公開情報ではない）。project_id自体は上記の通り
+本ファイルに書かない方針とする。
 
 ### 3. Supabase MCPでE2Eアカウントのパスワードを再発行する
 
-`execute_sql`（project_id: `uakcrkylonvgcmwuyyyk`）で、ランダムな新パスワードを
+`execute_sql`（project_id: 手順2で確認した値）で、ランダムな新パスワードを
 生成してから以下を実行する（`<新パスワード>`は都度生成した値に置き換える。
 実行結果やパスワードそのものをコミットメッセージ・PR本文・チャット外の
 場所に書き残さない）。
