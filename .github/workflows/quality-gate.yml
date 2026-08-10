@@ -1,0 +1,42 @@
+name: Quality Gate
+
+# PRごとに lint / 型チェック / build を強制する（README記載の
+# 「型チェック（CI・セルフレビュー必須）」の実体をここに置く。Issue #87 P1）。
+#
+# E2E（npx playwright test）はここに含めない。理由はこのCIランナー自体の
+# 制限ではなく、E2Eが実Supabaseへの接続を必要とし、そのための資格情報
+# （NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY /
+# E2E_TEST_EMAIL / E2E_TEST_PASSWORD）がGitHub Actions Secretsとして
+# まだ整備されていないため。整備後に別ジョブとして追加する
+# （tasks/TASKS.md「次の実行候補」Issue #87参照）。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
