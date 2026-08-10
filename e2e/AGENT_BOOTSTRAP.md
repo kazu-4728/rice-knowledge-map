@@ -11,11 +11,23 @@ E2E（`npx playwright test`）は実Supabaseに接続するため、`.env.local`
 毎回Secretsを新規登録しなくても再現できる。
 
 対象プロジェクト: `rice-farm-app`。project_idはキー・パスワードと同様の
-秘密情報として扱い本ファイルには書かない（AGENTS.md参照）。実行時に
-以下いずれかで都度確認する。
-- ローカルの`.env.local`にある`NEXT_PUBLIC_SUPABASE_URL`のホスト名部分
-  （`https://<project_id>.supabase.co`）
-- Supabase MCPの`list_projects`でプロジェクト名`rice-farm-app`を検索する
+秘密情報として扱い本ファイルには書かない（AGENTS.md参照）。
+
+#### project_idの確認順序
+
+1. まずローカルの`.env.local`を確認する
+2. `NEXT_PUBLIC_SUPABASE_URL`があれば、`https://<project_id>.supabase.co`の
+   `<project_id>`部分を使う
+3. `.env.local`が無い、またはURLが確認できない場合は、Supabase MCPの
+   `list_projects`を使う
+4. `name`が`rice-farm-app`のプロジェクトを選ぶ
+5. 複数候補が出た場合は、`region`が`ap-southeast-1`のものを優先する
+6. それでも一意に判断できない場合だけ、作業を止めて確認する
+
+- project_idが分からない場合でも、推測で作業を止めない
+- 必ず`.env.local` → Supabase MCP `list_projects`の順で確認する
+- project_idをREADME、Issue、PR本文、コード、本ファイルに固定値として書かない
+- 取得したproject_idはその場の実行にだけ使い、コミットしない
 
 E2E専用アカウント: `e2e-verifier@rice-knowledge-map.test`
 （専用グループ、RLSで実データと分離。パスワードのみ管理者権限で都度発行する）。
@@ -33,7 +45,7 @@ node scripts/e2e-check-auth.mjs
 
 ### 2. Supabase MCPで公開情報を取得する
 
-- 上記「対象プロジェクト」の方法でproject_idを確認する
+- 上記「project_idの確認順序」でproject_idを確認する
 - `get_project_url`（project_id: 確認した値）→ Supabase URL
 - `get_publishable_keys`（同project_id）→ `disabled`でない鍵のうち、
   `sb_publishable_...`形式（modern publishable key）を優先して使う。
