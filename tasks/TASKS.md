@@ -12,36 +12,25 @@
 
 ## 現在の実行タスク
 
-### Issue #87 P2: Supabase監査スクリプト追加（読み取りのみのため承認不要。Issue #87の推奨順序どおりP1完了後にP2へ）
+### Issue #87 P2完了。P3着手には承認が必要
 
-背景:
-- Issue #87（公開前品質ゲート整備）P1（CI品質ゲート）はPR #89で完了・マージ済み
-- P2はSupabaseの状態（Advisor警告・RLSポリシー・migration適用状態）を読み取り専用で確認できるスクリプトの整備。書き込み・スキーマ変更を一切行わないため承認不要で進めてよい
-
-やること:
-- 読み取り専用スクリプト（例: `scripts/supabase-audit.mjs`）を追加し、以下をJSON出力する
-  - Supabase Advisor警告（セキュリティ/パフォーマンス）
-  - 主要テーブルのRLSポリシー一覧
-  - 適用済みmigration一覧
-- 実行方法をREADMEまたはスクリプト冒頭のコメントに明記する
-- Supabase側の設定・スキーマ変更は一切行わない（読み取りのみ）
-
-受入条件:
-- スクリプト実行でAdvisor警告・RLSポリシー状態・migration適用状態がJSON形式で出力される
-- `npx tsc --noEmit` / `npm run lint` / `npm run build` が通る
-
-非対象:
-- RLS負例テスト・Storage越境テスト・soft-delete実装（Issue #87 P3以降。下記「次の実行候補」を参照）
+Issue #87（公開前品質ゲート整備）の推奨順序で、P1（CI品質ゲート、PR #89）・
+P2（Supabase監査スクリプト、PR #92）が完了した。P3以降は下記「次の実行候補」
+のとおりSupabaseのRLS/権限に関わる負例テスト・soft-delete実装を含み、
+着手には承認が必要（P5のsoft-delete方針自体は2026-08-09に承認済み。実装着手は別途承認）。
+新しいセッションはまずオーナーに次に進めてよい項目を確認すること。
 
 参考:
 - Issue #87: https://github.com/kazu-4728/rice-knowledge-map/issues/87
-- 2026-08-09時点の棚卸し・PR分割案は Issue #87 のコメントを参照（Performance Advisor警告・旧テーブル削除・SECURITY DEFINER関数のsearch_path固定はPR #86で対応済み。CI品質ゲートはPR #89で対応済み）
+- Issue #87の推奨順序: 1.CI品質ゲート（完了） 2.Supabase Advisor監査スクリプト（完了） 3.SECURITY DEFINER関数監査 4.RLS/Storage負例テスト 5.Performance Advisor整理 6.旧テーブル・soft delete方針整理
+- Issue #87完了条件のうち、FK index追加・`auth.uid()`最適化・複数permissive policy統合・旧テーブル`fields`/`field_logs`削除・SECURITY DEFINER関数の権限見直し（`anon`のEXECUTE権限revoke・`search_path`固定）はPR #86で対応済み。旧テーブルの残存確認・SECURITY DEFINER関数の実行権限はPR #92の監査スクリプトで継続監視できる
 
 ## 次の実行候補
 
-- Issue #87 P3: RLS負例テスト + SECURITY DEFINER関数の受容記録（要承認）
-- Issue #87 P4: Storage越境テスト（要承認）
-- Issue #87 P5: soft-delete実装（`deleted_at` + RLS更新 + 削除UIの導線調整。2026-08-09オーナー承認: 実装する方針で確定。要承認、旧T-054はこれに統合）
+- Issue #87 P3: SECURITY DEFINER関数の負例テスト（`update_member_role`/`redeem_group_invite`/`set_record_status`等で越境・権限昇格が失敗することを確認・記録する。関数自体の権限見直しはPR #86で対応済み）+ RLS負例テスト（他グループの`farm_fields`/`records`/`record_media`が取得できない等、Issue #87本文記載の最低限ケース）。要承認
+- Issue #87 P4: Storage越境テスト（他グループの画像/音声パスを直接指定して読めない、viewerが許可されないbucket/pathへuploadできない等）。要承認
+- Issue #87 P5: Performance Advisor整理の残り（PR #92の監査スクリプト出力を見て都度判断。Supabase変更を伴う場合は要承認）
+- Issue #87 P6: soft-delete実装（`deleted_at` + RLS更新 + 削除UIの導線調整。2026-08-09オーナー承認: 実装する方針で確定。要承認、旧T-054はこれに統合）
 - Auth leaked password protectionの有効化（ダッシュボード側の手動設定。PR #86でも指摘済み・オーナー作業）
 - 共有リンクのトークン方式アクセス制御（記録単位）: 2026-07-24の検討で今回は着手しないと判断したが、案自体は有効。チーム外（非メンバー）へ記録を見せる必要、または外部AI・外部ツールへURLで記録を渡す用途が生じた時点で再設計する。参考実装方針: `share_links`テーブル（token・group_id・対象`record_id`・revoked_at等）+ `SECURITY DEFINER`のRPC + 公開ルート`/s/[token]` + 失効UI。`auth.users`に行を作らない（Auth MAU課金なし）。写真の配信にはservice role経由の署名URL発行が別途必要。Supabase変更のため着手時に承認必須。
 - フェーズ6: 記録のAI整形（旧T-048を具体化）: サーバー側エンドポイント1本（Next.js APIルート or Supabase Edge Function）で「テキスト→圃場/場所/カテゴリ/状況/メモ/次のアクションのJSON」を返し、確認画面の初期値を埋める。保存先は既存`records.ai_summary`/`next_action`のみ。**`ai_category`はポイント種別（inlet/outlet等）の保持に流用済み（`src/lib/data/recordSave.ts`が書き込み、`records.ts`の`toPointType`/`isUnresolvedIssue`が読む）のため書き込まない**。AIカテゴリの表現は既存のポイント種別・`record_type`への対応付けを第一候補とし、不足するなら専用カラム追加（migration・要承認）を着手時に判断。AI失敗時も保存を妨げないフェイルソフト。プロバイダ選定・課金はオーナー承認後。
@@ -72,3 +61,4 @@
 - PR #86: 台帳/日誌の2層再構成（ホーム田んぼボード・田んぼ詳細の縦一列化・ピン写真台帳・記録写真のピン台帳登録・Supabaseアドバイザー指摘解消）
 - Issue #87 → PR #89: CI品質ゲート追加（lint/型チェック/buildをPRごとに自動実行）
 - PR #90: E2E資格情報のセッション間引き継ぎ手順追加（実値をリポジトリに書かずSupabase MCP経由で再発行）
+- Issue #87 → PR #92: Supabase監査（Advisor/RLS有効状態/migration適用状態/SECURITY DEFINER関数実行権限/Storage bucket・policy/旧テーブル残存確認）をJSON出力するスクリプトを追加
