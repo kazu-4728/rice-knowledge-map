@@ -29,7 +29,10 @@ node scripts/e2e-check-auth.mjs
 ### 2. Supabase MCPで公開情報を取得する
 
 - `get_project_url`（project_id: `uakcrkylonvgcmwuyyyk`）→ Supabase URL
-- `get_publishable_keys`（同project_id）→ `anon`（legacy）キー
+- `get_publishable_keys`（同project_id）→ `disabled`でない鍵のうち、
+  `sb_publishable_...`形式（modern publishable key）を優先して使う。
+  `anon`（legacy JWT）は将来無効化される可能性があるため新規手順では使わない
+  （`tasks/TASKS.md`「次の実行候補」のlegacy anonキー無効化を参照）。
 
 どちらも公開情報（本番アプリのクライアントバンドルに含まれる値。
 `.env.local`が.gitignore対象なのは運用上の慣例であり、値そのものは非公開情報ではない）。
@@ -40,6 +43,11 @@ node scripts/e2e-check-auth.mjs
 生成してから以下を実行する（`<新パスワード>`は都度生成した値に置き換える。
 実行結果やパスワードそのものをコミットメッセージ・PR本文・チャット外の
 場所に書き残さない）。
+
+新パスワードは**英数字のみ**で生成する（`'`はSQL文字列を破壊し、
+`$`・空白・バッククォート等は手順4の未クォートなシェル代入で
+展開・分割されるため、DBに設定した値と`.env`に書く値がずれてログイン
+不能になる）。例: `openssl rand -hex 16`（0-9a-fのみ、32文字）。
 
 ```sql
 update auth.users

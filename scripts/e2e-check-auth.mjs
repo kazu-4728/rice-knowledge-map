@@ -15,6 +15,9 @@ import { createClient } from "@supabase/supabase-js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+// e2e/env.ts（globalSetupが使う実際の読み込み処理）と同じ優先順位にする:
+// 既にprocess.envに値がある場合はファイルの値で上書きしない。
+// ここが食い違うと、このチェッカーが返す`OK`が実際にPlaywrightが使う資格情報と一致しなくなる。
 function loadEnvFile(filePath, target) {
   if (!existsSync(filePath)) return;
   for (const line of readFileSync(filePath, "utf8").split("\n")) {
@@ -24,11 +27,11 @@ function loadEnvFile(filePath, target) {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
-    target[key] = value;
+    if (target[key] === undefined) target[key] = value;
   }
 }
 
-const env = {};
+const env = { ...process.env };
 loadEnvFile(path.join(root, ".env.local"), env);
 loadEnvFile(path.join(root, ".env.e2e.local"), env);
 
@@ -52,6 +55,10 @@ if (error) {
   console.log(`LOGIN_FAILED: ${error.message}`);
   process.exit(1);
 }
+
+// この確認はglobalSetupとは別セッションを都度発行するだけなので、
+// 確認用に作った現在のセッションだけ終了させ、未使用セッションが溜まらないようにする
+await supabase.auth.signOut({ scope: "local" });
 
 console.log("OK");
 process.exit(0);
