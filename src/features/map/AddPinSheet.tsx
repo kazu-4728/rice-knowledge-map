@@ -27,6 +27,7 @@ type Props = {
     pointType: FieldPointType;
     fieldId: string | null;
     photoFile: File | null;
+    memo: string;
   }) => void;
   onCancel: () => void;
 };
@@ -35,6 +36,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
   const [pointType, setPointType] = useState<FieldPointType>("inlet");
   const [name, setName] = useState("");
   const [fieldId, setFieldId] = useState<string | null>(initialFieldId ?? null);
+  const [memo, setMemo] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,9 +119,31 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
             </div>
           )}
 
+          {/* 一言メモ（任意）: 名前・種別だけでは伝わらない現場の勘所を残す */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">一言メモ（任意）</label>
+              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+            </div>
+            <p className="mt-0.5 text-xs text-gray-400">
+              後で他の人が見ても分かるよう、注意点やコツを残しておけます
+            </p>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="例: ゲートが重いので二人で開ける"
+              rows={2}
+              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+              maxLength={200}
+            />
+          </div>
+
           {/* 設備の写真（任意）: 入水口の様子など変わらない情報をピン自体に残す */}
           <div>
             <label className="text-xs font-semibold text-gray-600">設備の写真（任意）</label>
+            <p className="mt-0.5 text-xs text-gray-400">
+              実際の見た目を残しておくと、ピンの位置だけでは伝わらない詳細が分かります
+            </p>
             {photoPreview ? (
               <div className="relative mt-1 inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
@@ -171,6 +195,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
                 pointType,
                 fieldId,
                 photoFile,
+                memo: memo.trim(),
               })
             }
             className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"

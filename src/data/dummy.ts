@@ -94,6 +94,7 @@ export const fieldPoints: FieldPoint[] = [
     lastRecord: "2025年5月24日 08:15",
     waterLevel: "正常",
     lngLat: [138.829, 37.430],
+    memo: "水源は用水路。ゲートが重いので二人で開ける",
   },
   {
     id: "point-b-inlet",
@@ -114,6 +115,7 @@ export const fieldPoints: FieldPoint[] = [
     lastRecord: "2025年5月23日 16:20",
     waterLevel: "やや少なめ",
     lngLat: [138.835, 37.429],
+    memo: "水路へ自然排水。落ち葉が詰まりやすい",
   },
   {
     id: "point-c-caution",
@@ -125,6 +127,7 @@ export const fieldPoints: FieldPoint[] = [
     waterLevel: "高め",
     lngLat: [138.832, 37.426],
     pinLabel: "水位異常",
+    memo: "畦が低く、大雨の翌日は必ず確認する",
   },
   {
     id: "point-c-outlet",

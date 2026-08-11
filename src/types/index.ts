@@ -32,6 +32,8 @@ export type FieldPoint = {
   lngLat: [number, number];
   /** 地図ピン横のラベル（省略時は種別ラベル） */
   pinLabel?: string;
+  /** 変わらない情報としての一言メモ（例: 「ゲートが重いので二人で開ける」）。DB既存列field_points.memoをそのまま使う */
+  memo?: string | null;
 };
 
 export type ScheduleItem = {

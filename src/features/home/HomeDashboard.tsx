@@ -78,6 +78,7 @@ export default function HomeDashboard() {
       return {
         id: f.id,
         name: f.name,
+        color: f.color,
         photoUrl: f.photoPath ? photoUrls[f.photoPath] : undefined,
         status,
         statusLabel:
@@ -125,8 +126,13 @@ export default function HomeDashboard() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
                     <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-base font-bold text-white drop-shadow">
-                        {f.name || "名前のない田んぼ"}
+                      <p className="flex min-w-0 items-center gap-1.5 truncate text-base font-bold text-white drop-shadow">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/70"
+                          style={{ backgroundColor: f.color }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{f.name || "名前のない田んぼ"}</span>
                       </p>
                       <StatusBadge status={f.status} label={f.statusLabel} className="shrink-0" />
                     </div>

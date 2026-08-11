@@ -87,6 +87,12 @@ export default function MapBottomSheet({
                   </p>
                 )}
               </div>
+              {/* 一言メモ（変わらない情報）。名前・種別だけでは伝わらない現場の勘所 */}
+              {selectedPoint.memo && (
+                <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-700">
+                  {selectedPoint.memo}
+                </p>
+              )}
               {/* 台帳写真（変わらない情報）。記録タイムラインとは別系統 */}
               <div className="mb-3">
                 <PointPhotoSection pointId={selectedPoint.id} refreshKey={pointPhotoVersion} />

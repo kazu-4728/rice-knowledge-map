@@ -17,14 +17,15 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
-import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyles";
+import { CATEGORY_BADGE } from "../../components/ui/categoryStyles";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
 import { useAuth } from "../auth/useAuth";
 import { shareFieldStory } from "../../lib/utils/share";
-import type { FieldPoint, FieldPointType } from "../../types";
+import type { FieldPoint, FieldPointType, RecordItem } from "../../types";
 import { POINT_TYPE_META } from "../map/pointTypeMeta";
+import { PIN_COLORS, TYPE_LABELS } from "../map/mapPins";
 import {
   IconCamera,
   IconChevronRight,
@@ -44,6 +45,48 @@ function pointTypeView(type: FieldPointType | string | undefined) {
   };
 }
 
+/** カテゴリ別要約セクションで使う1件分のカード（要約表示・展開後表示の両方で共通利用） */
+function RecordCard({
+  record,
+  thumbUrl,
+  fallbackUrl,
+}: {
+  record: RecordItem;
+  thumbUrl: string | undefined;
+  fallbackUrl: string | undefined;
+}) {
+  const statusBadge = STATUS_BADGE[record.status];
+  return (
+    <Link href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
+      <Card className="overflow-hidden">
+        <div className="relative h-40">
+          <RecordThumb
+            media={record.media}
+            variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+            duration={record.audioDuration}
+            thumbUrl={thumbUrl}
+            fallbackUrl={fallbackUrl}
+            className="h-full w-full"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+          <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+            {record.category}
+          </Badge>
+          {statusBadge && (
+            <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+              {statusBadge.label}
+            </Badge>
+          )}
+        </div>
+        <CardContent className="px-4 py-3">
+          <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 /** ピンの状態バッジ */
 const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: string }> = {
   issue: { label: "異常", cls: "bg-red-100 text-red-700" },
@@ -57,9 +100,6 @@ const STATUS_BADGE: Partial<Record<string, { label: string; cls: string }>> = {
   open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
   needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
 };
-
-/** 記録一覧で一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
-const RECORDS_PAGE_SIZE = 20;
 
 /**
  * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
@@ -168,6 +208,9 @@ type Props = { fieldId: string };
  * 分かりにくくするため廃止し、上から
  * 「カバー写真 → この田んぼの台帳（変わらない情報） → 記録アクション →
  *    この田んぼの記録（変化する情報） → 定点観測」の縦一列構成にする。
+ * 2026-08-11オーナー指摘（UIUXブラッシュアップ）: 台帳は名前・色・状態が分かる1行に圧縮し、
+ * 記録はカテゴリごとの要約+「すべて見る」にする。台帳・記録どちらもこのページの外には出さず、
+ * 他の田んぼの情報と混同しないことを最優先にする。
  */
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
@@ -175,7 +218,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
+  /** カテゴリ別要約セクションで「すべて見る」を押したカテゴリの集合（この田んぼの中に閉じたまま展開する） */
+  const [expandedCategories, setExpandedCategories] = useState<Set<RecordItem["category"]>>(new Set());
 
   const {
     loading,
@@ -349,145 +393,111 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* ── この田んぼの台帳（変わらない情報: 状態・統計・場所・設備ポイント） ── */}
-      <SectionHeading
-        trailing={
-          <Link
-            href={`/map?field=${encodeURIComponent(fieldId)}`}
-            className="flex items-center gap-0.5 text-xs font-bold text-flow-green"
+      {/* ── この田んぼの台帳（変わらない情報）: 名前・面積・状態を1行で。
+          以前は説明文+4分割統計+カテゴリ内訳の縦長カードだったが、要点が埋もれるため圧縮した ── */}
+      <div className="flex items-center gap-2 rounded-2xl bg-white px-3.5 py-3 shadow-sm">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+          style={{ backgroundColor: field.color }}
+          aria-hidden="true"
+        />
+        <h1 className="shrink-0 truncate font-heading text-base font-bold text-gray-900">
+          {field.name || "名前のない田んぼ"}
+        </h1>
+        {field.areaSqm !== null && (
+          <button
+            onClick={cycleAreaUnit}
+            className="shrink-0 border-b border-dotted border-gray-300 text-xs text-gray-500 active:opacity-70"
           >
-            マップで開く
-            <IconChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        }
-      >
-        この田んぼの台帳
-      </SectionHeading>
-
-      <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
-        <div className="flex items-start gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-            <IconPinFill className="h-6 w-6 text-white/90" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="font-heading text-lg font-bold">{field.name || "名前のない田んぼ"}</p>
-              {points.length > 0 && (
-                <StatusBadge
-                  dark
-                  status={overallStatus}
-                  label={
-                    overallStatus === "normal"
-                      ? "順調"
-                      : overallStatus === "issue"
-                        ? `要対応 ${attentionCount}件`
-                        : `要確認 ${attentionCount}件`
-                  }
-                />
-              )}
-            </div>
-            <p className="mt-0.5 text-sm text-white/85">
-              {hasAttention
-                ? "下の「この田んぼの記録」、または「設備ポイント」で確認してください"
-                : points.length > 0
-                  ? `登録ポイント${points.length}件はすべて正常です`
-                  : "マップで入水口・異常箇所などを登録できます"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-4 divide-x divide-white/15 rounded-2xl bg-white/10 py-2.5">
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{field.areaSqm !== null ? formatArea(field.areaSqm) : "—"}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">面積</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{points.length}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">ポイント</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{records.length}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">記録</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className={`font-heading text-lg font-bold ${openRecords.length > 0 ? "text-amber-300" : ""}`}>
-              {openRecords.length}
-            </p>
-            <p className="mt-0.5 text-[11px] text-white/60">未対応</p>
-          </div>
-        </div>
-
-        {categoryCounts.length > 0 && (
-          <div className="mt-3">
-            <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
-              {categoryCounts.map(({ cat, count }) => (
-                <span
-                  key={cat}
-                  className={CATEGORY_THEME[cat].dot}
-                  style={{ width: `${(count / records.length) * 100}%` }}
-                />
-              ))}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-white/70">
-              {categoryCounts.map(({ cat, count }) => (
-                <span key={cat}>{cat} {count}</span>
-              ))}
-              {lastRecord && <span className="ml-auto">最終記録 {lastRecordLabel}</span>}
-            </div>
-          </div>
+            {formatArea(field.areaSqm)}
+          </button>
         )}
-      </section>
+        <span className="flex-1" />
+        {points.length > 0 && (
+          <StatusBadge
+            status={overallStatus}
+            label={
+              overallStatus === "normal"
+                ? "順調"
+                : overallStatus === "issue"
+                  ? `要対応 ${attentionCount}件`
+                  : `要確認 ${attentionCount}件`
+            }
+            className="shrink-0"
+          />
+        )}
+      </div>
 
-      {/* 小さな地図（場所確認用の脇役。台帳セクション内に置きマップとの連携を明示する） */}
+      {/* 今の状態が分かる最小限の数値だけ、小さく添える（色や箱で強調しない） */}
+      <p className="-mt-1 px-1 text-xs text-gray-500">
+        記録 {records.length}件
+        {openRecords.length > 0 && <span className="font-bold text-red-500"> ・ 未対応 {openRecords.length}件</span>}
+        {lastRecord && <span> ・ 最終記録 {lastRecordLabel}</span>}
+      </p>
+
+      {/* 小さな地図（場所確認用。設備ポイントには種別ラベルを直接添え、開かずに位置が分かるようにする） */}
       <FieldMiniMap
         href={`/map?field=${encodeURIComponent(fieldId)}`}
         boundary={field.boundary}
         points={points.map((p) => p.lngLat)}
+        markers={points.map((p) => ({
+          lngLat: p.lngLat,
+          chipLabel: p.name || TYPE_LABELS[p.type],
+          color: PIN_COLORS[p.type],
+        }))}
         label={field.name || "名前のない田んぼ"}
-        className="h-28 w-full rounded-2xl shadow-sm"
+        className="h-32 w-full rounded-2xl shadow-sm"
         ariaLabel="マップで開く"
       />
 
-      {/* 設備ポイント一覧（入水口・出水口・機械の出入口など。台帳写真があればサムネで表示） */}
+      {/* 設備ポイント一覧（入水口・出水口・機械の出入口など。一言メモ・台帳写真で「変わらない情報」を残す） */}
+      <div>
+        <SectionHeading level={3}>設備ポイント</SectionHeading>
+        <p className="-mt-1.5 mb-2 px-1 text-xs text-gray-400">
+          入水口・出水口・注意箇所など、この田んぼで変わらない場所の情報です
+        </p>
+      </div>
       {points.length > 0 ? (
-        <>
-          <SectionHeading level={3}>設備ポイント</SectionHeading>
-          <ul className="space-y-2">
-            {sortedPoints.map((point) => {
-                const meta = pointTypeView(point.type);
-                const status = POINT_STATUS_META[point.status];
-                const highlighted = point.id === highlightPointId;
-                return (
-                  <li key={point.id}>
-                    <Link
-                      href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                      className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
-                        highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
-                      }`}
-                    >
-                      {pointThumbs[point.id] ? (
-                        <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                          <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
-                        </span>
-                      ) : (
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
-                          {meta.icon}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                        <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
-                      </div>
-                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
-                        {status.label}
+        <ul className="space-y-2">
+          {sortedPoints.map((point) => {
+              const meta = pointTypeView(point.type);
+              const status = POINT_STATUS_META[point.status];
+              const highlighted = point.id === highlightPointId;
+              return (
+                <li key={point.id}>
+                  <Link
+                    href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
+                    className={`flex items-start gap-3 rounded-xl border bg-white p-3 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
+                      highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                    }`}
+                  >
+                    {pointThumbs[point.id] ? (
+                      <span className="mt-0.5 block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+                        <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
                       </span>
-                      <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
-        </>
+                    ) : (
+                      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+                        {meta.icon}
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                      </div>
+                      <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
+                      {point.memo && (
+                        <p className="mt-1 text-xs leading-relaxed text-gray-600">{point.memo}</p>
+                      )}
+                    </div>
+                    <span className={`mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+                      {status.label}
+                    </span>
+                    <IconChevronRight className="mt-1 h-4 w-4 shrink-0 text-gray-300" />
+                  </Link>
+                </li>
+              );
+            })}
+        </ul>
       ) : (
         <Link href="/map" className="block active:scale-98 transition-transform">
           <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
@@ -530,56 +540,56 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </p>
       </div>
 
-      {/* ── この田んぼの記録（変化する情報: 写真主体のタイムライン） ── */}
-      <SectionHeading trailing={<span className="text-xs font-semibold text-gray-400">{records.length}件</span>}>
-        この田んぼの記録
-      </SectionHeading>
+      {/* ── この田んぼの記録（変化する情報）。カテゴリごとに直近1件だけ見せ、
+          残りは「すべて見る」で同じ田んぼの中のまま展開する（別ページには出さない） ── */}
+      <div>
+        <SectionHeading trailing={<span className="text-xs font-semibold text-gray-400">{records.length}件</span>}>
+          この田んぼの記録
+        </SectionHeading>
+        <p className="-mt-1.5 mb-2 px-1 text-xs text-gray-400">
+          日々の写真・音声メモです。多い時ほど「すべて見る」で振り返ってください
+        </p>
+      </div>
       {records.length > 0 ? (
-        <>
-          <div className="space-y-3">
-            {records.slice(0, recordsShown).map((record) => {
-              const statusBadge = STATUS_BADGE[record.status];
-              return (
-                <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
-                  <Card className="overflow-hidden">
-                    <div className="relative h-40">
-                      <RecordThumb
-                        media={record.media}
-                        variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                        duration={record.audioDuration}
-                        thumbUrl={thumbUrls[record.id]}
-                        fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
-                        className="h-full w-full"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
-                      <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
-                        {record.category}
-                      </Badge>
-                      {statusBadge && (
-                        <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
-                          {statusBadge.label}
-                        </Badge>
-                      )}
-                    </div>
-                    <CardContent className="px-4 py-3">
-                      <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-          {recordsShown < records.length && (
-            <Button
-              variant="tertiary"
-              className="w-full"
-              onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
-            >
-              もっと見る（残り{records.length - recordsShown}件）
-            </Button>
-          )}
-        </>
+        <div className="space-y-5">
+          {categoryCounts.map(({ cat, count }) => {
+            const categoryRecords = records.filter((r) => r.category === cat);
+            const expanded = expandedCategories.has(cat);
+            const visible = expanded ? categoryRecords : categoryRecords.slice(0, 1);
+            return (
+              <div key={cat} className="space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-xs font-bold text-gray-600">{cat}<span className="ml-1 font-normal text-gray-400">{count}件</span></p>
+                  {count > 1 && (
+                    <button
+                      onClick={() =>
+                        setExpandedCategories((prev) => {
+                          const next = new Set(prev);
+                          if (expanded) next.delete(cat);
+                          else next.add(cat);
+                          return next;
+                        })
+                      }
+                      className="text-xs font-bold text-flow-green"
+                    >
+                      {expanded ? "折りたたむ" : `すべて見る（${count}件）`}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {visible.map((record) => (
+                    <RecordCard
+                      key={record.id}
+                      record={record}
+                      thumbUrl={thumbUrls[record.id]}
+                      fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-gray-500">まだ記録がありません</p>

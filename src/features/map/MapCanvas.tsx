@@ -509,6 +509,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
     pointType: FieldPointType;
     fieldId: string | null;
     photoFile: File | null;
+    memo: string;
   }) => {
     const lngLat = pendingPinLngLat;
     if (!lngLat) return;
@@ -522,6 +523,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
       status: "normal",
       lastRecord: "記録なし",
       lngLat,
+      memo: params.memo || null,
     };
 
     // 楽観的に新規ピンを選択表示
@@ -546,6 +548,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
       name: params.name,
       latitude: lngLat[1],
       longitude: lngLat[0],
+      memo: params.memo || undefined,
     });
     if (status === "saved" && id) {
       // 保存完了前にユーザーがローカルピンを削除していた場合はDBも取り消す
@@ -608,10 +611,16 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
   /** PointEditDialogの「保存」確定 */
   const handleEditPinSave = async (
     point: FieldPoint,
-    patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"] }
+    patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"]; memo: string }
   ) => {
     setEditingPoint(null);
-    const updated: FieldPoint = { ...point, name: patch.name, type: patch.pointType, status: patch.status };
+    const updated: FieldPoint = {
+      ...point,
+      name: patch.name,
+      type: patch.pointType,
+      status: patch.status,
+      memo: patch.memo || null,
+    };
 
     const applyLocally = () => {
       setMode((m) => (m.kind === "point" && m.point.id === point.id ? { kind: "point", point: updated } : m));
@@ -640,6 +649,7 @@ export default function MapCanvas({ onModeChange, hideControls, registerTrigger,
       name: patch.name,
       pointType: patch.pointType,
       status: patch.status,
+      memo: patch.memo || null,
     });
     if (result === "saved") {
       applyLocally();

@@ -53,8 +53,11 @@ test.describe("authenticated nav", () => {
     // Phase 1で作成したE2E検証専用グループの田んぼ。
     // 2026-08-09オーナー指摘: 場所詳細に他の田んぼへの切替チップがあると
     // 「この田んぼだけの詳細」になっておらず分かりにくいため廃止した。
+    // 2026-08-11オーナー指摘（UIUXブラッシュアップ）: 台帳は縦長の見出し付きカードから
+    // 名前・面積・状態が分かる1行のヘッダーに変わったため、常設の「設備ポイント」見出しで
+    // 台帳セクションの表示を確認する。
     await page.goto("/fields/264a9c76-5908-4001-a313-5d20447354d6");
-    await expect(page.getByRole("heading", { name: "この田んぼの台帳" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "設備ポイント" })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('a[aria-current="page"][href^="/fields/"]')).toHaveCount(0);
     await page.getByRole("link", { name: "マップで開く" }).first().click();
     await expect(page).toHaveURL(/\/map/);

@@ -19,7 +19,7 @@ const ALL_TYPES: FieldPointType[] = [
 
 type Props = {
   point: FieldPoint;
-  onSave: (patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"] }) => void;
+  onSave: (patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"]; memo: string }) => void;
   onDelete: () => void;
   onCancel: () => void;
   /** 台帳写真の追加・削除が成功した直後に呼ばれる（マップ側の他の表示を更新させる用途） */
@@ -30,6 +30,7 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
   const [name, setName] = useState(point.name);
   const [pointType, setPointType] = useState<FieldPointType>(point.type);
   const [status, setStatus] = useState<FieldPoint["status"]>(point.status);
+  const [memo, setMemo] = useState(point.memo ?? "");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -100,8 +101,29 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
             </div>
           </div>
 
+          {/* 一言メモ（変わらない情報）: 名前・種別だけでは伝わらない現場の勘所を残す */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">一言メモ</label>
+              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+            </div>
+            <p className="mt-0.5 text-xs text-gray-400">
+              後で他の人が見ても分かるよう、注意点やコツを残しておけます
+            </p>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="例: ゲートが重いので二人で開ける"
+              rows={2}
+              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+              maxLength={200}
+            />
+          </div>
+
           {/* 台帳写真（変わらない情報）。追加・削除は即時反映のため保存ボタンとは独立 */}
-          <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+          <div>
+            <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+          </div>
         </div>
 
         {confirmDelete ? (
@@ -137,7 +159,7 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
               キャンセル
             </button>
             <button
-              onClick={() => onSave({ name: name.trim() || point.name, pointType, status })}
+              onClick={() => onSave({ name: name.trim() || point.name, pointType, status, memo: memo.trim() })}
               className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
             >
               保存

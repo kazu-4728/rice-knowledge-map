@@ -10,6 +10,10 @@ export type MiniMapMarker = {
   lngLat: [number, number];
   /** ピン内に出す短い文字（写真の連番など）。省略時は点のみ */
   label?: string;
+  /** ピンの真上に出す白いラベル札（例:「入水口」）。指定時はドットの色もcolorに従う */
+  chipLabel?: string;
+  /** ドット・ラベル札の色（省略時は既定の緑） */
+  color?: string;
 };
 
 type Props = {
@@ -106,13 +110,30 @@ export function FieldMiniMap({
             "rounded-lg glass-light px-2 py-0.5 text-[11px] font-bold text-emerald-900 shadow-md pointer-events-none whitespace-nowrap";
           new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(center).addTo(map);
         }
-        // 写真ごとの撮影位置などの目印（小さな緑の丸ピン）
+        // 写真ごとの撮影位置・固定ポイントの目印（小さな丸ピン。種別ラベル付きの場合は上に白い札を添える）
         for (const marker of markers) {
-          const el = document.createElement("div");
-          el.textContent = marker.label ?? "";
-          el.className =
-            "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-[10px] font-bold text-white shadow pointer-events-none";
-          new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
+          const color = marker.color ?? "#059669";
+          if (marker.chipLabel) {
+            const wrap = document.createElement("div");
+            wrap.className = "flex flex-col items-center gap-0.5 pointer-events-none";
+            const chip = document.createElement("div");
+            chip.textContent = marker.chipLabel;
+            chip.className =
+              "rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-800 shadow whitespace-nowrap";
+            const dot = document.createElement("div");
+            dot.className = "h-3.5 w-3.5 rounded-full border-2 border-white shadow";
+            dot.style.backgroundColor = color;
+            wrap.appendChild(chip);
+            wrap.appendChild(dot);
+            new maplibre.Marker({ element: wrap, anchor: "bottom" }).setLngLat(marker.lngLat).addTo(map);
+          } else {
+            const el = document.createElement("div");
+            el.textContent = marker.label ?? "";
+            el.className =
+              "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow pointer-events-none";
+            el.style.backgroundColor = color;
+            new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
+          }
         }
         const bounds = coords.reduce(
           (b, c) => b.extend(c),
