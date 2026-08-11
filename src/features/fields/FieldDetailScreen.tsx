@@ -348,18 +348,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           className="h-full w-full object-cover animate-ken-burns-up"
           fallbackVariant="field"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h1 className="text-xl font-bold text-white drop-shadow">{field.name || "名前のない田んぼ"}</h1>
-          {field.areaSqm !== null && (
-            <button
-              onClick={cycleAreaUnit}
-              className="mt-0.5 border-b border-dotted border-white/50 text-sm text-white/80 active:opacity-70"
-            >
-              {formatArea(field.areaSqm)}
-            </button>
-          )}
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
 
         {/* 写真あり: 変更ボタン。写真なし: 追加の促し */}
         {field.groupId && field.photoUrl && (
