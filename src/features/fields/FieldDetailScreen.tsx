@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { loadPointMedia } from "../../lib/data/pointMedia";
+import { loadPointMedia, addPointPhoto } from "../../lib/data/pointMedia";
+import { saveFieldPoint } from "../../lib/data/farm";
 import PointPhotoSection from "../map/PointPhotoSection";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FieldMiniMap } from "../../components/map/FieldMiniMap";
@@ -27,6 +29,7 @@ import { shareFieldStory } from "../../lib/utils/share";
 import type { FieldPoint, FieldPointType, RecordItem } from "../../types";
 import { POINT_TYPE_META } from "../map/pointTypeMeta";
 import { PIN_COLORS, TYPE_LABELS } from "../map/mapPins";
+import type { GeoJSON } from "geojson";
 import {
   IconCamera,
   IconChevronRight,
@@ -34,8 +37,12 @@ import {
   IconFieldGrid,
   IconMic,
   IconPinFill,
+  IconPlus,
   IconShare,
 } from "../../components/ui/icons";
+
+/** 田んぼ詳細ページに常に並べる固定枠。登録されていなくても枠自体は表示する */
+const FIXED_SLOT_TYPES: FieldPointType[] = ["inlet", "outlet", "machine_entry"];
 
 /** ポイント種別の表示（ラベル・アイコンは mapPins.ts / pointTypeMeta.ts が元データ） */
 function pointTypeView(type: FieldPointType | string | undefined) {
@@ -273,6 +280,158 @@ function PointDetailSheet({
   );
 }
 
+/**
+ * 固定枠（入水口・出水口・機材搬入口）の登録シート。
+ * この田んぼのページ内から出ずに、埋め込みミニマップをタップして位置を指定し、
+ * 一言メモ・写真とあわせてその場で保存する（2026-08-11オーナー指摘:
+ * 「画面遷移せずに登録出来るようにすると言ったはず」への対応。/mapへは遷移しない）。
+ */
+function RegisterPointSheet({
+  pointType,
+  fieldId,
+  boundary,
+  onClose,
+  onSaved,
+}: {
+  pointType: FieldPointType;
+  fieldId: string;
+  boundary: GeoJSON.Polygon | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const meta = pointTypeView(pointType);
+  const label = TYPE_LABELS[pointType];
+  const [lngLat, setLngLat] = useState<[number, number] | null>(null);
+  const [memo, setMemo] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSave = async () => {
+    if (!lngLat) return;
+    setSaving(true);
+    const { status, id } = await saveFieldPoint({
+      fieldId,
+      pointType,
+      name: label,
+      latitude: lngLat[1],
+      longitude: lngLat[0],
+      memo: memo.trim() || undefined,
+    });
+    if (status === "saved" && id && photoFile) {
+      await addPointPhoto(id, photoFile);
+    }
+    setSaving(false);
+    if (status === "saved" || status === "demo") onSaved();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-label={`${label}を登録`}
+    >
+      <div
+        className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        <div className="flex items-center gap-2.5">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+            {meta.icon}
+          </span>
+          <h2 className="text-base font-bold text-gray-900">{label}を登録</h2>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-600">位置</label>
+            <FieldMiniMap
+              href={`/map?field=${encodeURIComponent(fieldId)}`}
+              boundary={boundary}
+              pickable
+              onPick={setLngLat}
+              markers={lngLat ? [{ lngLat, chipLabel: `ここに${label}`, color: PIN_COLORS[pointType] }] : []}
+              className="mt-1 h-44 w-full rounded-xl"
+            />
+            {!lngLat && <p className="mt-1 text-xs text-gray-400">地図をタップして位置を指定してください</p>}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">一言メモ（任意）</label>
+              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+            </div>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="例: ゲートが重いので二人で開ける"
+              rows={2}
+              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600">写真（任意）</label>
+            {photoFile ? (
+              <div className="relative mt-1 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
+                <img src={URL.createObjectURL(photoFile)} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoFile(null)}
+                  aria-label="写真の添付を取り消す"
+                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <IconClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                <IconCamera className="h-4.5 w-4.5 text-green-700" />
+                写真を付ける（撮影・写真アプリから選択）
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setPhotoFile(f);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-600"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!lngLat || saving}
+            className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800 disabled:opacity-40"
+          >
+            {saving ? "保存中…" : "登録する"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Props = { fieldId: string };
 
 /**
@@ -295,6 +454,8 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [expandedCategories, setExpandedCategories] = useState<Set<RecordItem["category"]>>(new Set());
   /** タップ中の固定ポイント（詳細シートを開く。マップからの?point=遷移でも自動で開く） */
   const [openPoint, setOpenPoint] = useState<FieldPoint | null>(null);
+  /** 登録中の固定枠の種別（入水口/出水口/機材搬入口のいずれか。登録シートを開く） */
+  const [registeringType, setRegisteringType] = useState<FieldPointType | null>(null);
 
   const {
     loading,
@@ -312,6 +473,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
+    reloadPoints,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -508,93 +670,170 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </p>
       </div>
 
-      {/* 地図（設備ポイントには種別ラベルを直接添え、開かずに位置が分かるようにする）。
-          2026-08-11オーナー指摘: 128px thumbnailではラベルが小さすぎて「常に表示される」
-          実感が無かったため、入水口・出水口・機材入口を判読できる高さに広げた */}
+      {/* 地図（場所確認用の小さな脇役。詳細な位置と名前は下の一覧側で見せる） */}
       <FieldMiniMap
         href={`/map?field=${encodeURIComponent(fieldId)}`}
         boundary={field.boundary}
         points={points.map((p) => p.lngLat)}
-        markers={points.map((p) => ({
-          lngLat: p.lngLat,
-          chipLabel: p.name || TYPE_LABELS[p.type],
-          color: PIN_COLORS[p.type],
-        }))}
+        markers={points.map((p) => ({ lngLat: p.lngLat, color: PIN_COLORS[p.type] }))}
         label={field.name || "名前のない田んぼ"}
-        className="h-56 w-full rounded-2xl shadow-sm"
+        className="h-28 w-full rounded-2xl shadow-sm"
         ariaLabel="マップで開く"
       />
 
-      {/* 設備ポイント（入水口・出水口・機材入口など）。写真を主役にしたカードで、
-          タップするとこの田んぼのページ内のまま詳細シートが開く（地図へは飛ばない）。
-          2026-08-11オーナー指摘: 32pxアイコンの行では「固定カード」の実感が無く、
-          地図へ移動するだけだったため、写真主体の大きなカード+タップで詳細に改めた */}
+      {/* 固定枠（入水口・出水口・機材搬入口）。2026-08-11オーナー指摘:
+          「追加されていようがいまいが、固定情報一覧は並んでいなければならない」に対応し、
+          登録の有無に関わらずこの3枠を常に表示する。未登録の枠はタップで
+          このページ内から出ずに登録できる（/mapへは遷移しない） */}
       <div className="space-y-1">
         <SectionHeading level={3}>設備ポイント</SectionHeading>
         <p className="px-1 text-xs text-gray-400">
-          入水口・出水口・注意箇所など、この田んぼで変わらない場所の情報です
+          入水口・出水口・機材搬入口は、登録の有無に関わらずここに並びます
         </p>
       </div>
-      {points.length > 0 ? (
-        <ul className="space-y-3">
-          {sortedPoints.map((point) => {
-              const meta = pointTypeView(point.type);
-              const status = POINT_STATUS_META[point.status];
-              const highlighted = point.id === highlightPointId;
-              const thumb = pointThumbs[point.id];
-              return (
-                <li key={point.id}>
-                  <button
-                    type="button"
-                    onClick={() => setOpenPoint(point)}
-                    className={`block w-full overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all active:scale-98 ${
-                      highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
-                    }`}
-                  >
-                    <div className="relative h-36">
+      <ul className="space-y-2">
+        {FIXED_SLOT_TYPES.map((slotType) => {
+          const slotMeta = pointTypeView(slotType);
+          const slotPoints = points.filter((p) => p.type === slotType);
+
+          if (slotPoints.length === 0) {
+            return (
+              <li key={slotType}>
+                <button
+                  type="button"
+                  onClick={() => setRegisteringType(slotType)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-white/70 p-3 text-left transition-colors hover:bg-white active:scale-98"
+                >
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${slotMeta.color}`}>
+                    {slotMeta.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-600">{TYPE_LABELS[slotType]}</p>
+                    <p className="text-xs text-gray-400">まだ登録されていません</p>
+                  </div>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flow-green text-white">
+                    <IconPlus className="h-4 w-4" />
+                  </span>
+                </button>
+              </li>
+            );
+          }
+
+          return slotPoints.map((point) => {
+            const meta = pointTypeView(point.type);
+            const status = POINT_STATUS_META[point.status];
+            const highlighted = point.id === highlightPointId;
+            const thumb = pointThumbs[point.id];
+            return (
+              <li key={point.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPoint(point)}
+                  className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
+                    highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                  }`}
+                >
+                  {thumb ? (
+                    <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                      <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
+                    </span>
+                  ) : (
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+                      {meta.icon}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                    <p className="line-clamp-1 text-xs text-gray-500">
+                      {point.memo || `${meta.label}・${point.lastRecord}`}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+                    {status.label}
+                  </span>
+                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                </button>
+              </li>
+            );
+          });
+        })}
+      </ul>
+
+      {/* その他のポイント（水路・注意箇所・雑草など、自由に追加できるもの） */}
+      {(() => {
+        const otherPoints = sortedPoints.filter((p) => !FIXED_SLOT_TYPES.includes(p.type));
+        if (otherPoints.length === 0) return null;
+        return (
+          <div className="space-y-2">
+            <p className="px-1 text-xs font-bold text-gray-500">その他のポイント</p>
+            <ul className="space-y-2">
+              {otherPoints.map((point) => {
+                const meta = pointTypeView(point.type);
+                const status = POINT_STATUS_META[point.status];
+                const highlighted = point.id === highlightPointId;
+                const thumb = pointThumbs[point.id];
+                return (
+                  <li key={point.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenPoint(point)}
+                      className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
+                        highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                      }`}
+                    >
                       {thumb ? (
-                        <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
+                        <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                          <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
+                        </span>
                       ) : (
-                        <div className={`flex h-full w-full items-center justify-center ${meta.color}`}>
-                          <span className="scale-[2]">{meta.icon}</span>
-                        </div>
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+                          {meta.icon}
+                        </span>
                       )}
-                      <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/55 to-transparent" />
-                      <span className="absolute left-2.5 top-2.5 rounded-md bg-white/95 px-2 py-0.5 text-xs font-bold text-gray-800 shadow">
-                        {meta.label}
-                      </span>
-                      <span className={`absolute right-2.5 top-2.5 rounded-md px-2 py-0.5 text-xs font-bold shadow ${status.cls}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                        <p className="line-clamp-1 text-xs text-gray-500">
+                          {point.memo || `${meta.label}・${point.lastRecord}`}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
                         {status.label}
                       </span>
-                      <p className="absolute bottom-2 left-3 right-3 truncate text-sm font-bold text-white drop-shadow">
-                        {point.name || meta.label}
-                      </p>
-                    </div>
-                    {point.memo && (
-                      <p className="px-3.5 py-2.5 text-xs leading-relaxed text-gray-600">{point.memo}</p>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-        </ul>
-      ) : (
-        <Link href="/map" className="block active:scale-98 transition-transform">
-          <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-              <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-              <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-            </div>
-            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-          </Card>
-        </Link>
-      )}
+                      <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
+      <Link href="/map" className="block active:scale-98 transition-transform">
+        <Card accent="monitoring" className="flex items-center gap-3 p-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+          </span>
+          <p className="min-w-0 flex-1 text-sm font-bold text-gray-700">その他のポイントを地図から追加</p>
+          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        </Card>
+      </Link>
 
       {openPoint && (
         <PointDetailSheet point={openPoint} fieldId={fieldId} onClose={() => setOpenPoint(null)} />
+      )}
+
+      {registeringType && (
+        <RegisterPointSheet
+          pointType={registeringType}
+          fieldId={fieldId}
+          boundary={field.boundary}
+          onClose={() => setRegisteringType(null)}
+          onSaved={() => {
+            setRegisteringType(null);
+            showToast(`${TYPE_LABELS[registeringType]}を登録しました`);
+            reloadPoints();
+          }}
+        />
       )}
 
       {/* ── 記録アクション ── */}

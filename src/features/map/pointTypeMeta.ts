@@ -5,6 +5,7 @@ import {
   IconDropFill,
   IconPinFill,
   IconSprout,
+  IconTractor,
   IconWarningFill,
   IconWaves,
 } from "../../components/ui/icons";
@@ -26,6 +27,7 @@ export type PointTypeMeta = {
 const ICONS: Record<FieldPointType, { Icon: IconComponent; color: string; bg: string }> = {
   inlet: { Icon: IconDropFill, color: "text-sky-500", bg: "bg-sky-50" },
   outlet: { Icon: IconWaves, color: "text-blue-500", bg: "bg-blue-50" },
+  machine_entry: { Icon: IconTractor, color: "text-stone-600", bg: "bg-stone-100" },
   canal: { Icon: IconWaves, color: "text-cyan-500", bg: "bg-cyan-50" },
   weed: { Icon: IconSprout, color: "text-green-600", bg: "bg-green-50" },
   caution: { Icon: IconWarningFill, color: "text-amber-500", bg: "bg-amber-50" },

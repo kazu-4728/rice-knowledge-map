@@ -9,6 +9,7 @@ import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 const ALL_TYPES: FieldPointType[] = [
   "inlet",
   "outlet",
+  "machine_entry",
   "canal",
   "caution",
   "weed",

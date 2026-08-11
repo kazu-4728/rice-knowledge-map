@@ -9,6 +9,7 @@ import { IconCamera, IconClose } from "../../components/ui/icons";
 const ADD_TYPES: FieldPointType[] = [
   "inlet",
   "outlet",
+  "machine_entry",
   "canal",
   "caution",
   "weed",

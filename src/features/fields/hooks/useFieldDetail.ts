@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoJSON } from "geojson";
 import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } from "../../../lib/data/farm";
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
@@ -57,6 +57,8 @@ export type FieldDetail = {
   coverImageUrl: string | undefined;
   /** オーナー設定の差し替え画像（記録サムネの実写フォールバック解決に使う） */
   imageSlots: ImageSlots;
+  /** 固定ポイントをこの田んぼのページ内で登録・編集した直後にpoints一覧だけ再取得する */
+  reloadPoints: () => Promise<void>;
 };
 
 /**
@@ -123,6 +125,12 @@ export function useFieldDetail(fieldId: string): FieldDetail {
       setThumbUrls(rec.thumbUrls);
       setLoading(false);
     });
+  }, [fieldId]);
+
+  /** 固定ポイントをこの田んぼのページ内で登録・編集した直後に、points一覧だけ再取得する */
+  const reloadPoints = useCallback(async () => {
+    const farm = await loadFarmData();
+    setPoints(farm.points.filter((p) => p.fieldId === fieldId));
   }, [fieldId]);
 
   const handlePhotoSelect = async (file: File) => {
@@ -203,5 +211,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
+    reloadPoints,
   };
 }

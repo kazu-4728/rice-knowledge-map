@@ -14,6 +14,7 @@ export type Field = {
 export type FieldPointType =
   | "inlet"         // 入水口
   | "outlet"        // 出水口
+  | "machine_entry" // 機材搬入口
   | "canal"         // 水路
   | "caution"       // 注意箇所
   | "weed"          // 雑草箇所

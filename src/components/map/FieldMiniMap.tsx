@@ -29,6 +29,12 @@ type Props = {
   label?: string;
   className?: string;
   ariaLabel?: string;
+  /**
+   * true時はLinkでのマップ画面遷移を無効化し、タップした地点をonPickへ通知する
+   * （固定ポイントの登録を、この田んぼのページ内から出ずに行うための位置指定モード）。
+   */
+  pickable?: boolean;
+  onPick?: (lngLat: [number, number]) => void;
 };
 
 /**
@@ -44,9 +50,11 @@ export function FieldMiniMap({
   label,
   className = "",
   ariaLabel = "マップで見る",
+  pickable = false,
+  onPick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const depKey = JSON.stringify({ boundary, points, markers, label });
+  const depKey = JSON.stringify({ boundary, points, markers, label, pickable });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -85,9 +93,15 @@ export function FieldMiniMap({
         },
         center,
         zoom: 16,
+        // interactive:falseでもmap.on('click')は発火するため、パン/ズームは常に無効化したまま
+        // タップ位置の取得だけ許可できる（小さい地図で誤操作しにくい）
         interactive: false,
         attributionControl: false,
       });
+
+      if (pickable && onPick) {
+        map.on("click", (e) => onPick([e.lngLat.lng, e.lngLat.lat]));
+      }
 
       // レイアウト確定前にcanvasが初期化されるとぼやけたまま残るため、
       // コンテナのサイズ変化に追従してresizeする（本体マップと同じ多重防御）
@@ -153,6 +167,19 @@ export function FieldMiniMap({
   }, [depKey]);
 
   if (!boundary && points.length === 0 && markers.length === 0) return null;
+
+  if (pickable) {
+    return (
+      <div className={`relative overflow-hidden bg-gray-200 ${className}`}>
+        <div ref={containerRef} className="h-full w-full" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2">
+          <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white">
+            タップして位置を指定
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link href={href} aria-label={ariaLabel} className={`relative block overflow-hidden bg-gray-200 ${className}`}>
