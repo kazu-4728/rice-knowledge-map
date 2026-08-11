@@ -115,13 +115,13 @@ export function FieldMiniMap({
           const color = marker.color ?? "#059669";
           if (marker.chipLabel) {
             const wrap = document.createElement("div");
-            wrap.className = "flex flex-col items-center gap-0.5 pointer-events-none";
+            wrap.className = "flex flex-col items-center gap-1 pointer-events-none";
             const chip = document.createElement("div");
             chip.textContent = marker.chipLabel;
             chip.className =
-              "rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-800 shadow whitespace-nowrap";
+              "rounded-md bg-white px-2 py-1 text-xs font-bold text-gray-800 shadow-md whitespace-nowrap";
             const dot = document.createElement("div");
-            dot.className = "h-3.5 w-3.5 rounded-full border-2 border-white shadow";
+            dot.className = "h-4 w-4 rounded-full border-2 border-white shadow";
             dot.style.backgroundColor = color;
             wrap.appendChild(chip);
             wrap.appendChild(dot);

@@ -119,65 +119,66 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
             </div>
           )}
 
-          {/* 一言メモ（任意）: 名前・種別だけでは伝わらない現場の勘所を残す */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-600">一言メモ（任意）</label>
-              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-400">
-              後で他の人が見ても分かるよう、注意点やコツを残しておけます
+          {/* 変わらない情報（一言メモ・写真）: 名前・種別だけでは伝わらない現場の勘所を
+              このピンに残す。田んぼ詳細からも見えることが分かるよう1つの区画にまとめる */}
+          <div className="rounded-xl border border-green-700/20 bg-green-50/60 p-3">
+            <p className="text-xs font-bold text-green-800">この地点の変わらない情報（任意）</p>
+            <p className="mt-0.5 text-xs text-green-800/70">
+              田んぼ詳細ページにも表示され、次に見る人がすぐ分かるようになります
             </p>
-            <textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="例: ゲートが重いので二人で開ける"
-              rows={2}
-              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
-              maxLength={200}
-            />
-          </div>
 
-          {/* 設備の写真（任意）: 入水口の様子など変わらない情報をピン自体に残す */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600">設備の写真（任意）</label>
-            <p className="mt-0.5 text-xs text-gray-400">
-              実際の見た目を残しておくと、ピンの位置だけでは伝わらない詳細が分かります
-            </p>
-            {photoPreview ? (
-              <div className="relative mt-1 inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
-                <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-600">一言メモ</label>
+                <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+              </div>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="例: ゲートが重いので二人で開ける"
+                rows={2}
+                className="mt-1 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+                maxLength={200}
+              />
+            </div>
+
+            <div className="mt-2.5">
+              <label className="text-xs font-semibold text-gray-600">設備の写真</label>
+              {photoPreview ? (
+                <div className="relative mt-1 inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
+                  <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoFile(null)}
+                    aria-label="写真の添付を取り消す"
+                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    <IconClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setPhotoFile(null)}
-                  aria-label="写真の添付を取り消す"
-                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  <IconClose className="h-3.5 w-3.5" />
+                  <IconCamera className="h-4.5 w-4.5 text-green-700" />
+                  写真を付ける
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-              >
-                <IconCamera className="h-4.5 w-4.5 text-green-700" />
-                写真を付ける
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) setPhotoFile(f);
-                e.currentTarget.value = "";
-              }}
-            />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setPhotoFile(f);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </div>
           </div>
         </div>
 

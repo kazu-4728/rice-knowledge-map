@@ -424,7 +424,9 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         {lastRecord && <span> ・ 最終記録 {lastRecordLabel}</span>}
       </p>
 
-      {/* 小さな地図（場所確認用。設備ポイントには種別ラベルを直接添え、開かずに位置が分かるようにする） */}
+      {/* 地図（設備ポイントには種別ラベルを直接添え、開かずに位置が分かるようにする）。
+          2026-08-11オーナー指摘: 128px thumbnailではラベルが小さすぎて「常に表示される」
+          実感が無かったため、入水口・出水口・機材入口を判読できる高さに広げた */}
       <FieldMiniMap
         href={`/map?field=${encodeURIComponent(fieldId)}`}
         boundary={field.boundary}
@@ -435,7 +437,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           color: PIN_COLORS[p.type],
         }))}
         label={field.name || "名前のない田んぼ"}
-        className="h-32 w-full rounded-2xl shadow-sm"
+        className="h-56 w-full rounded-2xl shadow-sm"
         ariaLabel="マップで開く"
       />
 

@@ -101,28 +101,33 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
             </div>
           </div>
 
-          {/* 一言メモ（変わらない情報）: 名前・種別だけでは伝わらない現場の勘所を残す */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-600">一言メモ</label>
-              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-400">
-              後で他の人が見ても分かるよう、注意点やコツを残しておけます
+          {/* 変わらない情報（一言メモ・台帳写真）: 名前・種別だけでは伝わらない現場の勘所。
+              田んぼ詳細ページにも表示されるものだと分かるよう1つの区画にまとめる */}
+          <div className="rounded-xl border border-green-700/20 bg-green-50/60 p-3">
+            <p className="text-xs font-bold text-green-800">この地点の変わらない情報</p>
+            <p className="mt-0.5 text-xs text-green-800/70">
+              田んぼ詳細ページにも表示され、次に見る人がすぐ分かるようになります
             </p>
-            <textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="例: ゲートが重いので二人で開ける"
-              rows={2}
-              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
-              maxLength={200}
-            />
-          </div>
 
-          {/* 台帳写真（変わらない情報）。追加・削除は即時反映のため保存ボタンとは独立 */}
-          <div>
-            <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-600">一言メモ</label>
+                <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+              </div>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="例: ゲートが重いので二人で開ける"
+                rows={2}
+                className="mt-1 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+                maxLength={200}
+              />
+            </div>
+
+            {/* 台帳写真。追加・削除は即時反映のため保存ボタンとは独立 */}
+            <div className="mt-2.5">
+              <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+            </div>
           </div>
         </div>
 
