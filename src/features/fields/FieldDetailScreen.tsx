@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { loadPointMedia } from "../../lib/data/pointMedia";
+import { loadPointMedia, addPointPhoto } from "../../lib/data/pointMedia";
+import { saveFieldPoint } from "../../lib/data/farm";
+import PointPhotoSection from "../map/PointPhotoSection";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FieldMiniMap } from "../../components/map/FieldMiniMap";
@@ -17,22 +20,29 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import PhotoCompareSlider from "../../components/ui/PhotoCompareSlider";
-import { CATEGORY_BADGE, CATEGORY_THEME } from "../../components/ui/categoryStyles";
+import { CATEGORY_BADGE } from "../../components/ui/categoryStyles";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
 import { useAuth } from "../auth/useAuth";
 import { shareFieldStory } from "../../lib/utils/share";
-import type { FieldPoint, FieldPointType } from "../../types";
+import type { FieldPoint, FieldPointType, RecordItem } from "../../types";
 import { POINT_TYPE_META } from "../map/pointTypeMeta";
+import { PIN_COLORS, TYPE_LABELS } from "../map/mapPins";
+import type { GeoJSON } from "geojson";
 import {
   IconCamera,
   IconChevronRight,
+  IconClose,
   IconFieldGrid,
   IconMic,
   IconPinFill,
+  IconPlus,
   IconShare,
 } from "../../components/ui/icons";
+
+/** 田んぼ詳細ページに常に並べる固定枠。登録されていなくても枠自体は表示する */
+const FIXED_SLOT_TYPES: FieldPointType[] = ["inlet", "outlet", "machine_entry"];
 
 /** ポイント種別の表示（ラベル・アイコンは mapPins.ts / pointTypeMeta.ts が元データ） */
 function pointTypeView(type: FieldPointType | string | undefined) {
@@ -43,6 +53,55 @@ function pointTypeView(type: FieldPointType | string | undefined) {
     color: meta.bg,
   };
 }
+
+/** カテゴリ別要約セクションで使う1件分のカード（要約表示・展開後表示の両方で共通利用） */
+function RecordCard({
+  record,
+  thumbUrl,
+  fallbackUrl,
+}: {
+  record: RecordItem;
+  thumbUrl: string | undefined;
+  fallbackUrl: string | undefined;
+}) {
+  const statusBadge = STATUS_BADGE[record.status];
+  return (
+    <Link href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
+      <Card className="overflow-hidden">
+        <div className="relative h-40">
+          <RecordThumb
+            media={record.media}
+            variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
+            duration={record.audioDuration}
+            thumbUrl={thumbUrl}
+            fallbackUrl={fallbackUrl}
+            className="h-full w-full"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+          <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
+            {record.category}
+          </Badge>
+          {statusBadge && (
+            <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
+              {statusBadge.label}
+            </Badge>
+          )}
+        </div>
+        <CardContent className="px-4 py-3">
+          <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+/**
+ * カテゴリ内「すべて見る」で一度に描画する件数。
+ * 記録数が数百〜数千件になる田んぼでも、展開時に一括で全件描画してモバイルが固まらないよう
+ * 段階的に読み込む（レビュー指摘: 2026-08-12）
+ */
+const RECORDS_PAGE_SIZE = 20;
 
 /** ピンの状態バッジ */
 const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: string }> = {
@@ -57,9 +116,6 @@ const STATUS_BADGE: Partial<Record<string, { label: string; cls: string }>> = {
   open: { label: "未対応", cls: "border-transparent bg-red-600 text-white" },
   needs_check: { label: "要確認", cls: "border-transparent bg-amber-500 text-white" },
 };
-
-/** 記録一覧で一度に描画する件数（大量の写真付きカードを一括描画しないための上限） */
-const RECORDS_PAGE_SIZE = 20;
 
 /**
  * 定点観測タイムマシン（田んぼOS レイヤー5）の1グループ分。
@@ -160,6 +216,304 @@ function ObservationGroup({
   );
 }
 
+/**
+ * 固定ポイント（入水口・出水口・機材入口など）の詳細シート。
+ * カードをタップした場でこの田んぼのページ内のまま写真・一言メモ・状態を見せる
+ * （2026-08-11オーナー指摘: タップで画像や詳細が見えるイメージだったのに、
+ * 一覧の行から地図へ飛ぶだけになっていた）。
+ */
+function PointDetailSheet({
+  point,
+  onClose,
+  fieldId,
+}: {
+  point: FieldPoint;
+  onClose: () => void;
+  fieldId: string;
+}) {
+  const meta = pointTypeView(point.type);
+  const status = POINT_STATUS_META[point.status];
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-label={`${point.name || meta.label}の詳細`}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        <div className="flex items-start gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+            {meta.icon}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-gray-900">{point.name || meta.label}</p>
+            <p className="text-xs text-gray-400">{meta.label}・最終記録 {point.lastRecord}</p>
+          </div>
+          <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+            {status.label}
+          </span>
+          <button
+            onClick={onClose}
+            aria-label="閉じる"
+            className="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <IconClose className="h-4.5 w-4.5" />
+          </button>
+        </div>
+
+        {point.memo && (
+          <p className="mt-4 rounded-xl bg-gray-50 px-3.5 py-3 text-sm leading-relaxed text-gray-700">
+            {point.memo}
+          </p>
+        )}
+
+        <div className="mt-4">
+          <PointPhotoSection pointId={point.id} />
+        </div>
+
+        <Link
+          href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
+          className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          地図で見る・編集する
+          <IconChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 固定枠（入水口・出水口・機材搬入口）の登録シート。
+ * この田んぼのページ内から出ずに、埋め込みミニマップをタップして位置を指定し、
+ * 一言メモ・写真とあわせてその場で保存する（2026-08-11オーナー指摘:
+ * 「画面遷移せずに登録出来るようにすると言ったはず」への対応。/mapへは遷移しない）。
+ */
+function RegisterPointSheet({
+  pointType,
+  fieldId,
+  boundary,
+  onClose,
+  onSaved,
+}: {
+  pointType: FieldPointType;
+  fieldId: string;
+  boundary: GeoJSON.Polygon | null;
+  onClose: () => void;
+  /**
+   * 保存成功時に呼ばれる。point はこの田んぼのpoints一覧へそのまま追加できる形。
+   * note.type: "success" は問題なく完了したことが伝わる文言（デモ環境で写真が保存されない場合など、
+   * 失敗ではないケースに使う）、"error" は実際に写真の保存に失敗した場合に使う。
+   */
+  onSaved: (point: FieldPoint, note: { message: string; type: "success" | "error" }) => void;
+}) {
+  const meta = pointTypeView(pointType);
+  const label = TYPE_LABELS[pointType];
+  const [lngLat, setLngLat] = useState<[number, number] | null>(null);
+  const [memo, setMemo] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // プレビュー用のObject URLはファイル差し替え・アンマウント時に必ず解放する
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
+  const handleSave = async () => {
+    if (!lngLat) return;
+    setSaving(true);
+    setError(null);
+    const { status, id } = await saveFieldPoint({
+      fieldId,
+      pointType,
+      name: label,
+      latitude: lngLat[1],
+      longitude: lngLat[0],
+      memo: memo.trim() || undefined,
+    });
+
+    if (status === "error") {
+      setSaving(false);
+      setError("保存に失敗しました。権限または通信環境を確認してもう一度お試しください");
+      return;
+    }
+
+    if (status === "demo") {
+      // Supabase未設定のデモ環境ではDBに保存されないため、ローカルにだけ反映する
+      // （2026-08-12レビュー指摘: 保存後にサーバーへ再取得すると、静的なダミーデータに
+      //   戻って登録した枠が消えて見えていた）。
+      // 写真が保存されないのは仕様上の既定動作であり失敗ではないため、MapCanvas.tsxの
+      // デモ保存時と同じトーンで「問題ない」ことが伝わる案内にする（オーナー指摘: 2026-08-12
+      // 「失敗した」という表示はユーザーを不安にさせる）。
+      const localPoint: FieldPoint = {
+        id: `local-${crypto.randomUUID()}`,
+        fieldId,
+        name: label,
+        type: pointType,
+        status: "normal",
+        lastRecord: "記録なし",
+        lngLat,
+        memo: memo.trim() || null,
+      };
+      setSaving(false);
+      onSaved(localPoint, {
+        message: photoFile
+          ? `${label}をローカルに登録しました（デモ環境のため写真は保存されません。ログインすると保存できます）`
+          : `${label}をローカルに登録しました（ログインすると共有されます）`,
+        type: "success",
+      });
+      return;
+    }
+
+    // status === "saved"
+    let photoFailed = false;
+    if (id && photoFile) {
+      const photoResult = await addPointPhoto(id, photoFile);
+      photoFailed = photoResult !== "saved";
+    }
+    const dbPoint: FieldPoint = {
+      id: id ?? `local-${crypto.randomUUID()}`,
+      fieldId,
+      name: label,
+      type: pointType,
+      status: "normal",
+      lastRecord: "記録なし",
+      lngLat,
+      memo: memo.trim() || null,
+    };
+    setSaving(false);
+    onSaved(
+      dbPoint,
+      photoFailed
+        ? { message: "地点は登録しましたが、写真の保存に失敗しました", type: "error" }
+        : { message: `${label}を登録しました`, type: "success" }
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-label={`${label}を登録`}
+    >
+      <div
+        className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        <div className="flex items-center gap-2.5">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+            {meta.icon}
+          </span>
+          <h2 className="text-base font-bold text-gray-900">{label}を登録</h2>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-600">位置</label>
+            <FieldMiniMap
+              href={`/map?field=${encodeURIComponent(fieldId)}`}
+              boundary={boundary}
+              pickable
+              onPick={setLngLat}
+              markers={lngLat ? [{ lngLat, chipLabel: `ここに${label}`, color: PIN_COLORS[pointType] }] : []}
+              className="mt-1 h-44 w-full rounded-xl"
+            />
+            {!lngLat && <p className="mt-1 text-xs text-gray-400">地図をタップして位置を指定してください</p>}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600">一言メモ（任意）</label>
+              <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+            </div>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="例: ゲートが重いので二人で開ける"
+              rows={2}
+              className="mt-1 w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600">写真（任意）</label>
+            {photoPreview ? (
+              <div className="relative mt-1 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
+                <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoFile(null)}
+                  aria-label="写真の添付を取り消す"
+                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <IconClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                <IconCamera className="h-4.5 w-4.5 text-green-700" />
+                写真を付ける（撮影・写真アプリから選択）
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setPhotoFile(f);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">{error}</p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-semibold text-gray-600"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!lngLat || saving}
+            className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800 disabled:opacity-40"
+          >
+            {saving ? "保存中…" : "登録する"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Props = { fieldId: string };
 
 /**
@@ -168,6 +522,9 @@ type Props = { fieldId: string };
  * 分かりにくくするため廃止し、上から
  * 「カバー写真 → この田んぼの台帳（変わらない情報） → 記録アクション →
  *    この田んぼの記録（変化する情報） → 定点観測」の縦一列構成にする。
+ * 2026-08-11オーナー指摘（UIUXブラッシュアップ）: 台帳は名前・色・状態が分かる1行に圧縮し、
+ * 記録はカテゴリごとの要約+「すべて見る」にする。台帳・記録どちらもこのページの外には出さず、
+ * 他の田んぼの情報と混同しないことを最優先にする。
  */
 export default function FieldDetailScreen({ fieldId }: Props) {
   const { showToast } = useToast();
@@ -175,7 +532,15 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [recordsShown, setRecordsShown] = useState(RECORDS_PAGE_SIZE);
+  /**
+   * カテゴリ別要約セクションで表示中の件数（カテゴリ名→件数。未展開は1件）。
+   * 「すべて見る」を押しても全件は一度に描画せず、RECORDS_PAGE_SIZE件ずつ段階的に増やす
+   */
+  const [visibleRecordCounts, setVisibleRecordCounts] = useState<Record<string, number>>({});
+  /** タップ中の固定ポイント（詳細シートを開く。マップからの?point=遷移でも自動で開く） */
+  const [openPoint, setOpenPoint] = useState<FieldPoint | null>(null);
+  /** 登録中の固定枠の種別（入水口/出水口/機材搬入口のいずれか。登録シートを開く） */
+  const [registeringType, setRegisteringType] = useState<FieldPointType | null>(null);
 
   const {
     loading,
@@ -193,6 +558,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
+    addPoint,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -225,6 +591,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       cancelled = true;
     };
   }, [points]);
+
+  // マップの「田んぼの詳細」から?point=付きで来た場合、その地点の詳細シートを自動で開く
+  useEffect(() => {
+    if (!highlightPointId) return;
+    const target = points.find((p) => p.id === highlightPointId);
+    if (target) setOpenPoint(target);
+  }, [highlightPointId, points]);
 
   const [areaUnit, cycleAreaUnit] = useAreaUnit();
   const formatArea = (sqm: number | null) => {
@@ -295,7 +668,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   };
 
   return (
-    <div className="min-h-full space-y-3 bg-flow-cream px-3 pb-6 pt-3">
+    <div className="min-h-full space-y-5 bg-flow-cream px-3 pb-6 pt-3">
       {/* カバー写真 */}
       <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
         <RemotePhoto
@@ -304,18 +677,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           className="h-full w-full object-cover animate-ken-burns-up"
           fallbackVariant="field"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h1 className="text-xl font-bold text-white drop-shadow">{field.name || "名前のない田んぼ"}</h1>
-          {field.areaSqm !== null && (
-            <button
-              onClick={cycleAreaUnit}
-              className="mt-0.5 border-b border-dotted border-white/50 text-sm text-white/80 active:opacity-70"
-            >
-              {formatArea(field.areaSqm)}
-            </button>
-          )}
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
 
         {/* 写真あり: 変更ボタン。写真なし: 追加の促し */}
         {field.groupId && field.photoUrl && (
@@ -349,158 +711,214 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         />
       </div>
 
-      {/* ── この田んぼの台帳（変わらない情報: 状態・統計・場所・設備ポイント） ── */}
-      <SectionHeading
-        trailing={
-          <Link
-            href={`/map?field=${encodeURIComponent(fieldId)}`}
-            className="flex items-center gap-0.5 text-xs font-bold text-flow-green"
-          >
-            マップで開く
-            <IconChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        }
-      >
-        この田んぼの台帳
-      </SectionHeading>
-
-      <section className="rounded-3xl bg-flow-green p-4 text-white shadow-[0_16px_40px_-16px_rgba(6,78,59,0.5)]">
-        <div className="flex items-start gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-            <IconPinFill className="h-6 w-6 text-white/90" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="font-heading text-lg font-bold">{field.name || "名前のない田んぼ"}</p>
-              {points.length > 0 && (
-                <StatusBadge
-                  dark
-                  status={overallStatus}
-                  label={
-                    overallStatus === "normal"
-                      ? "順調"
-                      : overallStatus === "issue"
-                        ? `要対応 ${attentionCount}件`
-                        : `要確認 ${attentionCount}件`
-                  }
-                />
-              )}
-            </div>
-            <p className="mt-0.5 text-sm text-white/85">
-              {hasAttention
-                ? "下の「この田んぼの記録」、または「設備ポイント」で確認してください"
-                : points.length > 0
-                  ? `登録ポイント${points.length}件はすべて正常です`
-                  : "マップで入水口・異常箇所などを登録できます"}
-            </p>
-          </div>
+      {/* ── この田んぼの台帳（変わらない情報）: 名前・面積・状態を1行で。
+          以前は説明文+4分割統計+カテゴリ内訳の縦長カードだったが、要点が埋もれるため圧縮した ── */}
+      <div className="space-y-1.5 rounded-2xl bg-white px-3.5 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+            style={{ backgroundColor: field.color }}
+            aria-hidden="true"
+          />
+          <h1 className="min-w-0 truncate font-heading text-base font-bold text-gray-900">
+            {field.name || "名前のない田んぼ"}
+          </h1>
+          {field.areaSqm !== null && (
+            <button
+              onClick={cycleAreaUnit}
+              className="shrink-0 border-b border-dotted border-gray-300 text-xs text-gray-500 active:opacity-70"
+            >
+              {formatArea(field.areaSqm)}
+            </button>
+          )}
+          <span className="flex-1" />
+          {points.length > 0 && (
+            <StatusBadge
+              status={overallStatus}
+              label={
+                overallStatus === "normal"
+                  ? "順調"
+                  : overallStatus === "issue"
+                    ? `要対応 ${attentionCount}件`
+                    : `要確認 ${attentionCount}件`
+              }
+              className="shrink-0"
+            />
+          )}
         </div>
 
-        <div className="mt-3 grid grid-cols-4 divide-x divide-white/15 rounded-2xl bg-white/10 py-2.5">
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{field.areaSqm !== null ? formatArea(field.areaSqm) : "—"}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">面積</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{points.length}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">ポイント</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className="font-heading text-lg font-bold">{records.length}</p>
-            <p className="mt-0.5 text-[11px] text-white/60">記録</p>
-          </div>
-          <div className="px-1 text-center">
-            <p className={`font-heading text-lg font-bold ${openRecords.length > 0 ? "text-amber-300" : ""}`}>
-              {openRecords.length}
-            </p>
-            <p className="mt-0.5 text-[11px] text-white/60">未対応</p>
-          </div>
-        </div>
+        {/* 今の状態が分かる最小限の数値だけ、小さく添える（色や箱で強調しない） */}
+        <p className="pl-4.5 text-xs text-gray-500">
+          記録 {records.length}件
+          {openRecords.length > 0 && <span className="font-bold text-red-500"> ・ 未対応 {openRecords.length}件</span>}
+          {lastRecord && <span> ・ 最終記録 {lastRecordLabel}</span>}
+        </p>
+      </div>
 
-        {categoryCounts.length > 0 && (
-          <div className="mt-3">
-            <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
-              {categoryCounts.map(({ cat, count }) => (
-                <span
-                  key={cat}
-                  className={CATEGORY_THEME[cat].dot}
-                  style={{ width: `${(count / records.length) * 100}%` }}
-                />
-              ))}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-white/70">
-              {categoryCounts.map(({ cat, count }) => (
-                <span key={cat}>{cat} {count}</span>
-              ))}
-              {lastRecord && <span className="ml-auto">最終記録 {lastRecordLabel}</span>}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 小さな地図（場所確認用の脇役。台帳セクション内に置きマップとの連携を明示する） */}
+      {/* 地図（場所確認用の小さな脇役。詳細な位置と名前は下の一覧側で見せる） */}
       <FieldMiniMap
         href={`/map?field=${encodeURIComponent(fieldId)}`}
         boundary={field.boundary}
         points={points.map((p) => p.lngLat)}
+        markers={points.map((p) => ({ lngLat: p.lngLat, color: PIN_COLORS[p.type] }))}
         label={field.name || "名前のない田んぼ"}
         className="h-28 w-full rounded-2xl shadow-sm"
         ariaLabel="マップで開く"
       />
 
-      {/* 設備ポイント一覧（入水口・出水口・機械の出入口など。台帳写真があればサムネで表示） */}
-      {points.length > 0 ? (
-        <>
-          <SectionHeading level={3}>設備ポイント</SectionHeading>
-          <ul className="space-y-2">
-            {sortedPoints.map((point) => {
+      {/* 固定枠（入水口・出水口・機材搬入口）。2026-08-11オーナー指摘:
+          「追加されていようがいまいが、固定情報一覧は並んでいなければならない」に対応し、
+          登録の有無に関わらずこの3枠を常に表示する。未登録の枠はタップで
+          このページ内から出ずに登録できる（/mapへは遷移しない） */}
+      <div className="space-y-1">
+        <SectionHeading level={3}>設備ポイント</SectionHeading>
+        <p className="px-1 text-xs text-gray-400">
+          入水口・出水口・機材搬入口は、登録の有無に関わらずここに並びます
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {FIXED_SLOT_TYPES.map((slotType) => {
+          const slotMeta = pointTypeView(slotType);
+          const slotPoints = points.filter((p) => p.type === slotType);
+
+          if (slotPoints.length === 0) {
+            return (
+              <li key={slotType}>
+                <button
+                  type="button"
+                  onClick={() => setRegisteringType(slotType)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-white/70 p-3 text-left transition-colors hover:bg-white active:scale-98"
+                >
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${slotMeta.color}`}>
+                    {slotMeta.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-600">{TYPE_LABELS[slotType]}</p>
+                    <p className="text-xs text-gray-400">まだ登録されていません</p>
+                  </div>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flow-green text-white">
+                    <IconPlus className="h-4 w-4" />
+                  </span>
+                </button>
+              </li>
+            );
+          }
+
+          return slotPoints.map((point) => {
+            const meta = pointTypeView(point.type);
+            const status = POINT_STATUS_META[point.status];
+            const highlighted = point.id === highlightPointId;
+            const thumb = pointThumbs[point.id];
+            return (
+              <li key={point.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPoint(point)}
+                  className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
+                    highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
+                  }`}
+                >
+                  {thumb ? (
+                    <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                      <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
+                    </span>
+                  ) : (
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
+                      {meta.icon}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
+                    <p className="line-clamp-1 text-xs text-gray-500">
+                      {point.memo || `${meta.label}・${point.lastRecord}`}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
+                    {status.label}
+                  </span>
+                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                </button>
+              </li>
+            );
+          });
+        })}
+      </ul>
+
+      {/* その他のポイント（水路・注意箇所・雑草など、自由に追加できるもの） */}
+      {(() => {
+        const otherPoints = sortedPoints.filter((p) => !FIXED_SLOT_TYPES.includes(p.type));
+        if (otherPoints.length === 0) return null;
+        return (
+          <div className="space-y-2">
+            <p className="px-1 text-xs font-bold text-gray-500">その他のポイント</p>
+            <ul className="space-y-2">
+              {otherPoints.map((point) => {
                 const meta = pointTypeView(point.type);
                 const status = POINT_STATUS_META[point.status];
                 const highlighted = point.id === highlightPointId;
+                const thumb = pointThumbs[point.id];
                 return (
                   <li key={point.id}>
-                    <Link
-                      href={`/map?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(point.id)}`}
-                      className={`flex items-center gap-3 rounded-xl border bg-white p-2.5 shadow-sm transition-all hover:bg-gray-50 active:scale-95 ${
+                    <button
+                      type="button"
+                      onClick={() => setOpenPoint(point)}
+                      className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
                         highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
                       }`}
                     >
-                      {pointThumbs[point.id] ? (
-                        <span className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                          <RemotePhoto src={pointThumbs[point.id]} alt="" className="h-full w-full" />
+                      {thumb ? (
+                        <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                          <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
                         </span>
                       ) : (
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
                           {meta.icon}
                         </span>
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                        <p className="text-xs text-gray-400">{meta.label}・{point.lastRecord}</p>
+                        <p className="line-clamp-1 text-xs text-gray-500">
+                          {point.memo || `${meta.label}・${point.lastRecord}`}
+                        </p>
                       </div>
                       <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
                         {status.label}
                       </span>
                       <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    </Link>
+                    </button>
                   </li>
                 );
               })}
-          </ul>
-        </>
-      ) : (
-        <Link href="/map" className="block active:scale-98 transition-transform">
-          <Card accent="monitoring" className="flex items-center gap-3 p-3.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-              <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-gray-900">ポイントが未登録です</p>
-              <p className="mt-0.5 text-xs text-gray-500">マップで入水口・異常箇所などを登録できます</p>
-            </div>
-            <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-          </Card>
-        </Link>
+            </ul>
+          </div>
+        );
+      })()}
+      <Link href="/map" className="block active:scale-98 transition-transform">
+        <Card accent="monitoring" className="flex items-center gap-3 p-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
+          </span>
+          <p className="min-w-0 flex-1 text-sm font-bold text-gray-700">その他のポイントを地図から追加</p>
+          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
+        </Card>
+      </Link>
+
+      {openPoint && (
+        <PointDetailSheet point={openPoint} fieldId={fieldId} onClose={() => setOpenPoint(null)} />
+      )}
+
+      {registeringType && (
+        <RegisterPointSheet
+          pointType={registeringType}
+          fieldId={fieldId}
+          boundary={field.boundary}
+          onClose={() => setRegisteringType(null)}
+          onSaved={(point, note) => {
+            setRegisteringType(null);
+            addPoint(point);
+            showToast(note.message, note.type === "error" ? "error" : undefined);
+          }}
+        />
       )}
 
       {/* ── 記録アクション ── */}
@@ -530,56 +948,69 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </p>
       </div>
 
-      {/* ── この田んぼの記録（変化する情報: 写真主体のタイムライン） ── */}
-      <SectionHeading trailing={<span className="text-xs font-semibold text-gray-400">{records.length}件</span>}>
-        この田んぼの記録
-      </SectionHeading>
+      {/* ── この田んぼの記録（変化する情報）。カテゴリごとに直近1件だけ見せ、
+          残りは「すべて見る」で同じ田んぼの中のまま展開する（別ページには出さない） ── */}
+      <div className="space-y-1">
+        <SectionHeading trailing={<span className="text-xs font-semibold text-gray-400">{records.length}件</span>}>
+          この田んぼの記録
+        </SectionHeading>
+        <p className="px-1 text-xs text-gray-400">
+          日々の写真・音声メモです。多い時ほど「すべて見る」で振り返ってください
+        </p>
+      </div>
       {records.length > 0 ? (
-        <>
-          <div className="space-y-3">
-            {records.slice(0, recordsShown).map((record) => {
-              const statusBadge = STATUS_BADGE[record.status];
-              return (
-                <Link key={record.id} href={`/records/${record.id}`} className="block active:scale-98 transition-transform">
-                  <Card className="overflow-hidden">
-                    <div className="relative h-40">
-                      <RecordThumb
-                        media={record.media}
-                        variant={record.category === "作業" ? "grass" : record.category === "異常" ? "sprout" : "water"}
-                        duration={record.audioDuration}
-                        thumbUrl={thumbUrls[record.id]}
-                        fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
-                        className="h-full w-full"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
-                      <Badge className={`absolute left-3 top-3 ${CATEGORY_BADGE[record.category]}`}>
-                        {record.category}
-                      </Badge>
-                      {statusBadge && (
-                        <Badge className={`absolute right-3 top-3 ${statusBadge.cls}`}>
-                          {statusBadge.label}
-                        </Badge>
-                      )}
-                    </div>
-                    <CardContent className="px-4 py-3">
-                      <p className="truncate text-sm font-bold text-gray-900">{record.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">{record.date} {record.time}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-          {recordsShown < records.length && (
-            <Button
-              variant="tertiary"
-              className="w-full"
-              onClick={() => setRecordsShown((n) => n + RECORDS_PAGE_SIZE)}
-            >
-              もっと見る（残り{records.length - recordsShown}件）
-            </Button>
-          )}
-        </>
+        <div className="space-y-5">
+          {categoryCounts.map(({ cat, count }) => {
+            const categoryRecords = records.filter((r) => r.category === cat);
+            const visibleCount = visibleRecordCounts[cat] ?? 1;
+            const expanded = visibleCount > 1;
+            const visible = categoryRecords.slice(0, visibleCount);
+            const remaining = count - visible.length;
+            return (
+              <div key={cat} className="space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-xs font-bold text-gray-600">{cat}<span className="ml-1 font-normal text-gray-400">{count}件</span></p>
+                  {count > 1 && (
+                    <button
+                      onClick={() =>
+                        setVisibleRecordCounts((prev) => ({
+                          ...prev,
+                          [cat]: expanded ? 1 : Math.min(count, RECORDS_PAGE_SIZE),
+                        }))
+                      }
+                      className="text-xs font-bold text-flow-green"
+                    >
+                      {expanded ? "折りたたむ" : `すべて見る（${count}件）`}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {visible.map((record) => (
+                    <RecordCard
+                      key={record.id}
+                      record={record}
+                      thumbUrl={thumbUrls[record.id]}
+                      fallbackUrl={resolveRecordCoverUrl(undefined, record.category, imageSlots)}
+                    />
+                  ))}
+                </div>
+                {remaining > 0 && (
+                  <button
+                    onClick={() =>
+                      setVisibleRecordCounts((prev) => ({
+                        ...prev,
+                        [cat]: Math.min(count, visibleCount + RECORDS_PAGE_SIZE),
+                      }))
+                    }
+                    className="w-full rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    さらに{Math.min(RECORDS_PAGE_SIZE, remaining)}件を表示（残り{remaining}件）
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-gray-500">まだ記録がありません</p>

@@ -9,6 +9,7 @@ import { IconCamera, IconClose } from "../../components/ui/icons";
 const ADD_TYPES: FieldPointType[] = [
   "inlet",
   "outlet",
+  "machine_entry",
   "canal",
   "caution",
   "weed",
@@ -27,6 +28,7 @@ type Props = {
     pointType: FieldPointType;
     fieldId: string | null;
     photoFile: File | null;
+    memo: string;
   }) => void;
   onCancel: () => void;
 };
@@ -35,6 +37,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
   const [pointType, setPointType] = useState<FieldPointType>("inlet");
   const [name, setName] = useState("");
   const [fieldId, setFieldId] = useState<string | null>(initialFieldId ?? null);
+  const [memo, setMemo] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +57,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
 
   return (
     <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
         <h2 className="text-base font-bold text-gray-900">ピンを追加</h2>
         <p className="mt-0.5 text-xs text-gray-500">タップした場所にピンを追加します</p>
@@ -117,43 +120,66 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
             </div>
           )}
 
-          {/* 設備の写真（任意）: 入水口の様子など変わらない情報をピン自体に残す */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600">設備の写真（任意）</label>
-            {photoPreview ? (
-              <div className="relative mt-1 inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
-                <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+          {/* 変わらない情報（一言メモ・写真）: 名前・種別だけでは伝わらない現場の勘所を
+              このピンに残す。田んぼ詳細からも見えることが分かるよう1つの区画にまとめる */}
+          <div className="rounded-xl border border-green-700/20 bg-green-50/60 p-3">
+            <p className="text-xs font-bold text-green-800">この地点の変わらない情報（任意）</p>
+            <p className="mt-0.5 text-xs text-green-800/70">
+              田んぼ詳細ページにも表示され、次に見る人がすぐ分かるようになります
+            </p>
+
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-600">一言メモ</label>
+                <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+              </div>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="例: ゲートが重いので二人で開ける"
+                rows={2}
+                className="mt-1 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+                maxLength={200}
+              />
+            </div>
+
+            <div className="mt-2.5">
+              <label className="text-xs font-semibold text-gray-600">設備の写真</label>
+              {photoPreview ? (
+                <div className="relative mt-1 inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
+                  <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoFile(null)}
+                    aria-label="写真の添付を取り消す"
+                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    <IconClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setPhotoFile(null)}
-                  aria-label="写真の添付を取り消す"
-                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  <IconClose className="h-3.5 w-3.5" />
+                  <IconCamera className="h-4.5 w-4.5 text-green-700" />
+                  写真を付ける
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-1 flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-              >
-                <IconCamera className="h-4.5 w-4.5 text-green-700" />
-                写真を付ける
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) setPhotoFile(f);
-                e.currentTarget.value = "";
-              }}
-            />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setPhotoFile(f);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -171,6 +197,7 @@ export default function AddPinSheet({ fields, initialFieldId, onConfirm, onCance
                 pointType,
                 fieldId,
                 photoFile,
+                memo: memo.trim(),
               })
             }
             className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"

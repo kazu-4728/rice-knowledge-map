@@ -4,6 +4,7 @@ import type { FieldPointType } from "../../types";
 export const PIN_COLORS: Record<FieldPointType, string> = {
   inlet: "#2F80ED",
   outlet: "#2E9E44",
+  machine_entry: "#78716C",
   canal: "#0EA5E9",
   caution: "#E53935",
   weed: "#84CC16",
@@ -19,6 +20,7 @@ export const PIN_COLORS: Record<FieldPointType, string> = {
 export const TYPE_LABELS: Record<FieldPointType, string> = {
   inlet: "入水口",
   outlet: "出水口",
+  machine_entry: "機材搬入口",
   canal: "水路",
   caution: "注意箇所",
   weed: "雑草",
@@ -34,6 +36,7 @@ export const TYPE_LABELS: Record<FieldPointType, string> = {
 export const POINT_TYPES: readonly FieldPointType[] = [
   "inlet",
   "outlet",
+  "machine_entry",
   "canal",
   "weed",
   "caution",
@@ -69,6 +72,9 @@ function innerGlyph(type: FieldPointType): string {
     case "weed":
       // 草
       return `<path d="M15 18c0-4 1.6-6.4 4.6-7.4-.6 3.6-2 5.8-4.6 7.4Zm0 0c0-4-1.6-6.4-4.6-7.4.6 3.6 2 5.8 4.6 7.4Z" fill="white"/>`;
+    case "machine_entry":
+      // ゲート（出入口）
+      return `<rect x="9.5" y="9" width="11" height="8" rx="1.5" fill="none" stroke="white" stroke-width="2"/><path d="M9.5 13h11" stroke="white" stroke-width="2"/>`;
     default:
       // 丸
       return `<circle cx="15" cy="13" r="4" fill="white"/>`;

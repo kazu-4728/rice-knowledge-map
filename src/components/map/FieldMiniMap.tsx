@@ -10,6 +10,10 @@ export type MiniMapMarker = {
   lngLat: [number, number];
   /** ピン内に出す短い文字（写真の連番など）。省略時は点のみ */
   label?: string;
+  /** ピンの真上に出す白いラベル札（例:「入水口」）。指定時はドットの色もcolorに従う */
+  chipLabel?: string;
+  /** ドット・ラベル札の色（省略時は既定の緑） */
+  color?: string;
 };
 
 type Props = {
@@ -25,6 +29,12 @@ type Props = {
   label?: string;
   className?: string;
   ariaLabel?: string;
+  /**
+   * true時はLinkでのマップ画面遷移を無効化し、タップした地点をonPickへ通知する
+   * （固定ポイントの登録を、この田んぼのページ内から出ずに行うための位置指定モード）。
+   */
+  pickable?: boolean;
+  onPick?: (lngLat: [number, number]) => void;
 };
 
 /**
@@ -40,9 +50,11 @@ export function FieldMiniMap({
   label,
   className = "",
   ariaLabel = "マップで見る",
+  pickable = false,
+  onPick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const depKey = JSON.stringify({ boundary, points, markers, label });
+  const depKey = JSON.stringify({ boundary, points, markers, label, pickable });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -81,9 +93,15 @@ export function FieldMiniMap({
         },
         center,
         zoom: 16,
+        // interactive:falseでもmap.on('click')は発火するため、パン/ズームは常に無効化したまま
+        // タップ位置の取得だけ許可できる（小さい地図で誤操作しにくい）
         interactive: false,
         attributionControl: false,
       });
+
+      if (pickable && onPick) {
+        map.on("click", (e) => onPick([e.lngLat.lng, e.lngLat.lat]));
+      }
 
       // レイアウト確定前にcanvasが初期化されるとぼやけたまま残るため、
       // コンテナのサイズ変化に追従してresizeする（本体マップと同じ多重防御）
@@ -106,13 +124,30 @@ export function FieldMiniMap({
             "rounded-lg glass-light px-2 py-0.5 text-[11px] font-bold text-emerald-900 shadow-md pointer-events-none whitespace-nowrap";
           new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(center).addTo(map);
         }
-        // 写真ごとの撮影位置などの目印（小さな緑の丸ピン）
+        // 写真ごとの撮影位置・固定ポイントの目印（小さな丸ピン。種別ラベル付きの場合は上に白い札を添える）
         for (const marker of markers) {
-          const el = document.createElement("div");
-          el.textContent = marker.label ?? "";
-          el.className =
-            "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-[10px] font-bold text-white shadow pointer-events-none";
-          new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
+          const color = marker.color ?? "#059669";
+          if (marker.chipLabel) {
+            const wrap = document.createElement("div");
+            wrap.className = "flex flex-col items-center gap-1 pointer-events-none";
+            const chip = document.createElement("div");
+            chip.textContent = marker.chipLabel;
+            chip.className =
+              "rounded-md bg-white px-2 py-1 text-xs font-bold text-gray-800 shadow-md whitespace-nowrap";
+            const dot = document.createElement("div");
+            dot.className = "h-4 w-4 rounded-full border-2 border-white shadow";
+            dot.style.backgroundColor = color;
+            wrap.appendChild(chip);
+            wrap.appendChild(dot);
+            new maplibre.Marker({ element: wrap, anchor: "bottom" }).setLngLat(marker.lngLat).addTo(map);
+          } else {
+            const el = document.createElement("div");
+            el.textContent = marker.label ?? "";
+            el.className =
+              "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow pointer-events-none";
+            el.style.backgroundColor = color;
+            new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
+          }
         }
         const bounds = coords.reduce(
           (b, c) => b.extend(c),
@@ -128,10 +163,26 @@ export function FieldMiniMap({
       resizeObserver?.disconnect();
       map?.remove();
     };
+    // depKeyでboundary/points/markers/label/pickableの変化を検知するため個別列挙はしない。
+    // onPickはクリックハンドラ内で直接参照するため、差し替わった時に古い関数を掴んだままに
+    // ならないよう依存配列に含める（レビュー指摘: 2026-08-11）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depKey]);
+  }, [depKey, onPick]);
 
   if (!boundary && points.length === 0 && markers.length === 0) return null;
+
+  if (pickable) {
+    return (
+      <div className={`relative overflow-hidden bg-gray-200 ${className}`}>
+        <div ref={containerRef} className="h-full w-full" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2">
+          <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white">
+            タップして位置を指定
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link href={href} aria-label={ariaLabel} className={`relative block overflow-hidden bg-gray-200 ${className}`}>

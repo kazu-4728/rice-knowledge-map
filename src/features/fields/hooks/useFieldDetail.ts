@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoJSON } from "geojson";
 import { loadFarmData, updateFieldPhoto, uploadFieldPhoto, getSignedPhotoUrls } from "../../../lib/data/farm";
 import { loadRecords, isUnresolvedIssue } from "../../../lib/data/records";
@@ -57,6 +57,8 @@ export type FieldDetail = {
   coverImageUrl: string | undefined;
   /** オーナー設定の差し替え画像（記録サムネの実写フォールバック解決に使う） */
   imageSlots: ImageSlots;
+  /** 固定ポイントをこの田んぼのページ内で登録した直後に、DB保存済みの実データをpoints一覧へ追加する */
+  addPoint: (point: FieldPoint) => void;
 };
 
 /**
@@ -124,6 +126,15 @@ export function useFieldDetail(fieldId: string): FieldDetail {
       setLoading(false);
     });
   }, [fieldId]);
+
+  /**
+   * 固定ポイントをこの田んぼのページ内で登録した直後、points一覧へ直接追加する。
+   * サーバーへ再取得（loadFarmData）すると、Supabase未設定のデモ環境では
+   * 静的なダミーデータに戻ってしまい、登録したはずの枠が消えて見えるため使わない。
+   */
+  const addPoint = useCallback((point: FieldPoint) => {
+    setPoints((prev) => [...prev, point]);
+  }, []);
 
   const handlePhotoSelect = async (file: File) => {
     if (!field.groupId) return;
@@ -203,5 +214,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
+    addPoint,
   };
 }

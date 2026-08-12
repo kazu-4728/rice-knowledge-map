@@ -14,6 +14,7 @@ export type Field = {
 export type FieldPointType =
   | "inlet"         // 入水口
   | "outlet"        // 出水口
+  | "machine_entry" // 機材搬入口
   | "canal"         // 水路
   | "caution"       // 注意箇所
   | "weed"          // 雑草箇所
@@ -32,6 +33,8 @@ export type FieldPoint = {
   lngLat: [number, number];
   /** 地図ピン横のラベル（省略時は種別ラベル） */
   pinLabel?: string;
+  /** 変わらない情報としての一言メモ（例: 「ゲートが重いので二人で開ける」）。DB既存列field_points.memoをそのまま使う */
+  memo?: string | null;
 };
 
 export type ScheduleItem = {

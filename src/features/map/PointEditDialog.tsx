@@ -9,6 +9,7 @@ import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 const ALL_TYPES: FieldPointType[] = [
   "inlet",
   "outlet",
+  "machine_entry",
   "canal",
   "caution",
   "weed",
@@ -19,7 +20,7 @@ const ALL_TYPES: FieldPointType[] = [
 
 type Props = {
   point: FieldPoint;
-  onSave: (patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"] }) => void;
+  onSave: (patch: { name: string; pointType: FieldPointType; status: FieldPoint["status"]; memo: string }) => void;
   onDelete: () => void;
   onCancel: () => void;
   /** 台帳写真の追加・削除が成功した直後に呼ばれる（マップ側の他の表示を更新させる用途） */
@@ -30,11 +31,12 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
   const [name, setName] = useState(point.name);
   const [pointType, setPointType] = useState<FieldPointType>(point.type);
   const [status, setStatus] = useState<FieldPoint["status"]>(point.status);
+  const [memo, setMemo] = useState(point.memo ?? "");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
         <h2 className="text-base font-bold text-gray-900">地点を編集</h2>
 
@@ -100,8 +102,34 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
             </div>
           </div>
 
-          {/* 台帳写真（変わらない情報）。追加・削除は即時反映のため保存ボタンとは独立 */}
-          <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+          {/* 変わらない情報（一言メモ・台帳写真）: 名前・種別だけでは伝わらない現場の勘所。
+              田んぼ詳細ページにも表示されるものだと分かるよう1つの区画にまとめる */}
+          <div className="rounded-xl border border-green-700/20 bg-green-50/60 p-3">
+            <p className="text-xs font-bold text-green-800">この地点の変わらない情報</p>
+            <p className="mt-0.5 text-xs text-green-800/70">
+              田んぼ詳細ページにも表示され、次に見る人がすぐ分かるようになります
+            </p>
+
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-600">一言メモ</label>
+                <VoiceInputButton onText={(t) => setMemo((prev) => prev ? prev + " " + t : t)} />
+              </div>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="例: ゲートが重いので二人で開ける"
+                rows={2}
+                className="mt-1 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-600"
+                maxLength={200}
+              />
+            </div>
+
+            {/* 台帳写真。追加・削除は即時反映のため保存ボタンとは独立 */}
+            <div className="mt-2.5">
+              <PointPhotoSection pointId={point.id} editable onChange={onPhotoChange} />
+            </div>
+          </div>
         </div>
 
         {confirmDelete ? (
@@ -137,7 +165,7 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
               キャンセル
             </button>
             <button
-              onClick={() => onSave({ name: name.trim() || point.name, pointType, status })}
+              onClick={() => onSave({ name: name.trim() || point.name, pointType, status, memo: memo.trim() })}
               className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800"
             >
               保存

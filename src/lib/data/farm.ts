@@ -114,6 +114,7 @@ export async function loadFarmData(): Promise<FarmData> {
             status: p.status,
             lastRecord: formatTimestamp(p.last_checked_at),
             lngLat: [lng, lat] as [number, number],
+            memo: p.memo,
           },
         ];
       }),
