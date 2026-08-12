@@ -81,4 +81,4 @@ Supabase変更・RLS変更・Storage設定・Auth設定・soft-delete実装は�
 - Issue #87 → PR #92: Supabase監査（Advisor/RLS有効状態/migration適用状態/SECURITY DEFINER関数実行権限/Storage bucket・policy/旧テーブル残存確認）をJSON出力するスクリプトを追加
 - PR #93: E2E資格情報手順（AGENT_BOOTSTRAP.md）からproject_idのハードコードを除去し、確認順序を明記
 - Issue #87 → PR #94: P2完了に伴うtasks/TASKS.md更新
-- PR #96: 田んぼ詳細ページを台帳(不変情報)/記録(可変情報)で整理し直す（固定枠3種の常設表示・画面遷移なしの登録・記録のカテゴリ別要約）。`0015_add_machine_entry_point_type.sql`はオーナー承認後に適用済み（2026-08-12）。閲覧者ロールでの固定ポイント登録ボタン非表示/無効化は行わない方針で確定（`/map`側`AddPinSheet`と同じ、保存失敗時のエラー表示のみで対応）
+- PR #96: 田んぼ詳細ページを台帳(不変情報)/記録(可変情報)で整理し直す（固定枠3種の常設表示・画面遷移なしの登録・記録のカテゴリ別要約）
