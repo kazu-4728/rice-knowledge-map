@@ -306,9 +306,10 @@ function RegisterPointSheet({
   onClose: () => void;
   /**
    * 保存成功時に呼ばれる。point はこの田んぼのpoints一覧へそのまま追加できる形。
-   * photoWarning は「地点は保存できたが写真の保存に失敗した」ことを伝える案内文（無ければnull）。
+   * note.type: "success" は問題なく完了したことが伝わる文言（デモ環境で写真が保存されない場合など、
+   * 失敗ではないケースに使う）、"error" は実際に写真の保存に失敗した場合に使う。
    */
-  onSaved: (point: FieldPoint, photoWarning: string | null) => void;
+  onSaved: (point: FieldPoint, note: { message: string; type: "success" | "error" }) => void;
 }) {
   const meta = pointTypeView(pointType);
   const label = TYPE_LABELS[pointType];
@@ -353,7 +354,10 @@ function RegisterPointSheet({
     if (status === "demo") {
       // Supabase未設定のデモ環境ではDBに保存されないため、ローカルにだけ反映する
       // （2026-08-12レビュー指摘: 保存後にサーバーへ再取得すると、静的なダミーデータに
-      //   戻って登録した枠が消えて見えていた）
+      //   戻って登録した枠が消えて見えていた）。
+      // 写真が保存されないのは仕様上の既定動作であり失敗ではないため、MapCanvas.tsxの
+      // デモ保存時と同じトーンで「問題ない」ことが伝わる案内にする（オーナー指摘: 2026-08-12
+      // 「失敗した」という表示はユーザーを不安にさせる）。
       const localPoint: FieldPoint = {
         id: `local-${crypto.randomUUID()}`,
         fieldId,
@@ -365,15 +369,20 @@ function RegisterPointSheet({
         memo: memo.trim() || null,
       };
       setSaving(false);
-      onSaved(localPoint, photoFile ? "デモ環境のため写真は保存されません" : null);
+      onSaved(localPoint, {
+        message: photoFile
+          ? `${label}をローカルに登録しました（デモ環境のため写真は保存されません。ログインすると保存できます）`
+          : `${label}をローカルに登録しました（ログインすると共有されます）`,
+        type: "success",
+      });
       return;
     }
 
     // status === "saved"
-    let photoWarning: string | null = null;
+    let photoFailed = false;
     if (id && photoFile) {
       const photoResult = await addPointPhoto(id, photoFile);
-      if (photoResult !== "saved") photoWarning = "地点は登録しましたが、写真の保存に失敗しました";
+      photoFailed = photoResult !== "saved";
     }
     const dbPoint: FieldPoint = {
       id: id ?? `local-${crypto.randomUUID()}`,
@@ -386,7 +395,12 @@ function RegisterPointSheet({
       memo: memo.trim() || null,
     };
     setSaving(false);
-    onSaved(dbPoint, photoWarning);
+    onSaved(
+      dbPoint,
+      photoFailed
+        ? { message: "地点は登録しましたが、写真の保存に失敗しました", type: "error" }
+        : { message: `${label}を登録しました`, type: "success" }
+    );
   };
 
   return (
@@ -899,11 +913,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           fieldId={fieldId}
           boundary={field.boundary}
           onClose={() => setRegisteringType(null)}
-          onSaved={(point, photoWarning) => {
+          onSaved={(point, note) => {
             setRegisteringType(null);
             addPoint(point);
-            if (photoWarning) showToast(photoWarning, "error");
-            else showToast(`${TYPE_LABELS[registeringType]}を登録しました`);
+            showToast(note.message, note.type === "error" ? "error" : undefined);
           }}
         />
       )}
