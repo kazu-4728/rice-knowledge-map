@@ -635,7 +635,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
             style={{ backgroundColor: field.color }}
             aria-hidden="true"
           />
-          <h1 className="shrink-0 truncate font-heading text-base font-bold text-gray-900">
+          <h1 className="min-w-0 truncate font-heading text-base font-bold text-gray-900">
             {field.name || "名前のない田んぼ"}
           </h1>
           {field.areaSqm !== null && (

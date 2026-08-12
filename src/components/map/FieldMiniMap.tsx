@@ -163,8 +163,11 @@ export function FieldMiniMap({
       resizeObserver?.disconnect();
       map?.remove();
     };
+    // depKeyでboundary/points/markers/label/pickableの変化を検知するため個別列挙はしない。
+    // onPickはクリックハンドラ内で直接参照するため、差し替わった時に古い関数を掴んだままに
+    // ならないよう依存配列に含める（レビュー指摘: 2026-08-11）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depKey]);
+  }, [depKey, onPick]);
 
   if (!boundary && points.length === 0 && markers.length === 0) return null;
 
