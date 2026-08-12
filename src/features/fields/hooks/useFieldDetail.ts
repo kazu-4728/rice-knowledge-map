@@ -57,8 +57,8 @@ export type FieldDetail = {
   coverImageUrl: string | undefined;
   /** オーナー設定の差し替え画像（記録サムネの実写フォールバック解決に使う） */
   imageSlots: ImageSlots;
-  /** 固定ポイントをこの田んぼのページ内で登録・編集した直後にpoints一覧だけ再取得する */
-  reloadPoints: () => Promise<void>;
+  /** 固定ポイントをこの田んぼのページ内で登録した直後に、DB保存済みの実データをpoints一覧へ追加する */
+  addPoint: (point: FieldPoint) => void;
 };
 
 /**
@@ -127,11 +127,14 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     });
   }, [fieldId]);
 
-  /** 固定ポイントをこの田んぼのページ内で登録・編集した直後に、points一覧だけ再取得する */
-  const reloadPoints = useCallback(async () => {
-    const farm = await loadFarmData();
-    setPoints(farm.points.filter((p) => p.fieldId === fieldId));
-  }, [fieldId]);
+  /**
+   * 固定ポイントをこの田んぼのページ内で登録した直後、points一覧へ直接追加する。
+   * サーバーへ再取得（loadFarmData）すると、Supabase未設定のデモ環境では
+   * 静的なダミーデータに戻ってしまい、登録したはずの枠が消えて見えるため使わない。
+   */
+  const addPoint = useCallback((point: FieldPoint) => {
+    setPoints((prev) => [...prev, point]);
+  }, []);
 
   const handlePhotoSelect = async (file: File) => {
     if (!field.groupId) return;
@@ -211,6 +214,6 @@ export function useFieldDetail(fieldId: string): FieldDetail {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
-    reloadPoints,
+    addPoint,
   };
 }

@@ -36,7 +36,7 @@ export default function PointEditDialog({ point, onSave, onDelete, onCancel, onP
 
   return (
     <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pb-8 pt-3 shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
         <h2 className="text-base font-bold text-gray-900">地点を編集</h2>
 

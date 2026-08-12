@@ -96,6 +96,13 @@ function RecordCard({
   );
 }
 
+/**
+ * カテゴリ内「すべて見る」で一度に描画する件数。
+ * 記録数が数百〜数千件になる田んぼでも、展開時に一括で全件描画してモバイルが固まらないよう
+ * 段階的に読み込む（レビュー指摘: 2026-08-12）
+ */
+const RECORDS_PAGE_SIZE = 20;
+
 /** ピンの状態バッジ */
 const POINT_STATUS_META: Record<FieldPoint["status"], { label: string; cls: string }> = {
   issue: { label: "異常", cls: "bg-red-100 text-red-700" },
@@ -297,19 +304,37 @@ function RegisterPointSheet({
   fieldId: string;
   boundary: GeoJSON.Polygon | null;
   onClose: () => void;
-  onSaved: () => void;
+  /**
+   * 保存成功時に呼ばれる。point はこの田んぼのpoints一覧へそのまま追加できる形。
+   * photoWarning は「地点は保存できたが写真の保存に失敗した」ことを伝える案内文（無ければnull）。
+   */
+  onSaved: (point: FieldPoint, photoWarning: string | null) => void;
 }) {
   const meta = pointTypeView(pointType);
   const label = TYPE_LABELS[pointType];
   const [lngLat, setLngLat] = useState<[number, number] | null>(null);
   const [memo, setMemo] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // プレビュー用のObject URLはファイル差し替え・アンマウント時に必ず解放する
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
 
   const handleSave = async () => {
     if (!lngLat) return;
     setSaving(true);
+    setError(null);
     const { status, id } = await saveFieldPoint({
       fieldId,
       pointType,
@@ -318,11 +343,50 @@ function RegisterPointSheet({
       longitude: lngLat[0],
       memo: memo.trim() || undefined,
     });
-    if (status === "saved" && id && photoFile) {
-      await addPointPhoto(id, photoFile);
+
+    if (status === "error") {
+      setSaving(false);
+      setError("保存に失敗しました。権限または通信環境を確認してもう一度お試しください");
+      return;
     }
+
+    if (status === "demo") {
+      // Supabase未設定のデモ環境ではDBに保存されないため、ローカルにだけ反映する
+      // （2026-08-12レビュー指摘: 保存後にサーバーへ再取得すると、静的なダミーデータに
+      //   戻って登録した枠が消えて見えていた）
+      const localPoint: FieldPoint = {
+        id: `local-${crypto.randomUUID()}`,
+        fieldId,
+        name: label,
+        type: pointType,
+        status: "normal",
+        lastRecord: "記録なし",
+        lngLat,
+        memo: memo.trim() || null,
+      };
+      setSaving(false);
+      onSaved(localPoint, photoFile ? "デモ環境のため写真は保存されません" : null);
+      return;
+    }
+
+    // status === "saved"
+    let photoWarning: string | null = null;
+    if (id && photoFile) {
+      const photoResult = await addPointPhoto(id, photoFile);
+      if (photoResult !== "saved") photoWarning = "地点は登録しましたが、写真の保存に失敗しました";
+    }
+    const dbPoint: FieldPoint = {
+      id: id ?? `local-${crypto.randomUUID()}`,
+      fieldId,
+      name: label,
+      type: pointType,
+      status: "normal",
+      lastRecord: "記録なし",
+      lngLat,
+      memo: memo.trim() || null,
+    };
     setSaving(false);
-    if (status === "saved" || status === "demo") onSaved();
+    onSaved(dbPoint, photoWarning);
   };
 
   return (
@@ -375,10 +439,10 @@ function RegisterPointSheet({
 
           <div>
             <label className="text-xs font-semibold text-gray-600">写真（任意）</label>
-            {photoFile ? (
+            {photoPreview ? (
               <div className="relative mt-1 inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー（Object URL）のため next/image を使わない */}
-                <img src={URL.createObjectURL(photoFile)} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
+                <img src={photoPreview} alt="添付する写真" className="h-20 w-20 rounded-xl object-cover" />
                 <button
                   type="button"
                   onClick={() => setPhotoFile(null)}
@@ -411,6 +475,10 @@ function RegisterPointSheet({
             />
           </div>
         </div>
+
+        {error && (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">{error}</p>
+        )}
 
         <div className="mt-4 flex gap-2">
           <button
@@ -450,8 +518,11 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** カテゴリ別要約セクションで「すべて見る」を押したカテゴリの集合（この田んぼの中に閉じたまま展開する） */
-  const [expandedCategories, setExpandedCategories] = useState<Set<RecordItem["category"]>>(new Set());
+  /**
+   * カテゴリ別要約セクションで表示中の件数（カテゴリ名→件数。未展開は1件）。
+   * 「すべて見る」を押しても全件は一度に描画せず、RECORDS_PAGE_SIZE件ずつ段階的に増やす
+   */
+  const [visibleRecordCounts, setVisibleRecordCounts] = useState<Record<string, number>>({});
   /** タップ中の固定ポイント（詳細シートを開く。マップからの?point=遷移でも自動で開く） */
   const [openPoint, setOpenPoint] = useState<FieldPoint | null>(null);
   /** 登録中の固定枠の種別（入水口/出水口/機材搬入口のいずれか。登録シートを開く） */
@@ -473,7 +544,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     handlePhotoSelect,
     coverImageUrl,
     imageSlots,
-    reloadPoints,
+    addPoint,
   } = useFieldDetail(fieldId);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
@@ -828,10 +899,11 @@ export default function FieldDetailScreen({ fieldId }: Props) {
           fieldId={fieldId}
           boundary={field.boundary}
           onClose={() => setRegisteringType(null)}
-          onSaved={() => {
+          onSaved={(point, photoWarning) => {
             setRegisteringType(null);
-            showToast(`${TYPE_LABELS[registeringType]}を登録しました`);
-            reloadPoints();
+            addPoint(point);
+            if (photoWarning) showToast(photoWarning, "error");
+            else showToast(`${TYPE_LABELS[registeringType]}を登録しました`);
           }}
         />
       )}
@@ -877,8 +949,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         <div className="space-y-5">
           {categoryCounts.map(({ cat, count }) => {
             const categoryRecords = records.filter((r) => r.category === cat);
-            const expanded = expandedCategories.has(cat);
-            const visible = expanded ? categoryRecords : categoryRecords.slice(0, 1);
+            const visibleCount = visibleRecordCounts[cat] ?? 1;
+            const expanded = visibleCount > 1;
+            const visible = categoryRecords.slice(0, visibleCount);
+            const remaining = count - visible.length;
             return (
               <div key={cat} className="space-y-2.5">
                 <div className="flex items-center justify-between px-1">
@@ -886,12 +960,10 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                   {count > 1 && (
                     <button
                       onClick={() =>
-                        setExpandedCategories((prev) => {
-                          const next = new Set(prev);
-                          if (expanded) next.delete(cat);
-                          else next.add(cat);
-                          return next;
-                        })
+                        setVisibleRecordCounts((prev) => ({
+                          ...prev,
+                          [cat]: expanded ? 1 : Math.min(count, RECORDS_PAGE_SIZE),
+                        }))
                       }
                       className="text-xs font-bold text-flow-green"
                     >
@@ -909,6 +981,19 @@ export default function FieldDetailScreen({ fieldId }: Props) {
                     />
                   ))}
                 </div>
+                {remaining > 0 && (
+                  <button
+                    onClick={() =>
+                      setVisibleRecordCounts((prev) => ({
+                        ...prev,
+                        [cat]: Math.min(count, visibleCount + RECORDS_PAGE_SIZE),
+                      }))
+                    }
+                    className="w-full rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    さらに{Math.min(RECORDS_PAGE_SIZE, remaining)}件を表示（残り{remaining}件）
+                  </button>
+                )}
               </div>
             );
           })}

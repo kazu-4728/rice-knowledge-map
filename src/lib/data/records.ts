@@ -43,7 +43,7 @@ type RecordListRow = RecordRow & {
 
 /** 保存時にai_categoryへ保持したポイント種別を読み戻す（不正値はrecord_typeから推定） */
 const POINT_TYPES: readonly FieldPointType[] = [
-  "inlet", "outlet", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
+  "inlet", "outlet", "machine_entry", "canal", "caution", "weed", "levee_damage", "poor_drainage", "other",
 ];
 
 function toPointType(r: RecordListRow): FieldPointType {
