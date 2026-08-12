@@ -60,6 +60,8 @@ Supabase変更・RLS変更・Storage設定・Auth設定・soft-delete実装は�
 
 - フェーズ6・簡易botのLLMプロバイダ選定・課金上限（着手時に選択肢と費用を提示して承認を得る。従量課金は避け、無料枠超過時は課金せず機能を停止する方針を優先）
 - PC対応に着手してよいタイミングの判断
+- `0015_add_machine_entry_point_type.sql`（`point_type`に`machine_entry`を追加するmigration）の適用。未適用のままだと機材搬入口の保存が失敗する（保存失敗時のエラー表示は対応済み）
+- 閲覧者ロールで固定ポイント登録ボタン自体を隠す/無効化するかどうかの設計判断（現状は`/map`側`AddPinSheet`と同じ方針で、保存失敗時のエラー表示のみ）
 
 ## 完了履歴
 
@@ -81,3 +83,4 @@ Supabase変更・RLS変更・Storage設定・Auth設定・soft-delete実装は�
 - Issue #87 → PR #92: Supabase監査（Advisor/RLS有効状態/migration適用状態/SECURITY DEFINER関数実行権限/Storage bucket・policy/旧テーブル残存確認）をJSON出力するスクリプトを追加
 - PR #93: E2E資格情報手順（AGENT_BOOTSTRAP.md）からproject_idのハードコードを除去し、確認順序を明記
 - Issue #87 → PR #94: P2完了に伴うtasks/TASKS.md更新
+- PR #96: 田んぼ詳細ページを台帳(不変情報)/記録(可変情報)で整理し直す（固定枠3種の常設表示・画面遷移なしの登録・記録のカテゴリ別要約）
