@@ -11,6 +11,13 @@
 - レビュー指摘を修正した場合は、該当スレッドへ返信し、解決済みならResolveする。
 - squashマージ後は `tasks/TASKS.md` の現在タスク・次タスク・ユーザー確認待ちだけを更新する。
 
+## ユーザープロフィールの参照
+
+作業を始める前に、Google Driveの `read_file_content` ツールで
+fileId `1ROTZ9GHg2UBE_aOq_YF466JfiryKFxyh`（ClaudeKnowledge/profile.md）を読み、
+そこに書かれたユーザーの好み・作業スタイルを踏まえて対応すること。
+このファイルはClaude/Codex共通の正本なので、内容を書き換えないこと。
+
 ## セッション記録の保存ルール
 
 通常の開発フロー（コミット・コミットメッセージ・PR作成など）はこれまで通り
