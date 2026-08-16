@@ -7,6 +7,8 @@ import type { GeoJSON } from "geojson";
 import { IconExpand } from "../ui/icons";
 
 export type MiniMapMarker = {
+  /** 同一画面内で写真とピンを対応付ける識別子 */
+  id?: string;
   lngLat: [number, number];
   /** ピン内に出す短い文字（写真の連番など）。省略時は点のみ */
   label?: string;
@@ -18,7 +20,7 @@ export type MiniMapMarker = {
 
 type Props = {
   /** タップ時の遷移先（マップ画面） */
-  href: string;
+  href?: string;
   /** 田んぼの輪郭（あれば塗りつぶし表示する） */
   boundary?: GeoJSON.Polygon | null;
   /** 輪郭が無い場合の中心候補（記録地点・ポイント等） */
@@ -35,6 +37,9 @@ type Props = {
    */
   pickable?: boolean;
   onPick?: (lngLat: [number, number]) => void;
+  /** 指定時は画面遷移せず、ピン選択を同一ページへ通知する */
+  onMarkerSelect?: (markerId: string) => void;
+  selectedMarkerId?: string | null;
 };
 
 /**
@@ -43,7 +48,7 @@ type Props = {
  * 操作不可（tap-throughでマップ画面へ遷移）の非インタラクティブなMapLibre表示。
  */
 export function FieldMiniMap({
-  href,
+  href = "/map",
   boundary,
   points = [],
   markers = [],
@@ -52,9 +57,11 @@ export function FieldMiniMap({
   ariaLabel = "マップで見る",
   pickable = false,
   onPick,
+  onMarkerSelect,
+  selectedMarkerId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const depKey = JSON.stringify({ boundary, points, markers, label, pickable });
+  const depKey = JSON.stringify({ boundary, points, markers, label, pickable, selectedMarkerId });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,26 +133,49 @@ export function FieldMiniMap({
         }
         // 写真ごとの撮影位置・固定ポイントの目印（小さな丸ピン。種別ラベル付きの場合は上に白い札を添える）
         for (const marker of markers) {
-          const color = marker.color ?? "#059669";
+          const selected = !!marker.id && marker.id === selectedMarkerId;
+          const color = selected ? "#2563eb" : marker.color ?? "#059669";
           if (marker.chipLabel) {
-            const wrap = document.createElement("div");
-            wrap.className = "flex flex-col items-center gap-1 pointer-events-none";
+            const wrap = document.createElement(marker.id && onMarkerSelect ? "button" : "div");
+            wrap.className = `flex flex-col items-center gap-1 ${marker.id && onMarkerSelect ? "pointer-events-auto cursor-pointer" : "pointer-events-none"}`;
+            if (wrap instanceof HTMLButtonElement) {
+              wrap.type = "button";
+              wrap.setAttribute("aria-label", `${marker.chipLabel}を選択`);
+              wrap.setAttribute("aria-pressed", String(selected));
+              wrap.addEventListener("click", (event) => {
+                event.stopPropagation();
+                onMarkerSelect?.(marker.id!);
+              });
+            }
             const chip = document.createElement("div");
             chip.textContent = marker.chipLabel;
-            chip.className =
-              "rounded-md bg-white px-2 py-1 text-xs font-bold text-gray-800 shadow-md whitespace-nowrap";
+            chip.className = selected
+              ? "rounded-md bg-blue-600 px-2 py-1 text-xs font-bold text-white shadow-md whitespace-nowrap"
+              : "rounded-md bg-white px-2 py-1 text-xs font-bold text-gray-800 shadow-md whitespace-nowrap";
             const dot = document.createElement("div");
-            dot.className = "h-4 w-4 rounded-full border-2 border-white shadow";
+            dot.className = selected
+              ? "h-5 w-5 rounded-full border-[3px] border-white shadow-lg ring-2 ring-blue-500"
+              : "h-4 w-4 rounded-full border-2 border-white shadow";
             dot.style.backgroundColor = color;
             wrap.appendChild(chip);
             wrap.appendChild(dot);
             new maplibre.Marker({ element: wrap, anchor: "bottom" }).setLngLat(marker.lngLat).addTo(map);
           } else {
-            const el = document.createElement("div");
+            const el = document.createElement(marker.id && onMarkerSelect ? "button" : "div");
             el.textContent = marker.label ?? "";
-            el.className =
-              "flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow pointer-events-none";
+            el.className = selected
+              ? "pointer-events-auto flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-[3px] border-white text-[10px] font-bold text-white shadow-lg ring-2 ring-blue-500"
+              : `flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow ${marker.id && onMarkerSelect ? "pointer-events-auto cursor-pointer" : "pointer-events-none"}`;
             el.style.backgroundColor = color;
+            if (el instanceof HTMLButtonElement) {
+              el.type = "button";
+              el.setAttribute("aria-label", `${marker.chipLabel ?? marker.label ?? "地点"}を選択`);
+              el.setAttribute("aria-pressed", String(selected));
+              el.addEventListener("click", (event) => {
+                event.stopPropagation();
+                onMarkerSelect?.(marker.id!);
+              });
+            }
             new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(marker.lngLat).addTo(map);
           }
         }
@@ -167,7 +197,7 @@ export function FieldMiniMap({
     // onPickはクリックハンドラ内で直接参照するため、差し替わった時に古い関数を掴んだままに
     // ならないよう依存配列に含める（レビュー指摘: 2026-08-11）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depKey, onPick]);
+  }, [depKey, onPick, onMarkerSelect]);
 
   if (!boundary && points.length === 0 && markers.length === 0) return null;
 
@@ -180,6 +210,14 @@ export function FieldMiniMap({
             タップして位置を指定
           </span>
         </div>
+      </div>
+    );
+  }
+
+  if (onMarkerSelect) {
+    return (
+      <div role="group" aria-label={ariaLabel} className={`relative overflow-hidden bg-gray-200 ${className}`}>
+        <div ref={containerRef} className="h-full w-full" />
       </div>
     );
   }

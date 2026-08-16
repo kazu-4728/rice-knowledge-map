@@ -17,7 +17,7 @@ import { IconClose } from "../../components/ui/icons";
  * loading中はどちらとも判定できないため、点滅を避ける無地の背景だけを出す。
  */
 export default function HomeGate() {
-  const { loading, session } = useAuth();
+  const { loading, session, configured } = useAuth();
   const searchParams = useSearchParams();
   const lpPreview = searchParams.get("lp") === "preview";
 
@@ -43,9 +43,9 @@ export default function HomeGate() {
     );
   }
 
-  if (session) {
+  if (session || (!configured && searchParams.get("app") === "demo")) {
     return (
-      <AppShell>
+      <AppShell showWeather={false}>
         <HomeDashboard />
       </AppShell>
     );

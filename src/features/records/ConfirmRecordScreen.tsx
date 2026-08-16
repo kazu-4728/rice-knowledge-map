@@ -104,70 +104,77 @@ export default function ConfirmRecordScreen() {
   };
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-gray-100">
-      <header className="relative flex h-14 shrink-0 items-center justify-center border-b border-gray-100 bg-white">
-        <Link href={backHref} onClick={handleBack} aria-label="戻る" className="absolute left-1 p-2.5 text-gray-800">
+    <div className="mx-auto flex h-dvh max-w-md md:max-w-2xl lg:max-w-3xl flex-col overflow-hidden bg-[#fffdf7]">
+      <header className="relative flex h-14 shrink-0 items-center justify-center bg-emerald-950 text-white">
+        <Link href={backHref} onClick={handleBack} aria-label="戻る" className="absolute left-1 flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10">
           <IconChevronLeft className="h-6 w-6" />
         </Link>
-        <h1 className="text-lg font-bold text-green-700">保存前の確認</h1>
+        <h1 className="text-lg font-black">記録内容の確認</h1>
       </header>
 
-      <main className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
-        <section className="rounded-2xl bg-white p-3 shadow-sm">
+      <main className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-emerald-950">内容を整理しました</h2>
+          <p className="mt-1 text-sm text-stone-600">間違いがあれば修正してから保存してください</p>
+        </div>
+
+        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
           {draft.previewUrl &&
             (draft.kind === "audio" ? (
-              <audio controls src={draft.previewUrl} className="w-full" />
+              <div className="p-4"><audio controls src={draft.previewUrl} className="w-full" /></div>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- ローカルBlobのプレビュー
               <img
                 src={draft.previewUrl}
                 alt="撮影した写真"
-                className="max-h-72 w-full rounded-xl bg-gray-900 object-contain"
+                className="max-h-[60vh] w-full bg-stone-900 object-contain"
               />
             ))}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
             {/* 圃場 */}
             {draft.fieldName && (
-              <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
+              <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-900">
                 {draft.fieldName}
               </span>
             )}
             {/* 場所（ポイント種別） */}
             {draft.pointType && (
-              <span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
+              <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-800">
                 {TYPE_LABELS[draft.pointType] ?? draft.pointType}
               </span>
             )}
             {/* カテゴリ（場所種別から自動判定。将来のAI出力JSONと1対1になる項目） */}
-            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600">
+            <span className="rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-bold text-stone-700">
               {categoryLabel}
             </span>
           </div>
-          <p className="mt-2.5 flex items-center gap-1 text-xs text-gray-600">
-            <IconPinFill className="h-3.5 w-3.5 text-green-700" />
+          <p className="mt-3 flex items-center gap-1 text-xs text-stone-600">
+            <IconPinFill className="h-3.5 w-3.5 text-emerald-800" />
             {formatRecordedAt(draft.recordedAt)}
             {draft.location ? "・現在地を記録します" : "・位置情報なし"}
           </p>
+          </div>
         </section>
 
         {/* 状況（今回の観測状態。将来AIが初期値を埋める予定の項目） */}
-        <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-          <p className="text-sm font-semibold text-gray-700">状況</p>
+        <section className="rounded-2xl border border-stone-200 bg-white px-4 py-4">
+          <p className="text-base font-black text-stone-900">状態</p>
           {isIssueDraft && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs leading-relaxed text-stone-500">
               異常の記録は既定で「未対応」として保存されます。対応不要になったら記録詳細からいつでも変更できます
             </p>
           )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             {visibleStatusChoices.map((c) => (
               <button
                 key={c.key}
                 type="button"
                 onClick={() => setStatus((cur) => (cur === c.key ? undefined : c.key))}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                className={`min-h-11 rounded-xl px-2 text-sm font-bold transition-colors ${
                   status === c.key
-                    ? "bg-green-700 text-white"
-                    : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    ? "bg-emerald-900 text-white"
+                    : "border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
                 }`}
               >
                 {c.label}
@@ -176,12 +183,12 @@ export default function ConfirmRecordScreen() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white px-4 py-1 shadow-sm">
+        <section className="rounded-2xl border border-stone-200 bg-white px-4 py-1">
           <div className="flex items-start gap-3 py-3.5">
-            <IconClipboard className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
+            <IconClipboard className="mt-0.5 h-5 w-5 shrink-0 text-emerald-800" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-700">メモ</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-gray-900">
+              <p className="text-sm font-bold text-stone-700">内容</p>
+              <p className="mt-1 whitespace-pre-wrap text-base leading-relaxed text-stone-950">
                 {draft.memo.trim() || "（メモなし）"}
               </p>
             </div>
@@ -189,12 +196,12 @@ export default function ConfirmRecordScreen() {
         </section>
 
         {/* 次のアクション（任意。将来AIが初期値を埋める予定の項目） */}
-        <section className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+        <section className="rounded-2xl border border-stone-200 bg-white px-4 py-4">
           <div className="flex items-start gap-3">
-            <IconChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
+            <IconChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-emerald-800" />
             <div className="min-w-0 flex-1">
-              <label htmlFor="next-action" className="text-sm font-semibold text-gray-700">
-                次のアクション（任意）
+              <label htmlFor="next-action" className="text-sm font-bold text-stone-700">
+                対応・次に確認すること（任意）
               </label>
               <input
                 id="next-action"
@@ -202,9 +209,16 @@ export default function ConfirmRecordScreen() {
                 value={nextAction}
                 onChange={(e) => setNextAction(e.target.value)}
                 placeholder="例: 夕方にもう一度確認する"
-                className="mt-1.5 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
+                className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 px-3 py-2 text-base text-stone-950 placeholder-stone-400 outline-none focus:border-emerald-700"
               />
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border-2 border-emerald-900 bg-emerald-50/40 px-4 py-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-900 text-white"><IconCheck className="h-5 w-5" /></span>
+            <div><p className="text-base font-black text-emerald-950">今年の記録として保存</p><p className="mt-1 text-sm leading-relaxed text-stone-600">引き継ぐ固定の知識や手順は変更しません</p></div>
           </div>
         </section>
 
@@ -213,11 +227,11 @@ export default function ConfirmRecordScreen() {
         )}
       </main>
 
-      <div className="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 gap-3 border-t border-stone-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <Link
           href={backHref}
           onClick={handleBack}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+          className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-white text-sm font-bold text-emerald-900 transition-colors hover:bg-emerald-50"
         >
           <IconPencil className="h-4.5 w-4.5" />
           修正する
@@ -225,10 +239,10 @@ export default function ConfirmRecordScreen() {
         <button
           onClick={handleSave}
           disabled={busy}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-700 py-3 text-sm font-bold text-white transition-colors hover:bg-green-800 disabled:opacity-60"
+          className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-950 text-sm font-black text-white transition-colors hover:bg-emerald-900 disabled:opacity-60"
         >
           <IconCheck className="h-5 w-5" strokeWidth={2.2} />
-          {busy ? "保存中…" : "保存する"}
+          {busy ? "保存中…" : "確認して保存"}
         </button>
       </div>
     </div>

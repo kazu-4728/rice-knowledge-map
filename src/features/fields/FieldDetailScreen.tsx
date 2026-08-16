@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { loadPointMedia, addPointPhoto } from "../../lib/data/pointMedia";
-import { saveFieldPoint } from "../../lib/data/farm";
+import { getMyRole, saveFieldPoint } from "../../lib/data/farm";
 import PointPhotoSection from "../map/PointPhotoSection";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import Link from "next/link";
@@ -13,7 +13,6 @@ import { formatAreaSqm } from "../../lib/utils/geo";
 import { resolveRecordCoverUrl } from "../../lib/data/media";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
-import { useEffect } from "react";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
@@ -24,6 +23,7 @@ import { CATEGORY_BADGE } from "../../components/ui/categoryStyles";
 import StatusBadge, { type StatusKey } from "../../components/ui/StatusBadge";
 import SectionHeading from "../../components/ui/SectionHeading";
 import { useFieldDetail, type ObservationPhoto } from "./hooks/useFieldDetail";
+import FieldKnowledgeBrowser from "./FieldKnowledgeBrowser";
 import { useAuth } from "../auth/useAuth";
 import { shareFieldStory } from "../../lib/utils/share";
 import type { FieldPoint, FieldPointType, RecordItem } from "../../types";
@@ -36,13 +36,8 @@ import {
   IconClose,
   IconFieldGrid,
   IconMic,
-  IconPinFill,
-  IconPlus,
   IconShare,
 } from "../../components/ui/icons";
-
-/** 田んぼ詳細ページに常に並べる固定枠。登録されていなくても枠自体は表示する */
-const FIXED_SLOT_TYPES: FieldPointType[] = ["inlet", "outlet", "machine_entry"];
 
 /** ポイント種別の表示（ラベル・アイコンは mapPins.ts / pointTypeMeta.ts が元データ） */
 function pointTypeView(type: FieldPointType | string | undefined) {
@@ -226,10 +221,14 @@ function PointDetailSheet({
   point,
   onClose,
   fieldId,
+  editable,
+  onPhotoChange,
 }: {
   point: FieldPoint;
   onClose: () => void;
   fieldId: string;
+  editable: boolean;
+  onPhotoChange: () => void;
 }) {
   const meta = pointTypeView(point.type);
   const status = POINT_STATUS_META[point.status];
@@ -272,7 +271,7 @@ function PointDetailSheet({
         )}
 
         <div className="mt-4">
-          <PointPhotoSection pointId={point.id} />
+          <PointPhotoSection pointId={point.id} editable={editable} onChange={onPhotoChange} />
         </div>
 
         <Link
@@ -313,13 +312,13 @@ function RegisterPointSheet({
 }) {
   const meta = pointTypeView(pointType);
   const label = TYPE_LABELS[pointType];
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [lngLat, setLngLat] = useState<[number, number] | null>(null);
   const [memo, setMemo] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // プレビュー用のObject URLはファイル差し替え・アンマウント時に必ず解放する
   useEffect(() => {
@@ -531,7 +530,6 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const { session } = useAuth();
   const searchParams = useSearchParams();
   const highlightPointId = searchParams.get("point");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   /**
    * カテゴリ別要約セクションで表示中の件数（カテゴリ名→件数。未展開は1件）。
    * 「すべて見る」を押しても全件は一度に描画せず、RECORDS_PAGE_SIZE件ずつ段階的に増やす
@@ -541,13 +539,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [openPoint, setOpenPoint] = useState<FieldPoint | null>(null);
   /** 登録中の固定枠の種別（入水口/出水口/機材搬入口のいずれか。登録シートを開く） */
   const [registeringType, setRegisteringType] = useState<FieldPointType | null>(null);
+  const [canEditPointPhotos, setCanEditPointPhotos] = useState(false);
 
   const {
     loading,
     notFound,
     field,
     points,
-    sortedPoints,
     records,
     thumbUrls,
     attention,
@@ -560,6 +558,18 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     imageSlots,
     addPoint,
   } = useFieldDetail(fieldId);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!field.groupId) {
+      setCanEditPointPhotos(false);
+      return;
+    }
+    void getMyRole(field.groupId).then((role) => {
+      if (!cancelled) setCanEditPointPhotos(role === "owner" || role === "editor");
+    });
+    return () => { cancelled = true; };
+  }, [field.groupId]);
 
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
   useEffect(() => {
@@ -575,22 +585,30 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   // ポイントの台帳写真（先頭1枚）をアイコンの代わりに出す
   const [pointThumbs, setPointThumbs] = useState<Record<string, string>>({});
+  const loadPointThumbMap = useCallback(async (): Promise<Record<string, string>> => {
+    if (points.length === 0) return {};
+    const { byPoint, urls } = await loadPointMedia(points.map((point) => point.id));
+    const thumbs: Record<string, string> = {};
+    for (const [pointId, items] of Object.entries(byPoint)) {
+      const first = items[0];
+      if (first && urls[first.storagePath]) thumbs[pointId] = urls[first.storagePath];
+    }
+    return thumbs;
+  }, [points]);
+
+  const refreshPointThumbs = useCallback(async () => {
+    setPointThumbs(await loadPointThumbMap());
+  }, [loadPointThumbMap]);
+
   useEffect(() => {
-    if (points.length === 0) return;
     let cancelled = false;
-    loadPointMedia(points.map((p) => p.id)).then(({ byPoint, urls }) => {
-      if (cancelled) return;
-      const thumbs: Record<string, string> = {};
-      for (const [pid, items] of Object.entries(byPoint)) {
-        const first = items[0];
-        if (first && urls[first.storagePath]) thumbs[pid] = urls[first.storagePath];
-      }
-      setPointThumbs(thumbs);
+    void loadPointThumbMap().then((thumbs) => {
+      if (!cancelled) setPointThumbs(thumbs);
     });
     return () => {
       cancelled = true;
     };
-  }, [points]);
+  }, [loadPointThumbMap]);
 
   // マップの「田んぼの詳細」から?point=付きで来た場合、その地点の詳細シートを自動で開く
   useEffect(() => {
@@ -669,50 +687,6 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   return (
     <div className="min-h-full space-y-5 bg-flow-cream px-3 pb-6 pt-3">
-      {/* カバー写真 */}
-      <div className="relative overflow-hidden rounded-2xl shadow-md" style={{ height: "56vw", maxHeight: 280, minHeight: 180 }}>
-        <RemotePhoto
-          src={coverImageUrl}
-          alt={field.name}
-          className="h-full w-full object-cover animate-ken-burns-up"
-          fallbackVariant="field"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
-
-        {/* 写真あり: 変更ボタン。写真なし: 追加の促し */}
-        {field.groupId && field.photoUrl && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg bg-black/50 px-2.5 py-1.5 text-xs font-semibold text-white"
-            aria-label="写真を変更"
-          >
-            <IconCamera className="h-3.5 w-3.5" />
-            写真を変更
-          </button>
-        )}
-        {field.groupId && !field.photoUrl && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-2xl bg-black/45 px-5 py-3.5 text-center backdrop-blur-sm"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90">
-              <IconCamera className="h-5 w-5 text-green-700" />
-            </span>
-            <span className="text-sm font-bold text-white">カバー写真を追加</span>
-            <span className="text-[11px] text-white/80">一覧で見分けやすくなります</span>
-          </button>
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoSelect(f); e.currentTarget.value = ""; }}
-        />
-      </div>
-
-      {/* ── この田んぼの台帳（変わらない情報）: 名前・面積・状態を1行で。
-          以前は説明文+4分割統計+カテゴリ内訳の縦長カードだったが、要点が埋もれるため圧縮した ── */}
       <div className="space-y-1.5 rounded-2xl bg-white px-3.5 py-3 shadow-sm">
         <div className="flex items-center gap-2">
           <span
@@ -755,156 +729,28 @@ export default function FieldDetailScreen({ fieldId }: Props) {
         </p>
       </div>
 
-      {/* 地図（場所確認用の小さな脇役。詳細な位置と名前は下の一覧側で見せる） */}
-      <FieldMiniMap
-        href={`/map?field=${encodeURIComponent(fieldId)}`}
+      <FieldKnowledgeBrowser
+        fieldId={fieldId}
+        fieldName={field.name || "名前のない田んぼ"}
         boundary={field.boundary}
-        points={points.map((p) => p.lngLat)}
-        markers={points.map((p) => ({ lngLat: p.lngLat, color: PIN_COLORS[p.type] }))}
-        label={field.name || "名前のない田んぼ"}
-        className="h-28 w-full rounded-2xl shadow-sm"
-        ariaLabel="マップで開く"
+        coverImageUrl={coverImageUrl}
+        points={points}
+        pointThumbs={pointThumbs}
+        records={records}
+        initialPointId={highlightPointId}
+        onRegisterPoint={setRegisteringType}
+        onEditPoint={setOpenPoint}
+        onCoverPhotoSelect={handlePhotoSelect}
       />
 
-      {/* 固定枠（入水口・出水口・機材搬入口）。2026-08-11オーナー指摘:
-          「追加されていようがいまいが、固定情報一覧は並んでいなければならない」に対応し、
-          登録の有無に関わらずこの3枠を常に表示する。未登録の枠はタップで
-          このページ内から出ずに登録できる（/mapへは遷移しない） */}
-      <div className="space-y-1">
-        <SectionHeading level={3}>設備ポイント</SectionHeading>
-        <p className="px-1 text-xs text-gray-400">
-          入水口・出水口・機材搬入口は、登録の有無に関わらずここに並びます
-        </p>
-      </div>
-      <ul className="space-y-2">
-        {FIXED_SLOT_TYPES.map((slotType) => {
-          const slotMeta = pointTypeView(slotType);
-          const slotPoints = points.filter((p) => p.type === slotType);
-
-          if (slotPoints.length === 0) {
-            return (
-              <li key={slotType}>
-                <button
-                  type="button"
-                  onClick={() => setRegisteringType(slotType)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-white/70 p-3 text-left transition-colors hover:bg-white active:scale-98"
-                >
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${slotMeta.color}`}>
-                    {slotMeta.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-gray-600">{TYPE_LABELS[slotType]}</p>
-                    <p className="text-xs text-gray-400">まだ登録されていません</p>
-                  </div>
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flow-green text-white">
-                    <IconPlus className="h-4 w-4" />
-                  </span>
-                </button>
-              </li>
-            );
-          }
-
-          return slotPoints.map((point) => {
-            const meta = pointTypeView(point.type);
-            const status = POINT_STATUS_META[point.status];
-            const highlighted = point.id === highlightPointId;
-            const thumb = pointThumbs[point.id];
-            return (
-              <li key={point.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpenPoint(point)}
-                  className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
-                    highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
-                  }`}
-                >
-                  {thumb ? (
-                    <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
-                      <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
-                    </span>
-                  ) : (
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
-                      {meta.icon}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                    <p className="line-clamp-1 text-xs text-gray-500">
-                      {point.memo || `${meta.label}・${point.lastRecord}`}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
-                    {status.label}
-                  </span>
-                  <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                </button>
-              </li>
-            );
-          });
-        })}
-      </ul>
-
-      {/* その他のポイント（水路・注意箇所・雑草など、自由に追加できるもの） */}
-      {(() => {
-        const otherPoints = sortedPoints.filter((p) => !FIXED_SLOT_TYPES.includes(p.type));
-        if (otherPoints.length === 0) return null;
-        return (
-          <div className="space-y-2">
-            <p className="px-1 text-xs font-bold text-gray-500">その他のポイント</p>
-            <ul className="space-y-2">
-              {otherPoints.map((point) => {
-                const meta = pointTypeView(point.type);
-                const status = POINT_STATUS_META[point.status];
-                const highlighted = point.id === highlightPointId;
-                const thumb = pointThumbs[point.id];
-                return (
-                  <li key={point.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenPoint(point)}
-                      className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all active:scale-98 ${
-                        highlighted ? "border-flow-green ring-2 ring-flow-green" : "border-gray-100"
-                      }`}
-                    >
-                      {thumb ? (
-                        <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
-                          <RemotePhoto src={thumb} alt="" className="h-full w-full object-cover" />
-                        </span>
-                      ) : (
-                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.color}`}>
-                          {meta.icon}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-gray-900">{point.name || meta.label}</p>
-                        <p className="line-clamp-1 text-xs text-gray-500">
-                          {point.memo || `${meta.label}・${point.lastRecord}`}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${status.cls}`}>
-                        {status.label}
-                      </span>
-                      <IconChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-      })()}
-      <Link href="/map" className="block active:scale-98 transition-transform">
-        <Card accent="monitoring" className="flex items-center gap-3 p-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-            <IconPinFill className="h-4.5 w-4.5 text-gray-500" />
-          </span>
-          <p className="min-w-0 flex-1 text-sm font-bold text-gray-700">その他のポイントを地図から追加</p>
-          <IconChevronRight className="h-4.5 w-4.5 shrink-0 text-gray-400" />
-        </Card>
-      </Link>
-
       {openPoint && (
-        <PointDetailSheet point={openPoint} fieldId={fieldId} onClose={() => setOpenPoint(null)} />
+        <PointDetailSheet
+          point={openPoint}
+          fieldId={fieldId}
+          editable={canEditPointPhotos}
+          onPhotoChange={() => { void refreshPointThumbs(); }}
+          onClose={() => setOpenPoint(null)}
+        />
       )}
 
       {registeringType && (

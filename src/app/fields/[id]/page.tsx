@@ -7,7 +7,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function FieldDetailPage({ params }: Props) {
   const { id } = await params;
   return (
-    <AppShell backHref="/map" backLabel="マップ">
+    <AppShell backHref="/map" backLabel="マップ" showWeather={false}>
       <Suspense fallback={null}>
         <FieldDetailScreen fieldId={decodeURIComponent(id)} />
       </Suspense>
