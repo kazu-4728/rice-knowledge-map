@@ -1,24 +1,9 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_JP, Zen_Kaku_Gothic_New } from "next/font/google";
 import PwaRegister from "../components/pwa/PwaRegister";
 import { DrawerProvider } from "../components/layout/DrawerContext";
 import { ToastProvider } from "../components/ui/Toast";
 import "../styles/globals.css";
-
-const notoSansJp = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["400", "500", "700", "900"],
-  variable: "--font-noto-sans-jp",
-  display: "swap",
-});
-
-const zenKakuGothicNew = Zen_Kaku_Gothic_New({
-  subsets: ["latin"],
-  weight: ["500", "700", "900"],
-  variable: "--font-zen-kaku-gothic",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "みらい稲作管理",
@@ -43,7 +28,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ja" className={`${notoSansJp.variable} ${zenKakuGothicNew.variable}`}>
+    <html lang="ja">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap"
+        />
+      </head>
       <body className="bg-background text-foreground antialiased font-sans">
         <DrawerProvider>
           <ToastProvider>
