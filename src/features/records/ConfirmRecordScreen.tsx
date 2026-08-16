@@ -127,7 +127,7 @@ export default function ConfirmRecordScreen() {
               <img
                 src={draft.previewUrl}
                 alt="撮影した写真"
-                className="h-72 w-full bg-stone-900 object-cover"
+                className="max-h-[60vh] w-full bg-stone-900 object-contain"
               />
             ))}
           <div className="p-4">

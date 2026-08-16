@@ -44,11 +44,11 @@ test("写真と地図ピンが同じ画面で連動し、固定知識を開け�
   await waitForImages(page);
   await page.screenshot({ path: path.join(screenshotDir, "03-field-photo-linked.png") });
 
-  await page.getByRole("button", { name: "手順と写真を見る", exact: true }).click();
-  const manual = page.getByRole("dialog", { name: /東側 入水口の詳しい手順/ });
+  await page.getByRole("button", { name: "知識と写真を見る", exact: true }).click();
+  const manual = page.getByRole("dialog", { name: /東側 入水口の詳しい知識/ });
   await expect(manual).toBeVisible();
-  await expect(manual.getByText("水源は用水路", { exact: true })).toBeVisible();
-  await expect(manual.getByText("ゲートが重いので二人で開ける", { exact: true }).first()).toBeVisible();
+  await expect(manual.getByText(/水源は用水路/)).toBeVisible();
+  await expect(manual.getByText(/ゲートが重いので二人で開ける/)).toBeVisible();
   await waitForImages(page);
   await page.screenshot({ path: path.join(screenshotDir, "04-manual.png") });
 });

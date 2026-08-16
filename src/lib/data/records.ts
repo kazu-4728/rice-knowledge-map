@@ -188,11 +188,19 @@ export async function loadHasAnyRecord(): Promise<boolean | null> {
 const RECORD_SELECT =
   "id, group_id, field_id, point_id, record_type, status, title, note, ai_summary, ai_category, recorded_by, recorded_at, farm_fields(name), field_points(name, point_type), record_media(media_type, storage_bucket, storage_path)";
 
-export async function loadRecords(opts?: { limit?: number; fieldId?: string; all?: boolean }): Promise<RecordsData> {
+export async function loadRecords(opts?: {
+  limit?: number;
+  fieldId?: string;
+  status?: RecordItem["status"];
+  all?: boolean;
+}): Promise<RecordsData> {
   // 一覧は最新100件で十分だが、エクスポート等は全件が必要なため上限を可変にする
   const limit = opts?.limit ?? 100;
   const sb = getSupabase();
-  if (!sb) return DEMO;
+  if (!sb) {
+    const records = opts?.status ? DEMO.records.filter((record) => record.status === opts.status) : DEMO.records;
+    return { ...DEMO, records: records.slice(0, opts?.limit ?? records.length) };
+  }
 
   let authed = false;
   try {
@@ -211,6 +219,7 @@ export async function loadRecords(opts?: { limit?: number; fieldId?: string; all
       for (let from = 0; ; from += PAGE) {
         let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).range(from, from + PAGE - 1);
         if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+        if (opts?.status) q = q.eq("status", opts.status);
         const { data, error } = await q;
         if (error) {
           console.warn("[records] fetch failed", error);
@@ -223,6 +232,7 @@ export async function loadRecords(opts?: { limit?: number; fieldId?: string; all
     } else {
       let q = sb.from("records").select(RECORD_SELECT).order("recorded_at", { ascending: false }).limit(limit);
       if (opts?.fieldId) q = q.eq("field_id", opts.fieldId);
+      if (opts?.status) q = q.eq("status", opts.status);
       const { data, error } = await q;
       if (error) {
         console.warn("[records] fetch failed", error);

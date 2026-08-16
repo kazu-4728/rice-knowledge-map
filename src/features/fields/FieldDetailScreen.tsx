@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { loadPointMedia, addPointPhoto } from "../../lib/data/pointMedia";
-import { saveFieldPoint } from "../../lib/data/farm";
+import { getMyRole, saveFieldPoint } from "../../lib/data/farm";
 import PointPhotoSection from "../map/PointPhotoSection";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import Link from "next/link";
@@ -13,7 +13,6 @@ import { formatAreaSqm } from "../../lib/utils/geo";
 import { resolveRecordCoverUrl } from "../../lib/data/media";
 import { useAreaUnit } from "../../lib/hooks/useAreaUnit";
 import { useToast } from "../../components/ui/Toast";
-import { useEffect } from "react";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
 import { RecordThumb } from "../../components/ui/PaddyPhoto";
 import { Card, CardContent } from "../../components/ui/card";
@@ -222,10 +221,14 @@ function PointDetailSheet({
   point,
   onClose,
   fieldId,
+  editable,
+  onPhotoChange,
 }: {
   point: FieldPoint;
   onClose: () => void;
   fieldId: string;
+  editable: boolean;
+  onPhotoChange: () => void;
 }) {
   const meta = pointTypeView(point.type);
   const status = POINT_STATUS_META[point.status];
@@ -268,7 +271,7 @@ function PointDetailSheet({
         )}
 
         <div className="mt-4">
-          <PointPhotoSection pointId={point.id} editable />
+          <PointPhotoSection pointId={point.id} editable={editable} onChange={onPhotoChange} />
         </div>
 
         <Link
@@ -536,6 +539,7 @@ export default function FieldDetailScreen({ fieldId }: Props) {
   const [openPoint, setOpenPoint] = useState<FieldPoint | null>(null);
   /** 登録中の固定枠の種別（入水口/出水口/機材搬入口のいずれか。登録シートを開く） */
   const [registeringType, setRegisteringType] = useState<FieldPointType | null>(null);
+  const [canEditPointPhotos, setCanEditPointPhotos] = useState(false);
 
   const {
     loading,
@@ -555,6 +559,18 @@ export default function FieldDetailScreen({ fieldId }: Props) {
     addPoint,
   } = useFieldDetail(fieldId);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!field.groupId) {
+      setCanEditPointPhotos(false);
+      return;
+    }
+    void getMyRole(field.groupId).then((role) => {
+      if (!cancelled) setCanEditPointPhotos(role === "owner" || role === "editor");
+    });
+    return () => { cancelled = true; };
+  }, [field.groupId]);
+
   // 記録保存直後にこの画面へ戻ってきた場合はトーストを出す
   useEffect(() => {
     if (consumeJustSaved()) showToast("記録を保存しました");
@@ -569,22 +585,30 @@ export default function FieldDetailScreen({ fieldId }: Props) {
 
   // ポイントの台帳写真（先頭1枚）をアイコンの代わりに出す
   const [pointThumbs, setPointThumbs] = useState<Record<string, string>>({});
+  const loadPointThumbMap = useCallback(async (): Promise<Record<string, string>> => {
+    if (points.length === 0) return {};
+    const { byPoint, urls } = await loadPointMedia(points.map((point) => point.id));
+    const thumbs: Record<string, string> = {};
+    for (const [pointId, items] of Object.entries(byPoint)) {
+      const first = items[0];
+      if (first && urls[first.storagePath]) thumbs[pointId] = urls[first.storagePath];
+    }
+    return thumbs;
+  }, [points]);
+
+  const refreshPointThumbs = useCallback(async () => {
+    setPointThumbs(await loadPointThumbMap());
+  }, [loadPointThumbMap]);
+
   useEffect(() => {
-    if (points.length === 0) return;
     let cancelled = false;
-    loadPointMedia(points.map((p) => p.id)).then(({ byPoint, urls }) => {
-      if (cancelled) return;
-      const thumbs: Record<string, string> = {};
-      for (const [pid, items] of Object.entries(byPoint)) {
-        const first = items[0];
-        if (first && urls[first.storagePath]) thumbs[pid] = urls[first.storagePath];
-      }
-      setPointThumbs(thumbs);
+    void loadPointThumbMap().then((thumbs) => {
+      if (!cancelled) setPointThumbs(thumbs);
     });
     return () => {
       cancelled = true;
     };
-  }, [points]);
+  }, [loadPointThumbMap]);
 
   // マップの「田んぼの詳細」から?point=付きで来た場合、その地点の詳細シートを自動で開く
   useEffect(() => {
@@ -720,7 +744,13 @@ export default function FieldDetailScreen({ fieldId }: Props) {
       />
 
       {openPoint && (
-        <PointDetailSheet point={openPoint} fieldId={fieldId} onClose={() => setOpenPoint(null)} />
+        <PointDetailSheet
+          point={openPoint}
+          fieldId={fieldId}
+          editable={canEditPointPhotos}
+          onPhotoChange={() => { void refreshPointThumbs(); }}
+          onClose={() => setOpenPoint(null)}
+        />
       )}
 
       {registeringType && (

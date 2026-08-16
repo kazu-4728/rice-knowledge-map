@@ -15,16 +15,21 @@ export default defineConfig({
   outputDir: path.join(os.tmpdir(), "rice-knowledge-map-playwright"),
   use: {
     ...devices["Desktop Chrome"],
-    baseURL: "http://127.0.0.1:3001",
+    baseURL: "http://127.0.0.1:3011",
     viewport: { width: 390, height: 844 },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npx next dev -H 127.0.0.1 -p 3001",
-    url: "http://127.0.0.1:3001",
-    reuseExistingServer: true,
+    command: "npx next dev -H 127.0.0.1 -p 3011",
+    url: "http://127.0.0.1:3011",
+    reuseExistingServer: false,
     timeout: 60_000,
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_SUPABASE_URL: "",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
+    },
   },
   metadata: { screenshotDir },
 });

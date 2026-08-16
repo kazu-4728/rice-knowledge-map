@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSON } from "geojson";
 import { FieldMiniMap } from "../../components/map/FieldMiniMap";
 import { RemotePhoto } from "../../components/ui/RemotePhoto";
+import StatusBadge from "../../components/ui/StatusBadge";
 import {
   IconBookOpen,
   IconCamera,
@@ -31,18 +32,15 @@ function shortPointName(fieldName: string, point: FieldPoint): string {
   return point.name.replace(fieldName, "").trim() || TYPE_LABELS[point.type];
 }
 
-function inheritedFacts(point: FieldPoint): string[] {
-  const facts = (point.memo ?? "")
-    .split(/[。\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return facts.length > 0 ? facts : ["まだ手順が登録されていません"];
+function knowledgeMemo(point: FieldPoint): string {
+  return point.memo?.trim() || "この場所の知識はまだ登録されていません";
 }
 
 function KnowledgeManualSheet({
   fieldName,
   point,
   photoUrl,
+  photoRegistered,
   boundary,
   onClose,
   onEdit,
@@ -50,15 +48,15 @@ function KnowledgeManualSheet({
   fieldName: string;
   point: FieldPoint;
   photoUrl: string;
+  photoRegistered: boolean;
   boundary: GeoJSON.Polygon | null;
   onClose: () => void;
   onEdit: () => void;
 }) {
-  const facts = inheritedFacts(point);
-  const warning = facts.find((fact) => fact.includes("二人") || fact.includes("危険") || fact.includes("注意"));
+  const memo = knowledgeMemo(point);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center bg-black/55" role="dialog" aria-modal="true" aria-label={`${point.name}の詳しい手順`}>
+    <div className="fixed inset-0 z-50 flex justify-center bg-black/55" role="dialog" aria-modal="true" aria-label={`${point.name}の詳しい知識`}>
       <div className="h-full w-full max-w-md overflow-y-auto bg-[#fffdf7] pb-28">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 bg-emerald-950 px-3 text-white">
           <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10" aria-label="閉じる">
@@ -70,30 +68,22 @@ function KnowledgeManualSheet({
 
         <div className="relative h-72 overflow-hidden bg-gray-200">
           <RemotePhoto src={photoUrl} alt={point.name} className="h-full w-full" fallbackVariant="water" />
+          {!photoRegistered && (
+            <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-bold text-white">
+              サンプル画像・現地写真未登録
+            </span>
+          )}
           <div className="absolute inset-x-0 bottom-0 bg-black/55 px-5 py-4 text-white">
-            <p className="text-3xl font-black tracking-tight">いつもの手順</p>
-            <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><IconCamera className="h-4 w-4" />写真付き・{facts.length}手順</p>
+            <p className="text-3xl font-black tracking-tight">引き継ぐ知識</p>
+            <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><IconCamera className="h-4 w-4" />{photoRegistered ? "現地写真あり" : "現地写真は未登録"}・登録メモ</p>
           </div>
         </div>
 
         <section className="px-5 py-5">
-          <ol className="divide-y divide-stone-200">
-            {facts.map((fact, index) => (
-              <li key={`${fact}-${index}`} className="grid grid-cols-[3rem_1fr] gap-3 py-5 first:pt-0">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-800 text-xl font-black text-white">{index + 1}</span>
-                <div>
-                  <p className="text-lg font-bold leading-relaxed text-stone-900">{fact}</p>
-                  {index === 0 && <p className="mt-1 text-sm leading-relaxed text-stone-600">写真と現地の状態を見比べて確認します</p>}
-                </div>
-              </li>
-            ))}
-          </ol>
-
-          {warning && (
-            <div className="mt-2 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-center text-base font-bold text-amber-800">
-              {warning}
-            </div>
-          )}
+          <div className="rounded-2xl border border-emerald-900/20 bg-white p-4">
+            <div className="flex items-center gap-2 text-emerald-900"><IconBookOpen className="h-5 w-5" /><h3 className="text-base font-black">この場所の登録メモ</h3></div>
+            <p className="mt-3 whitespace-pre-wrap text-lg font-bold leading-relaxed text-stone-900">{memo}</p>
+          </div>
 
           <FieldMiniMap
             boundary={boundary}
@@ -165,7 +155,11 @@ export default function FieldKnowledgeBrowser({
   const selectedPhoto = selectedPoint
     ? pointThumbs[selectedPoint.id] ?? POINT_FALLBACKS[selectedPoint.type] ?? coverImageUrl ?? "/assets/knowledge/canal.webp"
     : coverImageUrl ?? "/assets/knowledge/canal.webp";
-  const selectedRecords = selectedPoint ? records.filter((record) => record.pointId === selectedPoint.id) : [];
+  const selectedPhotoRegistered = !!selectedPoint && !!pointThumbs[selectedPoint.id];
+  const currentYear = new Date().getFullYear();
+  const selectedRecords = selectedPoint
+    ? records.filter((record) => record.pointId === selectedPoint.id && new Date(record.recordedAt).getFullYear() === currentYear)
+    : [];
   const latestChange = selectedRecords[0];
 
   const slots = useMemo(() => {
@@ -210,6 +204,11 @@ export default function FieldKnowledgeBrowser({
       ) : (
         <div className="relative h-72 bg-stone-200">
           <RemotePhoto src={selectedPhoto} alt={selectedPoint?.name ?? fieldName} className="h-full w-full" fallbackVariant="field" />
+          {selectedPoint && !selectedPhotoRegistered && (
+            <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-bold text-white">
+              サンプル画像・現地写真未登録
+            </span>
+          )}
           <div className="absolute inset-x-0 bottom-0 bg-black/55 px-4 py-3 text-white">
             <p className="text-xl font-bold">{selectedPoint ? shortPointName(fieldName, selectedPoint) : fieldName}</p>
             <p className="mt-0.5 text-xs">写真を選ぶと地図のピンも切り替わります</p>
@@ -273,14 +272,12 @@ export default function FieldKnowledgeBrowser({
               <p className="text-2xl font-black tracking-tight text-stone-950">{shortPointName(fieldName, selectedPoint)}</p>
               <p className="mt-1 text-sm text-stone-500">{TYPE_LABELS[selectedPoint.type]}・最終確認 {selectedPoint.lastRecord}</p>
             </div>
-            <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">通常どおり</span>
+            <StatusBadge status={selectedPoint.status} className="shrink-0" />
           </div>
 
           <div className="rounded-2xl border border-emerald-900/20 bg-white p-4">
             <div className="flex items-center gap-2 text-emerald-900"><IconBookOpen className="h-5 w-5" /><h3 className="text-base font-black">引き継ぐ知識</h3></div>
-            <ul className="mt-3 divide-y divide-stone-100">
-              {inheritedFacts(selectedPoint).map((fact, index) => <li key={`${fact}-${index}`} className="py-2.5 text-base font-semibold leading-relaxed text-stone-800">{fact}</li>)}
-            </ul>
+            <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-stone-800">{knowledgeMemo(selectedPoint)}</p>
           </div>
 
           <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
@@ -293,13 +290,13 @@ export default function FieldKnowledgeBrowser({
           </div>
 
           <button type="button" onClick={() => setManualOpen(true)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-900 px-4 text-base font-black text-white shadow-sm active:scale-[0.99]">
-            <IconBookOpen className="h-5 w-5" />手順と写真を見る<IconChevronRight className="h-5 w-5" />
+            <IconBookOpen className="h-5 w-5" />知識と写真を見る<IconChevronRight className="h-5 w-5" />
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setView("map")} className="min-h-12 rounded-2xl border border-emerald-900/30 bg-white text-sm font-bold text-emerald-900">地図で位置を確認</button>
             <button type="button" onClick={() => onEditPoint(selectedPoint)} className="min-h-12 rounded-2xl border border-stone-300 bg-white text-sm font-bold text-stone-700">写真を確認・追加</button>
           </div>
-          <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`} className="flex min-h-12 items-center justify-center gap-2 text-sm font-bold text-emerald-800">
+          <Link href={`/records/new?field=${encodeURIComponent(fieldId)}&point=${encodeURIComponent(selectedPoint.id)}&pointType=${encodeURIComponent(selectedPoint.type)}&returnTo=${encodeURIComponent(`/fields/${fieldId}`)}`} className="flex min-h-12 items-center justify-center gap-2 text-sm font-bold text-emerald-800">
             <IconCamera className="h-4.5 w-4.5" />この場所の変化を記録する
           </Link>
         </div>
@@ -308,7 +305,7 @@ export default function FieldKnowledgeBrowser({
       )}
 
       {manualOpen && selectedPoint && (
-        <KnowledgeManualSheet fieldName={fieldName} point={selectedPoint} photoUrl={selectedPhoto} boundary={boundary} onClose={() => setManualOpen(false)} onEdit={() => { setManualOpen(false); onEditPoint(selectedPoint); }} />
+        <KnowledgeManualSheet fieldName={fieldName} point={selectedPoint} photoUrl={selectedPhoto} photoRegistered={selectedPhotoRegistered} boundary={boundary} onClose={() => setManualOpen(false)} onEdit={() => { setManualOpen(false); onEditPoint(selectedPoint); }} />
       )}
     </section>
   );

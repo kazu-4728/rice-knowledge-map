@@ -35,7 +35,7 @@ export default function HomeDashboard() {
       loadFieldAttention(),
       loadFieldLastRecordDates(),
       loadMostRecentFieldId(),
-      loadRecords({ limit: 20 }),
+      loadRecords({ limit: 1, status: "needs_check" }),
       loadImageSlots(),
     ]).then(async ([summary, dates, latestFieldId, recordData, imageSlots]) => {
       if (cancelled) return;
@@ -44,7 +44,7 @@ export default function HomeDashboard() {
       setLastDates(dates);
       setRecentFieldId(latestFieldId);
 
-      const review = recordData.records.find((record) => record.status === "needs_check") ?? null;
+      const review = recordData.records[0] ?? null;
       setReviewRecord(review);
       if (review) setReviewThumbUrl(resolveRecordCoverUrl(recordData.thumbUrls[review.id], review.category, imageSlots));
 
@@ -113,7 +113,10 @@ export default function HomeDashboard() {
                   <Link key={field.id} href={`/fields/${encodeURIComponent(field.id)}`} className="overflow-hidden rounded-2xl border border-stone-200 bg-white active:scale-[0.99]">
                     <RemotePhoto src={field.photoUrl} alt={field.name || "田んぼの写真"} className="h-24 w-full" fallbackVariant="field" />
                     <div className="p-3">
-                      <p className="text-lg font-black">{field.name}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 truncate text-lg font-black">{field.name}</p>
+                        <StatusBadge status={field.status} label={field.statusLabel} className="shrink-0" />
+                      </div>
                       <p className="mt-1 text-xs font-semibold text-stone-600">場所の知識 {field.pointCount}件</p>
                     </div>
                   </Link>
@@ -155,10 +158,10 @@ export default function HomeDashboard() {
 
       {recentField && (
         <section className="mt-8">
-          <h2 className="border-l-4 border-emerald-800 pl-3 text-xl font-black">最近確認した知識</h2>
+          <h2 className="border-l-4 border-emerald-800 pl-3 text-xl font-black">最近記録した田んぼ</h2>
           <Link href={`/fields/${encodeURIComponent(recentField.id)}`} className="mt-3 flex min-h-24 items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 active:scale-[0.99]">
             <RemotePhoto src={recentField.photoUrl} alt="" className="h-20 w-28 shrink-0 rounded-xl" fallbackVariant="field" />
-            <div className="min-w-0 flex-1"><p className="text-base font-black">{recentField.name}</p><p className="mt-1 text-sm text-stone-600">場所の写真と手順を確認</p></div>
+            <div className="min-w-0 flex-1"><p className="text-base font-black">{recentField.name}</p><p className="mt-1 text-sm text-stone-600">記録と場所の知識を確認</p></div>
             <IconChevronRight className="h-5 w-5 text-emerald-800" />
           </Link>
         </section>
