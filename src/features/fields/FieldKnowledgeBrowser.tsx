@@ -149,6 +149,7 @@ export default function FieldKnowledgeBrowser({
   const [view, setView] = useState<"photos" | "map">("map");
   const [selectedPointId, setSelectedPointId] = useState<string | null>(initialPointId ?? points[0]?.id ?? null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [coverPhotoError, setCoverPhotoError] = useState<string | null>(null);
   const tileRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -218,7 +219,27 @@ export default function FieldKnowledgeBrowser({
           </button>
         </div>
       )}
-      <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onCoverPhotoSelect(file); event.currentTarget.value = ""; }} />
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            setCoverPhotoError(null);
+            void onCoverPhotoSelect(file).catch(() => {
+              setCoverPhotoError("写真を変更できませんでした。通信環境を確認して、もう一度お試しください");
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      {coverPhotoError && (
+        <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {coverPhotoError}
+        </p>
+      )}
 
       <div className="border-b border-stone-200 px-3 py-3">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -258,7 +279,7 @@ export default function FieldKnowledgeBrowser({
           <div className="rounded-2xl border border-emerald-900/20 bg-white p-4">
             <div className="flex items-center gap-2 text-emerald-900"><IconBookOpen className="h-5 w-5" /><h3 className="text-base font-black">引き継ぐ知識</h3></div>
             <ul className="mt-3 divide-y divide-stone-100">
-              {inheritedFacts(selectedPoint).map((fact) => <li key={fact} className="py-2.5 text-base font-semibold leading-relaxed text-stone-800">{fact}</li>)}
+              {inheritedFacts(selectedPoint).map((fact, index) => <li key={`${fact}-${index}`} className="py-2.5 text-base font-semibold leading-relaxed text-stone-800">{fact}</li>)}
             </ul>
           </div>
 

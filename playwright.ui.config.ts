@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
 import path from "node:path";
 
 const screenshotDir =
@@ -11,7 +12,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   timeout: 30_000,
-  outputDir: path.join(process.env.TEMP || process.cwd(), "rice-knowledge-map-playwright"),
+  outputDir: path.join(os.tmpdir(), "rice-knowledge-map-playwright"),
   use: {
     ...devices["Desktop Chrome"],
     baseURL: "http://127.0.0.1:3001",

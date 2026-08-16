@@ -97,7 +97,7 @@ export default function HomeDashboard() {
         ) : fieldCards.length > 0 ? (
           <div className="space-y-3">
             <Link href={`/fields/${encodeURIComponent(fieldCards[0].id)}`} className="relative block h-64 overflow-hidden rounded-3xl bg-stone-200 shadow-[0_16px_40px_-26px_rgba(6,78,59,0.65)] active:scale-[0.99]">
-              <RemotePhoto src={fieldCards[0].photoUrl} alt={fieldCards[0].name} className="h-full w-full" fallbackVariant="field" />
+              <RemotePhoto src={fieldCards[0].photoUrl} alt={fieldCards[0].name || "田んぼの写真"} className="h-full w-full" fallbackVariant="field" />
               <div className="absolute inset-x-0 bottom-0 bg-black/55 p-5 text-white">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-3xl font-black">{fieldCards[0].name}</p>
@@ -111,7 +111,7 @@ export default function HomeDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 {fieldCards.slice(1).map((field) => (
                   <Link key={field.id} href={`/fields/${encodeURIComponent(field.id)}`} className="overflow-hidden rounded-2xl border border-stone-200 bg-white active:scale-[0.99]">
-                    <RemotePhoto src={field.photoUrl} alt={field.name} className="h-24 w-full" fallbackVariant="field" />
+                    <RemotePhoto src={field.photoUrl} alt={field.name || "田んぼの写真"} className="h-24 w-full" fallbackVariant="field" />
                     <div className="p-3">
                       <p className="text-lg font-black">{field.name}</p>
                       <p className="mt-1 text-xs font-semibold text-stone-600">場所の知識 {field.pointCount}件</p>
