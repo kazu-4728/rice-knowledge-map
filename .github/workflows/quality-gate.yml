@@ -40,5 +40,3 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          NEXT_FONT_GOOGLE_MOCKED_RESPONSES: ${{ github.workspace }}/ci/google-fonts-mock.json
