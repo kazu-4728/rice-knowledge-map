@@ -44,6 +44,8 @@
    角丸: カード rounded-2xl / チップ・アバター rounded-full（--radius を踏襲） */
 
 @theme inline {
+  --font-noto-sans-jp: "Noto Sans JP";
+  --font-zen-kaku-gothic: "Zen Kaku Gothic New";
   --font-sans: var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-zen-kaku-gothic), var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
