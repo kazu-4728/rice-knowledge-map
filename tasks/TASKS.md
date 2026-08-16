@@ -82,3 +82,6 @@ Supabase変更・RLS変更・Storage設定・Auth設定・soft-delete実装は�
 - PR #93: E2E資格情報手順（AGENT_BOOTSTRAP.md）からproject_idのハードコードを除去し、確認順序を明記
 - Issue #87 → PR #94: P2完了に伴うtasks/TASKS.md更新
 - PR #96: 田んぼ詳細ページを台帳(不変情報)/記録(可変情報)で整理し直す（固定枠3種の常設表示・画面遷移なしの登録・記録のカテゴリ別要約）
+- PR #97: 運用ルール更新（思考過程の日本語化・docs/tasks変更のPR分割禁止）とPR #96完了後のタスク整理
+- PR #99, #100: CIビルド失敗修正（`next/font/google`のビルド時フォントダウンロードがCI環境で失敗する問題を、ランタイムのGoogle Fonts読み込みに変更して解消）
+- PR #101: PR #100で不要になったCIのフォントモック設定（`NEXT_FONT_GOOGLE_MOCKED_RESPONSES`・`ci/google-fonts-mock.json`）を削除
