@@ -18,6 +18,7 @@ type Props = {
   backLabel?: string;
   backDynamic?: boolean;
   showHeader?: boolean;
+  showWeather?: boolean;
 };
 
 export default function AppShell({
@@ -27,6 +28,7 @@ export default function AppShell({
   backLabel = "戻る",
   backDynamic,
   showHeader = true,
+  showWeather = true,
 }: Props) {
   const { drawerOpen, setDrawerOpen } = useDrawer();
 
@@ -37,11 +39,11 @@ export default function AppShell({
 
       {/* main column */}
       <div
-        className={`flex flex-1 min-w-0 flex-col ${fullBleed ? "" : "mx-auto max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl"} bg-gradient-to-b from-green-50 to-gray-100 relative overflow-hidden print:block print:h-auto print:overflow-visible`}
+        className={`flex flex-1 min-w-0 flex-col ${fullBleed ? "" : "mx-auto max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl"} relative overflow-hidden bg-[#fffdf7] print:block print:h-auto print:overflow-visible`}
       >
         {showHeader && (
           <>
-            <header className="relative flex items-center justify-center h-14 bg-green-800 shrink-0 print:hidden">
+            <header className="relative flex h-14 shrink-0 items-center justify-center bg-emerald-950 print:hidden">
               {backDynamic && <BackButton label={backLabel} className="text-white hover:bg-white/10 active:bg-white/15" />}
               {!backDynamic && backHref && (
                 <Link
@@ -72,9 +74,7 @@ export default function AppShell({
               </Link>
               <HeaderAccountChip hasBack={!!(backDynamic || backHref)} />
             </header>
-            <div className="print:hidden">
-              <WeatherHeader />
-            </div>
+            {showWeather && <div className="print:hidden"><WeatherHeader /></div>}
           </>
         )}
 

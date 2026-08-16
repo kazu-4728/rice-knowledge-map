@@ -25,8 +25,8 @@ export default function BottomTabBar() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] font-bold transition-colors ${
-                active ? "text-green-700" : "text-gray-400"
+              className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs font-bold transition-colors ${
+                active ? "text-emerald-800" : "text-stone-500"
               }`}
             >
               <Icon className="h-6 w-6" strokeWidth={active ? 2.1 : 1.8} />

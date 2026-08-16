@@ -18,7 +18,7 @@ export type FieldAttention = {
 export type FieldAttentionSummary = {
   mode: FarmData["mode"];
   /** 登録済み田んぼの基本一覧（表示順=display_order） */
-  fields: { id: string; name: string; photoPath: string | null; areaSqm: number | null; color: string }[];
+  fields: { id: string; name: string; photoPath: string | null; areaSqm: number | null; color: string; pointCount: number }[];
   /** 要注意順（issue+needsCheck降順）にソート済み */
   attentionFields: FieldAttention[];
   totalIssue: number;
@@ -39,6 +39,7 @@ export async function loadFieldAttention(): Promise<FieldAttentionSummary> {
     photoPath: (f.properties?.photo_path as string | null) ?? null,
     areaSqm: f.properties?.area_sqm != null ? Number(f.properties.area_sqm) : null,
     color: String(f.properties?.color ?? "#22C55E"),
+    pointCount: farm.points.filter((point) => point.fieldId === String(f.id ?? f.properties?.id ?? "")).length,
   }));
 
   const fieldNameMap = new Map(items.map((f) => [f.id, f.name]));
