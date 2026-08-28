@@ -22,7 +22,8 @@ function isAuthorized(authorization: string | null, secret: string | undefined):
  * - 既存の公開用キーだけを使用し、service_roleは使用しない
  * - 専用RPCで定数評価だけを行い、利用者データ・件数を取得、返却、記録しない
  * - SECURITY INVOKERの関数だけを呼び、既存テーブルのRLSは変更しない
- * - 再試行・自己呼び出し・書き込みは行わない
+ * - 1回の日次Cronで固定3回の独立したプローブだけを同時に実行する
+ * - 失敗時の再試行・自己呼び出し・書き込みは行わない
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
