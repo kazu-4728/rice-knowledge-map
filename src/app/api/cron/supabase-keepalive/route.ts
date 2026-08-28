@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   });
 
   const probes = await Promise.all(
-    PROBE_TABLES.map((table) => supabase.from(table).select("id", { head: true, count: "planned" }))
+    PROBE_TABLES.map((table) => supabase.from(table).select("id", { head: true }))
   );
 
   if (probes.some(({ error }) => error)) {

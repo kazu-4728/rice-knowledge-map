@@ -39,7 +39,7 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       ...process.env,
-      // E2Eでは本番用の秘密値を使わず、ローカルサーバー専用の値を渡す。
+      // 未設定時だけ、ローカルE2E専用の既定値を渡す。
       CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret",
     },
   },
