@@ -11,7 +11,7 @@ test.describe("Supabase稼働維持Cron", () => {
     await expect(response.json()).resolves.toEqual({ ok: false });
   });
 
-  test("認証済みでは読み取りだけを実行する", async ({ request }) => {
+  test("認証済みではデータを取得しないRPCを実行する", async ({ request }) => {
     const response = await request.get(endpoint, {
       headers: { authorization: `Bearer ${cronSecret}` },
     });

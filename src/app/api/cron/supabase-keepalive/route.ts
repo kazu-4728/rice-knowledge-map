@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 10;
 
-const PROBE_TABLES = ["farm_fields", "records", "farm_schedules"] as const;
+const PROBE_COUNT = 3;
 
 function isAuthorized(authorization: string | null, secret: string | undefined): boolean {
   if (!authorization || !secret) return false;
@@ -20,7 +20,8 @@ function isAuthorized(authorization: string | null, secret: string | undefined):
  *
  * - CRON_SECRETで認証されたリクエストだけを受け付ける
  * - 既存の公開用キーだけを使用し、service_roleは使用しない
- * - HEADリクエストのみで、レコード値・件数を取得、返却、記録しない
+ * - 専用RPCで定数評価だけを行い、利用者データ・件数を取得、返却、記録しない
+ * - SECURITY INVOKERの関数だけを呼び、既存テーブルのRLSは変更しない
  * - 再試行・自己呼び出し・書き込みは行わない
  */
 export async function GET(request: Request) {
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
   });
 
   const probes = await Promise.all(
-    PROBE_TABLES.map((table) => supabase.from(table).select("id", { head: true }))
+    Array.from({ length: PROBE_COUNT }, () => supabase.rpc("keepalive"))
   );
 
   if (probes.some(({ error }) => error)) {
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
   }
 
   return Response.json(
-    { ok: true, probes: PROBE_TABLES.length },
+    { ok: true, probes: PROBE_COUNT },
     { headers: { "Cache-Control": "no-store" } }
   );
 }
