@@ -37,6 +37,11 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: true,
     timeout: 60_000,
+    env: {
+      ...process.env,
+      // E2Eでは本番用の秘密値を使わず、ローカルサーバー専用の値を渡す。
+      CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret",
+    },
   },
   projects: [
     {
