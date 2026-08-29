@@ -12,6 +12,14 @@ if [ "${CLAUDE_CODE_REMOTE:-}" == "true" ]; then
   fi
 fi
 
+# harnessリポジトリ(kazu-4728/claude-harness)のSkillを、npx skills経由でGitHubから
+# 直接取得する。マーケットプレイス登録やジャンクションに依存せず、ローカル/リモート
+# (iPhoneのDispatch含む)どのセッションでも、Codexなど他エージェントも含めて同じ
+# Skillが使える状態にするため（2026-08-29、プロジェクト個別導入では忘れる・
+# 他エージェントに届かないという指摘を受けて追加）。ネットワーク不調等で失敗しても
+# セッション開始自体は止めない。
+npx --yes skills add kazu-4728/claude-harness --skill session-knowledge-search --agent '*' -g -y >&2 || true
+
 # CLAUDE.mdの運用ルールはローカル/Remoteどちらでも「言われたら読む」文章に留まり
 # 確実性が低かったため、hookで機械的に注入する（2026-08-16、Remoteで指示なしに
 # profile.md参照/セッション記録が行われなかった件を受けて追加）。
