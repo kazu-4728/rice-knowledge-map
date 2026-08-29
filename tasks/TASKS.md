@@ -108,3 +108,4 @@ Supabase変更・RLS変更・Storage設定・Auth設定・soft-delete実装は�
 - PR #99, #100: CIビルド失敗修正（`next/font/google`のビルド時フォントダウンロードがCI環境で失敗する問題を、ランタイムのGoogle Fonts読み込みに変更して解消）
 - PR #101: PR #100で不要になったCIのフォントモック設定（`NEXT_FONT_GOOGLE_MOCKED_RESPONSES`・`ci/google-fonts-mock.json`）を削除
 - PR #102: 写真と地図を連動させ、固定知識と今年の記録を分離した中核UIへ刷新
+- PR #106: SessionStartフックでharness（kazu-4728/claude-harness）のSkillをnpx skills経由で自動取得（現在タスク外・オーナー承認済みの小規模インフラ追加）
