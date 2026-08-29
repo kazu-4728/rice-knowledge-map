@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
 
+const e2ePort = 3100;
+const e2eBaseUrl = `http://localhost:${e2ePort}`;
+
 /**
  * ローカル専用のE2E構成（実Supabaseに接続。CI化はスコープ外・別途相談）。
  * 認証済みプロジェクトは e2e/global-setup.ts が生成する .auth/user.json を使う。
@@ -26,16 +29,17 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   timeout: 30_000,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: e2eBaseUrl,
     trace: "retain-on-failure",
     launchOptions: {
       executablePath: process.env.PW_CHROMIUM_PATH || undefined,
     },
   },
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: true,
+    // 通常の開発サーバー（3000番）を再利用せず、E2E用secretを渡した専用サーバーを起動する。
+    command: `npm run dev -- --port ${e2ePort}`,
+    url: e2eBaseUrl,
+    reuseExistingServer: false,
     timeout: 60_000,
     env: {
       ...process.env,
