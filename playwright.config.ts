@@ -39,8 +39,8 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       ...process.env,
-      // 未設定時だけ、ローカルE2E専用の既定値を渡す。
-      CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret",
+      // 未設定または空文字のときだけ、ローカルE2E専用の既定値を渡す。
+      CRON_SECRET: process.env.CRON_SECRET || "e2e-cron-secret",
     },
   },
   projects: [

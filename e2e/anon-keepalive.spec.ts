@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 
 const endpoint = "/api/cron/supabase-keepalive";
-const cronSecret = process.env.CRON_SECRET ?? "e2e-cron-secret";
+const cronSecret = process.env.CRON_SECRET || "e2e-cron-secret";
 
 test.describe("Supabase稼働維持Cron", () => {
   test("認証なしではDBに接続せず拒否する", async ({ request }) => {
