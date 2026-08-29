@@ -1,8 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
+import { loadE2EEnv } from "./e2e/env";
+
+// webServer起動前に読み込み、サーバーとテストプロセスで同じsecretを共有する。
+loadE2EEnv();
 
 const e2ePort = 3100;
 const e2eBaseUrl = `http://localhost:${e2ePort}`;
+const e2eCronSecret = process.env.CRON_SECRET || "e2e-cron-secret";
 
 /**
  * ローカル専用のE2E構成（実Supabaseに接続。CI化はスコープ外・別途相談）。
@@ -44,7 +49,7 @@ export default defineConfig({
     env: {
       ...process.env,
       // 未設定または空文字のときだけ、ローカルE2E専用の既定値を渡す。
-      CRON_SECRET: process.env.CRON_SECRET || "e2e-cron-secret",
+      CRON_SECRET: e2eCronSecret,
     },
   },
   projects: [
