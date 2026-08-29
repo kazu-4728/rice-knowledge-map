@@ -16,9 +16,15 @@ fi
 # 直接取得する。マーケットプレイス登録やジャンクションに依存せず、ローカル/リモート
 # (iPhoneのDispatch含む)どのセッションでも、Codexなど他エージェントも含めて同じ
 # Skillが使える状態にするため（2026-08-29、プロジェクト個別導入では忘れる・
-# 他エージェントに届かないという指摘を受けて追加）。ネットワーク不調等で失敗しても
-# セッション開始自体は止めない。
-npx --yes skills add kazu-4728/claude-harness --skill session-knowledge-search --agent '*' -g -y >&2 || true
+# 他エージェントに届かないという指摘を受けて追加）。
+# - CLIバージョンを固定し、セッション開始時に外部レジストリの最新版を無条件に
+#   実行しない(サプライチェーン/再現性対策、Copilotレビュー指摘)。更新する場合は
+#   ここのバージョンを明示的に上げる。
+# - ネットワーク不調等で失敗してもセッション開始自体は止めないが、握りつぶさず
+#   stderrに警告を出す(Copilotレビュー指摘)。
+if ! npx --yes skills@1.5.23 add kazu-4728/claude-harness --skill session-knowledge-search --agent '*' -g -y >&2; then
+  echo "[session-start] 警告: npx skills addによるharness Skill取得に失敗しました。セッションは続行します。" >&2
+fi
 
 # CLAUDE.mdの運用ルールはローカル/Remoteどちらでも「言われたら読む」文章に留まり
 # 確実性が低かったため、hookで機械的に注入する（2026-08-16、Remoteで指示なしに
