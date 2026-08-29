@@ -38,7 +38,7 @@ export default async function globalSetup() {
     cookies: [],
     origins: [
       {
-        origin: "http://localhost:3000",
+        origin: "http://localhost:3100",
         localStorage: [{ name: storageKey, value: JSON.stringify(data.session) }],
       },
     ],
